@@ -1,0 +1,564 @@
+:root {
+  --bg: #f6f7f5;
+  --card: #ffffff;
+  --text: #1e241d;
+  --muted: #727c70;
+  --primary: #7ea866;
+  --primary-dark: #5f8d49;
+  --line: #e5e8e1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Noto Sans TC", "Segoe UI", sans-serif;
+  background: #f5f5f5;
+  min-height: 100dvh;
+  color: var(--text);
+}
+
+.phone {
+  width: min(100vw, 480px);
+  height: 100dvh;
+  margin: 0 auto;
+  background: #f5f6f7;
+  border-radius: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+
+.content::-webkit-scrollbar {
+  display: none;
+}
+
+.hero-img {
+  width: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.splash {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  color: var(--primary-dark);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-light {
+  background: #e8efe4;
+  color: #40573a;
+}
+
+.auth {
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.auth h2 {
+  margin: 0 0 4px;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid #d7dcd3;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 14px;
+  background: #fff;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  padding: 12px;
+}
+
+/* .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+} */
+/* 💡 核心改動：上半部純白大區塊 */
+.top-profile-container {
+  background: #ffffff;      /* 變成純白底色 */
+  padding: 16px 20px 4px 20px; /* 上、右、下、左的內縮留白，讓裡面的元素不貼邊 */
+  margin-left: -20px;       /* 這裡非常重要！如果你的 phone 外層有內縮(padding)， */
+  margin-right: -20px;      /* 這兩個負值的 margin 可以讓這個白底「左右撐滿」到螢幕邊緣 */
+  margin-top: -24px;        /* 讓白底往上頂滿，不留空隙 */
+  margin-bottom: 12px;      /* 與下方「今日訓練計畫」拉開乾淨的距離 */
+  border-bottom-left-radius: 4px;  /* 底部可以帶一點點極微小的圓角，或者不加 */
+  border-bottom-right-radius: 4px;
+}
+
+/* 確保 header 在白底裡面依規律排開 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;      /* 與下方頭貼列拉開距離 */
+}
+
+/* 使用者列微調 */
+.user-row {
+  display: flex;
+  align-items: center;
+  margin: 0;                /* 清除原本可能有的上下大 margin */
+}
+
+/* 確保頭貼跟右邊文字的推開距離 */
+.user-row .avatar {
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+.avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #ddd;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.section-title {
+  margin: 15px 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.train-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 15px;
+  border: none;
+  background: #f8f8f8;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.train-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* 右上角 AI 智能推薦標籤 */
+.ai-tag {
+  font-size: 11px;
+  background: #eef7ed; /* 淡淡的綠色底 */
+  color: #5f8d49;      /* 你的主題深綠色 */
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+/* 訓練計畫大底座（大白卡片） */
+.train-card-group {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 0 16px; /* 左右留內縮，讓分隔線不會貼到最邊邊 */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  margin-bottom: 20px;
+}
+
+/* 每一列訓練項目的排版 */
+.train-item-row {
+  display: flex;
+  align-items: center;
+  padding: 16px 0; /* 上下撐開間距 */
+  cursor: pointer;
+}
+
+/* 關鍵：只要不是最後一項，底部都加上一條淡淡的分隔線 */
+.train-item-row:not(:last-child) {
+  border-bottom: 1px solid #f0f2f0; 
+}
+
+/* 圖片樣式微調 */
+.train-img {
+  width: 70px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-right: 14px;
+}
+
+/* 文字區塊 */
+.train-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.train-name {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.train-meta {
+  font-size: 13px;
+  color: #666666;
+}
+
+.train-desc {
+  font-size: 12px;
+  color: #999999;
+}
+
+/* 右側狀態與箭頭區塊 */
+.train-right-status {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* 狀態標籤與箭頭的間距 */
+}
+
+/* 箭頭樣式 */
+.arrow-right {
+  font-size: 16px;
+  color: #bcccbc; /* 淡淡的灰色箭頭 */
+  font-family: "Segoe UI", sans-serif;
+}
+
+.pill {
+  margin-left: auto;
+  font-size: 12px;
+  border-radius: 10px;
+  padding: 5px 10px;
+}
+
+.pill.active-status {
+  background: #c8e6c9;
+  color: #2e7d32;
+}
+
+.pill.pending {
+  background: #eee;
+  color: #666;
+}
+
+.bottom-nav {
+  height: 78px;
+  background: #fff;
+  border-top: 1px solid #eee;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  color: #999;
+  font-size: 12px;
+}
+
+.tab-btn img {
+  width: 24px;
+  height: 24px;
+}
+
+.tab-btn.active {
+  color: #4caf50;
+  font-weight: 700;
+}
+
+
+
+/* 本週進度標題與查看詳情的排版 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  
+
+  margin-top: 8px;     /* 讓它往上靠，縮短與頭貼白底的距離 */
+  margin-bottom: 5px;  /* 標題跟下方大白卡片的距離 */
+}
+
+.more-link {
+  font-size: 13px;
+  color: #888888;
+  cursor: pointer;
+}
+
+/* 數據卡片外框 */
+.stats {
+  display: flex;
+  justify-content: space-between;
+  background: #ffffff; /* 如果你背景是灰的，卡片用純白會很亮眼；若想維持原樣可改回 #f8f8f8 */
+  padding: 16px 10px;
+  border-radius: 16px; /* 稍微大一點的圓角更現代 */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04); /* 淡淡的陰影增加質感 */
+}
+
+/* 每一格數據 */
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 幫前兩格右邊加上灰色垂直分隔線 */
+.stat:not(:last-child) {
+  border-right: 1px solid #eeeeee;
+}
+
+/* 標籤區塊（圖示 + 文字並排） */
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* 圖案與文字的間距 */
+  margin-bottom: 8px;
+}
+
+.stat-label img {
+  width: 16px;  /* 限制你畫的小圖案寬度 */
+  height: 16px; /* 限制你畫的小圖案高度 */
+  object-fit: contain;
+}
+
+.stat-label span {
+  font-size: 12px;
+  color: #333333;
+  font-weight: 500;
+}
+
+/* 數值區塊 */
+.stat-value {
+  display: flex;
+  align-items: baseline; /* 讓大數字和小單位的底部對齊 */
+  justify-content: center;
+}
+
+/* 大數字 */
+.num-big {
+  font-size: 24px;
+  font-weight: bold;
+  color: #111111;
+}
+
+/* 小單位 (次、分鐘、大卡) */
+.num-small {
+  font-size: 12px;
+  color: #666666;
+  margin-left: 2px;
+}
+
+.stat b {
+  display: block;
+  margin: 2px 0;
+  font-size: 18px;
+}
+
+.line {
+  height: 110px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f4f7f2, #edf3e9);
+  border: 1px solid var(--line);
+  position: relative;
+}
+
+.line::after {
+  content: "";
+  position: absolute;
+  inset: 24px 14px 20px;
+  border-radius: 8px;
+  border: 2px solid #7ea866;
+  border-top: none;
+  border-left: none;
+  transform: skewY(-9deg);
+  opacity: 0.45;
+}
+
+.coach-list .train-item img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.top-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.icon {
+  width: 22px;
+  height: 22px;
+}
+
+.demo-shot {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+}
+
+.center {
+  text-align: center;
+}
+
+
+/* 1. Logo 標題樣式調整 */
+.page-title {
+  margin: 0;
+  font-size: 22px;
+  color: #6bb06e; /* 這是你原本畫面漂亮的綠色 */
+  font-weight: bold;
+}
+
+/* 新增：單獨控制 Motion 的顏色為黑色（或帶有一點質感的深灰色 #333） */
+.page-title .logo-dark {
+  color: #2b2b2b; 
+}
+
+/* 2. 使用者資訊區塊調整 */
+.user-row {
+  display: flex;
+  align-items: center;
+  margin: 20px 0; /* 稍微拉開上下間距，讓畫面呼吸 */
+}
+
+/* 修改/新增：幫頭貼右邊加上距離，把文字往右推 */
+.user-row .avatar {
+  margin-right: 16px; /* 👈 這個屬性會把右邊的文字往右推開，你可以根據喜好調整數字（例如 12px 或 20px） */
+  flex-shrink: 0;     /* 防止頭貼被擠壓變形 */
+}
+
+.ai-box {
+  background: #e8f5e9;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.btn-primary.full {
+  width: 100%;
+  margin: 20px 0;
+  background: #65874e;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* AI 建議外框 (綠色底座) */
+.ai-box {
+  background: #ecf1ec; /* 淡淡的綠色底 */
+  border-radius: 16px;  /* 圓角 */
+  padding: 16px;        /* 內縮間距 */
+  margin-bottom: 20px;
+}
+
+/* 內層包裹（用來讓圖片和文字並排） */
+.ai-content {
+  display: flex;
+  align-items: flex-start; /* 讓圖片對齊文字的第一行底部 */
+  gap: 14px;               /* 圖片和文字的間距 */
+}
+
+/* 💡 核心改動：AI 機器人頭像樣式 */
+.ai-avatar {
+  width: 44px;             /* 設定圖片寬度 */
+  height: 44px;            /* 設定圖片高度（必須跟寬度一樣，才能變正圓） */
+  object-fit: cover;       /* 確保方形圖片不變形地填滿 */
+  
+  /* 把方形變圓形的關鍵 */
+  border-radius: 50%;      
+  
+  /* 加上一個淡淡的白色邊框，更有層次感 (選用，跟圖二一樣) */
+  border: 2px solid #ffffff; 
+  background: #ffffff;      /* 如果圖片本身是透明底，加這行變白底 */
+  
+  flex-shrink: 0;          /* 防止圖片被文字擠壓變形 */
+}
+
+/* AI 建議文字 */
+.ai-text {
+  font-size: 14px;
+  line-height: 1.6;        /* 調整行高，讓多行文字更好閱讀 */
+  color: var(--text);
+  margin: 0;               /* 清除 p 標籤預設的 margin */
+}
+
+@media (min-width: 700px) {
+  body {
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+
+  .phone {
+    height: min(920px, 96dvh);
+    border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+}

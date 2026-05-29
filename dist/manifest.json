@@ -1,0 +1,20 @@
+{
+  "name": "ReMotion Web App",
+  "short_name": "RM",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/images/RM_icon.png", 
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/images/RM_icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
