@@ -91,7 +91,7 @@ function renderSplash() {
 function renderAuth() {
   return phone(`
     <div class="auth">
-      <h2>登入 / 註冊</h2>
+      <h2>登入 / 註冊測試測試</h2>
       <p class="small">首次可先註冊。範例帳密：patient01 / 123456，therapist01 / 123456</p>
       <div class="card">
         <h3>登入</h3>
