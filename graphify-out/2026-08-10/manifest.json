@@ -1,0 +1,182 @@
+{
+  "app.js": {
+    "mtime": 1786027608.5287566,
+    "ast_hash": "76ba6283d31822d47d4269b3e22de2f7",
+    "semantic_hash": "76ba6283d31822d47d4269b3e22de2f7"
+  },
+  "js/ai/detectionStability.js": {
+    "mtime": 1785856289.9846592,
+    "ast_hash": "90437663a8a4977f7ece21bf4732d906",
+    "semantic_hash": "90437663a8a4977f7ece21bf4732d906"
+  },
+  "js/ai/exercises/hipFlexion/constants.js": {
+    "mtime": 1785863861.1489978,
+    "ast_hash": "c4c8e8598683ea15fefa2bfa427ccbf6",
+    "semantic_hash": "c4c8e8598683ea15fefa2bfa427ccbf6"
+  },
+  "js/ai/exercises/hipFlexion/poseMath.js": {
+    "mtime": 1785859089.0278292,
+    "ast_hash": "67bf077cd47e0f9a1cd6239f5de77379",
+    "semantic_hash": "67bf077cd47e0f9a1cd6239f5de77379"
+  },
+  "js/ai/exercises/hipFlexion/session.js": {
+    "mtime": 1785863902.5866902,
+    "ast_hash": "636995d482ddf2b068168360f65aa960",
+    "semantic_hash": "636995d482ddf2b068168360f65aa960"
+  },
+  "js/ai/poseMath.js": {
+    "mtime": 1785856263.307064,
+    "ast_hash": "4cd701d0e6fe326e210cbe6d2d610b6c",
+    "semantic_hash": "4cd701d0e6fe326e210cbe6d2d610b6c"
+  },
+  "js/ai/shared/cameraController.js": {
+    "mtime": 1785854484.6826594,
+    "ast_hash": "37e5a0ebcb504b827db101d70b933013",
+    "semantic_hash": "37e5a0ebcb504b827db101d70b933013"
+  },
+  "js/ai/shared/milestones.js": {
+    "mtime": 1785775830.189173,
+    "ast_hash": "181c001464afa817fb82c3b3647dfd50",
+    "semantic_hash": "181c001464afa817fb82c3b3647dfd50"
+  },
+  "js/ai/shared/trainingState.js": {
+    "mtime": 1785781735.3615768,
+    "ast_hash": "a75402a32f0e92c534ece9f6be96ec3c",
+    "semantic_hash": "a75402a32f0e92c534ece9f6be96ec3c"
+  },
+  "js/ai/shared/voicePolicy.js": {
+    "mtime": 1785854476.6230085,
+    "ast_hash": "6d4a58a5decaaeae003fdec00c82481c",
+    "semantic_hash": "6d4a58a5decaaeae003fdec00c82481c"
+  },
+  "js/ai/shared/voiceProfile.js": {
+    "mtime": 1785770862.8778143,
+    "ast_hash": "fd61f35086f199cddfe4575b02b7ff44",
+    "semantic_hash": "fd61f35086f199cddfe4575b02b7ff44"
+  },
+  "js/ai/squatConstants.js": {
+    "mtime": 1785856234.5725603,
+    "ast_hash": "173aa458ff980f222e812b7cb28d3e24",
+    "semantic_hash": "173aa458ff980f222e812b7cb28d3e24"
+  },
+  "js/ai/squatFeedback.js": {
+    "mtime": 1785770808.1566114,
+    "ast_hash": "34749c87ceef53384a77ab6a51cc7cf6",
+    "semantic_hash": "34749c87ceef53384a77ab6a51cc7cf6"
+  },
+  "js/ai/squatFeedbackContent.js": {
+    "mtime": 1785770756.5258203,
+    "ast_hash": "3558a6dd7e2d259c9ab0a842e3fa06a1",
+    "semantic_hash": "3558a6dd7e2d259c9ab0a842e3fa06a1"
+  },
+  "js/ai/squatQuality.js": {
+    "mtime": 1785775973.3934362,
+    "ast_hash": "22cb8bf13bd9bd60dc60988e94702f55",
+    "semantic_hash": "22cb8bf13bd9bd60dc60988e94702f55"
+  },
+  "js/ai/squatRobotCompanion.js": {
+    "mtime": 1785854522.0313954,
+    "ast_hash": "de35f31804d3aff755ac42fbab99deb5",
+    "semantic_hash": "de35f31804d3aff755ac42fbab99deb5"
+  },
+  "js/ai/squatScore.js": {
+    "mtime": 1785775839.0991695,
+    "ast_hash": "d0e702ccbc3e6b3982183e990a9e0037",
+    "semantic_hash": "d0e702ccbc3e6b3982183e990a9e0037"
+  },
+  "js/ai/squatSession.js": {
+    "mtime": 1785770410.1836698,
+    "ast_hash": "5b3b720dea5394b9eac77f1d2397f5d2",
+    "semantic_hash": "5b3b720dea5394b9eac77f1d2397f5d2"
+  },
+  "js/data/analysisService.js": {
+    "mtime": 1785592471.851747,
+    "ast_hash": "c7fa5e367a9499f368241d422f96d341",
+    "semantic_hash": "c7fa5e367a9499f368241d422f96d341"
+  },
+  "js/data/assessmentService.js": {
+    "mtime": 1785592442.2195337,
+    "ast_hash": "549715e7b29468f19e48f19f12802d0b",
+    "semantic_hash": "549715e7b29468f19e48f19f12802d0b"
+  },
+  "js/data/authService.js": {
+    "mtime": 1784748410.798176,
+    "ast_hash": "db7253f7bd60734e34a95ee4ae71eb16",
+    "semantic_hash": "db7253f7bd60734e34a95ee4ae71eb16"
+  },
+  "js/data/exerciseService.js": {
+    "mtime": 1785859122.1851585,
+    "ast_hash": "a2bf184b9245ffecab246f2cd08f527b",
+    "semantic_hash": "a2bf184b9245ffecab246f2cd08f527b"
+  },
+  "js/data/functionalAssessmentService.js": {
+    "mtime": 1786000523.3843424,
+    "ast_hash": "8f3a36163dd925252b36a479ee761d45",
+    "semantic_hash": "8f3a36163dd925252b36a479ee761d45"
+  },
+  "js/data/gameService.js": {
+    "mtime": 1784729397.3687582,
+    "ast_hash": "365de02dafda5d2d999d37603b3c5763",
+    "semantic_hash": "365de02dafda5d2d999d37603b3c5763"
+  },
+  "js/data/gamificationEngine.js": {
+    "mtime": 1785773942.1286628,
+    "ast_hash": "5c07f6b3bbb21aae93ee2b35de08b00a",
+    "semantic_hash": "5c07f6b3bbb21aae93ee2b35de08b00a"
+  },
+  "js/data/phase1SchemaTestData.js": {
+    "mtime": 1785592394.966861,
+    "ast_hash": "53c9012328bf28b25b819d4bd87f8cb5",
+    "semantic_hash": "53c9012328bf28b25b819d4bd87f8cb5"
+  },
+  "js/data/recommendationEngine.js": {
+    "mtime": 1785605035.7317572,
+    "ast_hash": "5899458b040189419d776e36f50b20e0",
+    "semantic_hash": "5899458b040189419d776e36f50b20e0"
+  },
+  "js/data/recommendationService.js": {
+    "mtime": 1785603170.0458553,
+    "ast_hash": "855c465cf4e0540c0cb515b1b9247c1e",
+    "semantic_hash": "855c465cf4e0540c0cb515b1b9247c1e"
+  },
+  "js/data/rehabExercises.js": {
+    "mtime": 1785855045.968062,
+    "ast_hash": "ffa09e2a9b9f968aba42a64b67556d42",
+    "semantic_hash": "ffa09e2a9b9f968aba42a64b67556d42"
+  },
+  "js/data/relationService.js": {
+    "mtime": 1784748508.0614438,
+    "ast_hash": "e2508472582787df867c201d938c0e58",
+    "semantic_hash": "e2508472582787df867c201d938c0e58"
+  },
+  "js/data/scheduleService.js": {
+    "mtime": 1784729386.6039896,
+    "ast_hash": "408d8271381460d6c48e50b8197c8e9e",
+    "semantic_hash": "408d8271381460d6c48e50b8197c8e9e"
+  },
+  "js/data/seedData.js": {
+    "mtime": 1784748400.497868,
+    "ast_hash": "43003801296ab8cdef63a8dda5fee25e",
+    "semantic_hash": "43003801296ab8cdef63a8dda5fee25e"
+  },
+  "js/data/storageService.js": {
+    "mtime": 1784620401.2329102,
+    "ast_hash": "3708b2b163f138581751a00680b0998d",
+    "semantic_hash": "3708b2b163f138581751a00680b0998d"
+  },
+  "js/data/userService.js": {
+    "mtime": 1784748435.5514033,
+    "ast_hash": "709d50ace113342c33b2e93ec1c214f4",
+    "semantic_hash": "709d50ace113342c33b2e93ec1c214f4"
+  },
+  "js/utils/id.js": {
+    "mtime": 1784620391.1085534,
+    "ast_hash": "f576d24ba3df39035ab5dc2eefcabc9e",
+    "semantic_hash": "f576d24ba3df39035ab5dc2eefcabc9e"
+  },
+  "index.html": {
+    "mtime": 1780449309.519032,
+    "ast_hash": "7a7a7973ad543b6edb52a5716205ac98",
+    "semantic_hash": "7a7a7973ad543b6edb52a5716205ac98"
+  }
+}

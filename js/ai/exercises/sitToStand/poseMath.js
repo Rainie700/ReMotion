@@ -1,0 +1,7 @@
+import { calculateAngle } from "../../poseMath.js";
+import { POSE_LANDMARK_INDEX } from "../../squatConstants.js";
+import { LE05_THRESHOLDS } from "./constants.js";
+function ok(p,v){if(!p)return false;const s=p.visibility!=null?p.visibility:p.presence;return s==null||s>=v;}
+function angle(l,a,b,c,v){const p=[l[a],l[b],l[c]];if(!p.every(x=>ok(x,v)))return null;const n=calculateAngle(...p);return Number.isFinite(n)?n:null;}
+function mid(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2};}
+export function computeSitToStandMetrics(l,t=LE05_THRESHOLDS){if(!l)return{leftKneeAngle:null,rightKneeAngle:null,averageKneeAngle:null,trunkLeanDeg:null,kneeAsymmetryDeg:null};const v=t.MIN_VISIBILITY;const left=angle(l,POSE_LANDMARK_INDEX.LEFT_HIP,POSE_LANDMARK_INDEX.LEFT_KNEE,POSE_LANDMARK_INDEX.LEFT_ANKLE,v);const right=angle(l,POSE_LANDMARK_INDEX.RIGHT_HIP,POSE_LANDMARK_INDEX.RIGHT_KNEE,POSE_LANDMARK_INDEX.RIGHT_ANKLE,v);const pts=[l[POSE_LANDMARK_INDEX.LEFT_SHOULDER],l[POSE_LANDMARK_INDEX.RIGHT_SHOULDER],l[POSE_LANDMARK_INDEX.LEFT_HIP],l[POSE_LANDMARK_INDEX.RIGHT_HIP]];let lean=null;if(pts.every(p=>ok(p,v))){const s=mid(pts[0],pts[1]),h=mid(pts[2],pts[3]);lean=Math.abs(Math.atan2(s.x-h.x,-(s.y-h.y))*180/Math.PI);}return{leftKneeAngle:left,rightKneeAngle:right,averageKneeAngle:left!=null&&right!=null?(left+right)/2:null,trunkLeanDeg:lean,kneeAsymmetryDeg:left!=null&&right!=null?Math.abs(left-right):null};}

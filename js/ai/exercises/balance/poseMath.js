@@ -1,0 +1,4 @@
+import { LE06_THRESHOLDS as T, LE06_LANDMARK_INDEX as P } from "./constants.js";
+function visible(p,min){return !!p&&(p.visibility==null||p.visibility>=min)}
+function mid(a,b){return{x:(a.x+b.x)/2,y:(a.y+b.y)/2}}
+export function computeBalanceMetrics(l,t=T){if(!l)return{centerX:null,trunkLeanDeg:null,stanceWidth:null,bodyScale:null};const q=[P.LEFT_SHOULDER,P.RIGHT_SHOULDER,P.LEFT_HIP,P.RIGHT_HIP,P.LEFT_ANKLE,P.RIGHT_ANKLE].map(i=>l[i]);if(!q.every(p=>visible(p,t.MIN_VISIBILITY)))return{centerX:null,trunkLeanDeg:null,stanceWidth:null,bodyScale:null};const sm=mid(q[0],q[1]),hm=mid(q[2],q[3]),am=mid(q[4],q[5]),dx=sm.x-hm.x,dy=hm.y-sm.y,scale=Math.max(.08,Math.hypot(am.x-sm.x,am.y-sm.y));return{centerX:(sm.x+hm.x+am.x)/3,trunkLeanDeg:Math.abs(Math.atan2(dx,Math.max(.001,dy))*180/Math.PI),stanceWidth:Math.abs(q[4].x-q[5].x),bodyScale:scale};}

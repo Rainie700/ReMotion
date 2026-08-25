@@ -6,6 +6,28 @@
   --primary: #7ea866;
   --primary-dark: #5f8d49;
   --line: #e5e8e1;
+
+  /* ReMotion 2.0 semantic design tokens. Where a token for the same
+     concept already existed above (bg/card/text/muted/primary), this
+     aliases it instead of duplicating — nothing already styled with the
+     original variable names needs to change. */
+  --color-primary: var(--primary);
+  --color-primary-soft: #e8efe4;
+  --color-background: var(--bg);
+  --color-surface: var(--card);
+  --color-text: var(--text);
+  --color-text-secondary: var(--muted);
+  --color-warning: #efc65d;
+  --color-success: #2e7d32;
+
+  --radius-small: 10px;
+  --radius-medium: 14px;
+  --radius-large: 20px;
+
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 24px;
 }
 
 * {
@@ -35,7 +57,7 @@ body {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 20px 20px 32px;
   box-sizing: border-box;
   scrollbar-width: none;
 }
@@ -176,7 +198,7 @@ select {
 }
 
 .section-title {
-  margin: 15px 0 10px;
+  margin: var(--space-lg) 0 var(--space-sm);
   font-size: 16px;
   font-weight: 700;
 }
@@ -301,7 +323,10 @@ select {
   border-top: 1px solid #eee;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding-bottom: 10px;
+  /* Phase 4.4 — minimal safe-area support: falls back to the existing
+     10px on devices without a home-indicator inset, so this changes
+     nothing on desktop/older devices. */
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
 }
 
 .tab-btn {
@@ -562,3 +587,1704 @@ select {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   }
 }
+
+/* AI prototype extension */
+.clickable { cursor: pointer; }
+.full { width: 100%; margin-top: 14px; }
+.xp-track { width: 140px; height: 8px; background: #e8efe4; border-radius: 999px; overflow: hidden; margin-top: 6px; }
+.xp-track span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.dashboard-card { margin: 14px 0; }
+.ai-risk { margin-top: 12px; background: #f6faf3; }
+.score-hero { display: flex; gap: 14px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+.score-ring { width: 92px; height: 92px; border-radius: 50%; border: 10px solid #c7e4bd; display: grid; place-items: center; color: var(--primary-dark); flex-shrink: 0; }
+.score-ring span { font-size: 30px; font-weight: 800; line-height: 1; }
+.score-ring small { margin-top: -22px; }
+.metric { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 8px; }
+.metric > div:first-child { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.bar { height: 10px; border-radius: 999px; background: #eef2ea; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.analysis-card { display: grid; gap: 8px; line-height: 1.6; }
+.mini-chart { height: 150px; border-radius: 18px; border: 1px solid var(--line); background: linear-gradient(180deg,#fbfff8,#eef7ed); position: relative; overflow: hidden; cursor: pointer; }
+.chart-line { position: absolute; width: 85%; height: 4px; background: #b7d4aa; left: 8%; bottom: 45px; transform: rotate(-10deg); border-radius: 99px; }
+.chart-dots { position: absolute; left: 9%; right: 8%; bottom: 18px; display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+.progress-summary { text-align: center; }
+.big-number { font-size: 28px; font-weight: 800; color: var(--primary-dark); margin: 8px 0; }
+.trend-list { display: grid; gap: 10px; margin-top: 12px; }
+.history-row { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+.history-row span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.heatmap-card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+.body-map { height: 300px; position: relative; background: linear-gradient(180deg,#fbfff8,#f1f7ee); border-radius: 16px; overflow: hidden; }
+.joint { width: 22px; height: 22px; border-radius: 50%; position: absolute; background: #ddd; box-shadow: 0 0 0 8px rgba(126,168,102,.1); }
+.joint.head { left: 50%; top: 28px; transform: translateX(-50%); background: #a8c995; }
+.joint.shoulder { left: 50%; top: 92px; transform: translateX(-50%); }
+.joint.hip { left: 50%; top: 160px; transform: translateX(-50%); }
+.joint.knee { left: 58%; top: 220px; }
+.joint.ankle { left: 64%; top: 260px; }
+.body-line { position: absolute; height: 6px; background: rgba(126,168,102,.75); border-radius: 999px; transform-origin: left center; }
+.torso { width: 80px; left: 50%; top: 112px; transform: translateX(-50%) rotate(90deg); }
+.arm-l { width: 90px; left: 50%; top: 108px; transform: rotate(160deg); }
+.arm-r { width: 90px; left: 50%; top: 108px; transform: rotate(20deg); }
+.leg-l { width: 82px; left: 50%; top: 178px; transform: rotate(125deg); }
+.leg-r { width: 90px; left: 50%; top: 178px; transform: rotate(45deg); }
+.ok { background: #81b96a; }
+.warn { background: #efc65d; }
+.danger { background: #e46b5d; }
+.legend { display: flex; justify-content: space-around; margin-top: 12px; color: var(--muted); font-size: 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
+.danger-dot { background: #e46b5d; }
+.warn-dot { background: #efc65d; }
+.ok-dot { background: #81b96a; }
+
+/* 明天展示版補強：患者端紀錄/成就、復健師個案/派課 */
+.demo-flow-card { background: linear-gradient(135deg, #f7fff3, #edf7e9); border: 1px solid var(--line); margin-bottom: 15px; }
+.record-item { align-items: flex-start; }
+.badge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.badge-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; gap: 4px; min-height: 104px; }
+.badge-card .badge-icon { font-size: 26px; }
+.badge-card span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge-row span { background: #f2f7ef; border: 1px solid var(--line); padding: 8px 10px; border-radius: 999px; font-size: 12px; }
+.xp-track.wide { width: 180px; }
+.case-head { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 10px; }
+.risk-card { background: #fff8ef; border-color: #f0d4ad; margin: 12px 0; }
+.donut-wrap { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; align-items: center; gap: 16px; }
+.donut { width: 96px; height: 96px; border-radius: 50%; background: conic-gradient(#7aa36a 0 82%, #f0d0c8 82% 100%); display: grid; place-items: center; position: relative; flex-shrink: 0; }
+.donut::after { content: ""; position: absolute; width: 64px; height: 64px; background: #fff; border-radius: 50%; }
+.donut span { position: relative; z-index: 1; font-weight: 800; color: var(--primary-dark); font-size: 22px; }
+.check-row { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; font-weight: 700; }
+.check-row input { width: 18px; height: 18px; accent-color: var(--primary); }
+.progress-mini { height: 7px; background: #edf2e9; border-radius: 99px; overflow: hidden; margin-top: 7px; width: 150px; }
+.progress-mini i { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
+
+
+/* ===== Demo v3 課表與遊戲化補強 ===== */
+.clickable { cursor: pointer; }
+.full { width: 100%; margin-top: 10px; }
+.done-status { background: #e9f7d9; color: #5d7f35; }
+.gamify-banner {background: linear-gradient(135deg, #fff8dc, #eaf6df);border: 1px solid #e7edcd;border-radius: 18px;padding: 14px;display: flex;justify-content: space-between;align-items: center;margin: 10px 0 16px;box-shadow: 0 5px 16px rgba(126,168,102,.13);}
+.gamify-banner p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.gamify-banner span { background: #fff; border-radius: 999px; padding: 8px 10px; font-weight: 800; color: #6b8e23; }
+.schedule-hero {background: linear-gradient(135deg, #7ea866, #b8d79f);color: white;border-radius: 22px;padding: 18px;display: flex;align-items: center;justify-content: space-between;margin-bottom: 12px;}
+.schedule-hero h2 { margin: 4px 0; }
+.schedule-hero p { margin: 0; opacity: .92; font-size: 13px; }
+.calendar-badge { background: rgba(255,255,255,.25); border: 1px solid rgba(255,255,255,.35); width: 64px; height: 64px; border-radius: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.calendar-badge b { font-size: 24px; }
+.calendar-badge span { font-size: 12px; }
+.week-strip { display: grid; grid-template-columns: repeat(5,1fr); gap: 8px; margin: 10px 0 14px; }
+.week-strip span { background: #fff; border: 1px solid var(--line); border-radius: 14px; text-align: center; padding: 8px 0; color: var(--muted); font-size: 12px; }
+.week-strip span.active { background: #e8f2df; color: #4f7c3b; border-color: #b8d79f; }
+/* Phase 6.5 report section 5 — replaces the old #idx/time-dot text row
+   (.schedule-task/.time-dot/.task-body, now unused) with a real
+   LEFT(image)/CENTER(info)/RIGHT(action) row. */
+.schedule-task-row { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.schedule-task-image { width: 64px; height: 64px; flex: none; }
+.schedule-task-image .exercise-grid-card-image { width: 64px; height: 64px; border-radius: var(--radius-medium); overflow: hidden; }
+.schedule-task-center { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.schedule-task-name { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-task-detail { color: var(--color-text-secondary); }
+.schedule-task-right { flex: none; }
+
+/* Report section 3 — compact secondary entries at the bottom of the
+   Training Home (自主練習/動作紀錄), replacing the old separate Training
+   Landing page. */
+.schedule-secondary-actions { display: flex; gap: 10px; margin-top: 14px; }
+.schedule-secondary-actions .btn { flex: 1; }
+.reward-screen { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
+.reward-stars { font-size: 44px; animation: floaty 1.8s ease-in-out infinite; }
+.reward-card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 18px; width: 100%; }
+.reward-xp { font-size: 40px; color: #6aa84f; font-weight: 900; }
+.badge-unlock { background: #fff8dc; color: #7c6516; border-radius: 999px; padding: 10px 14px; font-weight: 700; }
+@keyframes floaty { 0%,100%{ transform: translateY(0)} 50%{ transform: translateY(-8px)} }
+.map-card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 18px; margin-bottom: 12px; }
+.map-path { display: flex; align-items: center; justify-content: center; margin: 8px 0 18px; }
+.map-node { width: 42px; height: 42px; border-radius: 50%; background: #e2e6de; display: grid; place-items: center; font-weight: 800; color: #78806f; }
+.map-node.done { background: #a8d08d; color: white; }
+.map-node.active { background: #ffd966; color: #6d5b00; box-shadow: 0 0 0 6px rgba(255,217,102,.25); }
+.map-line { height: 5px; width: 40px; background: #e2e6de; }
+.map-line.done { background: #a8d08d; }
+.progress-mini { height: 6px; background: #edf0ea; border-radius: 999px; margin-top: 7px; overflow: hidden; }
+.progress-mini i { display:block; height:100%; background:#7ea866; border-radius:999px; }
+
+/* 動作詳情頁：條列內容 */
+.detail-list { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.detail-list li { font-size: 13px; line-height: 1.5; color: var(--text); }
+.detail-list-ordered { list-style-type: decimal; }
+
+/* Phase 5.4.4 (report section 18/I) — grouped card sub-sections (e.g. 執行
+   步驟+動作重點 under "怎麼做", 常見錯誤+注意事項 under "注意什麼"). Content
+   itself is unchanged; only the presentation is consolidated so the page
+   isn't a long chain of equal-weight single-field cards. */
+.detail-grouped-card { display: grid; gap: 12px; }
+.detail-subsection + .detail-subsection { padding-top: 10px; border-top: 1px dashed rgba(0, 0, 0, 0.08); }
+.detail-subsection-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; }
+.section-title-icon { width: 18px; height: 18px; object-fit: contain; vertical-align: -3px; margin-right: 6px; }
+
+/* 動作詳情頁／偵測準備頁：返回按鈕與標題間距 */
+.detail-back-btn { margin-right: 14px; }
+
+/* 動作詳情頁：分析結果區塊與下方按鈕的間距 */
+.detail-analysis-result { margin-bottom: 30px; }
+
+/* Phase 5.4.3 — Result Page major redesign (report section 14-22): Hero
+   first, prototype score/raw angles collapsed to a native <details> at the
+   very bottom. Reuses existing .card language, no new framework. */
+.result-hero {
+  text-align: center;
+  padding-top: 18px;
+  padding-bottom: 18px;
+  background: radial-gradient(circle at 50% 0%, rgba(126, 168, 102, 0.12), transparent 70%);
+}
+.result-hero .robot-avatar { margin-bottom: 6px; }
+.result-hero-headline { font-size: 26px; font-weight: 800; line-height: 1.25; }
+.result-hero-sub { margin-top: 4px; color: var(--muted); }
+.result-hero-badges { margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.result-hero-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(126, 168, 102, 0.12);
+  color: #4d6b3d;
+  font-size: 12px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px;
+}
+.result-hero-badge img { width: 14px; height: 14px; object-fit: contain; }
+
+.result-summary-row { display: flex; }
+.result-summary-col { flex: 1; text-align: center; }
+.result-summary-col + .result-summary-col { border-left: 1px solid rgba(0, 0, 0, 0.08); }
+.result-summary-value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.result-summary-value-sep { font-size: 13px; font-weight: 600; opacity: 0.55; }
+
+.result-feedback-card .result-feedback-title { margin-bottom: 6px; }
+.result-feedback-row { padding: 6px 0; }
+.result-feedback-row + .result-feedback-row { border-top: 1px dashed rgba(0, 0, 0, 0.08); }
+
+.result-reward-card { margin-top: 10px; text-align: center; }
+.result-reward-headline { font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.result-reward-xp-icon { width: 22px; height: 22px; object-fit: contain; }
+.result-reward-level-row { margin-top: 6px; }
+.result-reward-level-bar { margin: 4px auto 0; width: 100%; max-width: 220px; height: 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.08); overflow: hidden; }
+.result-reward-level-bar span { display: block; height: 100%; background: #7ea866; border-radius: inherit; }
+/* Phase 5.4.4 (report section 15/H) — compact 2-column icon grid, replacing
+   the old stacked "label +N XP" list that read like a report table. Total
+   XP above stays the visually largest number; each earned category here is
+   an equal-weight small tile so 1-4 items always lay out cleanly. */
+.result-reward-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  text-align: left;
+}
+.result-reward-grid-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(126, 168, 102, 0.08);
+}
+.result-reward-grid-item img { width: 20px; height: 20px; object-fit: contain; flex-shrink: 0; }
+.result-reward-grid-label { font-size: 12px; color: var(--muted); flex: 1; }
+.result-reward-grid-value { font-size: 13px; font-weight: 800; color: var(--primary-dark); }
+
+.result-tech-details { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.result-tech-details summary { cursor: pointer; padding: 8px 0; color: var(--muted); }
+
+/* 登入／註冊：身分選擇（未選淺色＋綠框，選取後深綠底＋白字） */
+.role-select-group { display: flex; gap: 14px; margin: 10px 0; }
+.role-option {
+  flex: 1;
+  padding: 14px 10px;
+  border-radius: 14px;
+  border: 2px solid var(--primary);
+  background: #fff;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.role-option.selected {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #fff;
+}
+
+/* 危險／中性操作提示卡 */
+.confirm-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+.confirm-card.danger { border-color: #e6b3ab; background: #fff6f4; }
+.confirm-card .reason-option { display: block; width: 100%; text-align: left; background: #f6f7f5; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; color: var(--text); font-size: 13px; }
+.confirm-card .reason-option.selected { background: #eef7ed; border-color: var(--primary); color: var(--primary-dark); font-weight: 700; }
+
+/* 復健師「我的」頁：帳號管理／登出按鈕間距與樣式（只影響這兩顆按鈕） */
+.therapist-profile-actions { display: flex; flex-direction: column; }
+.therapist-profile-actions > *:not(:last-child) { margin-bottom: 22px; }
+.dev-account-entry { width: 100%; }
+.logout-secondary {
+  width: 100%;
+  background: #fff;
+  color: #b3261e;
+  border: 1px solid #e6b3ab;
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* AI 深蹲偵測頁：鏡頭畫面＋骨架疊圖容器 */
+.squat-camera-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #1c1f1a;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.squat-camera-video,
+.squat-overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* selfie mirror; canvas uses the same transform so the skeleton stays aligned */
+}
+.squat-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 72px;
+  font-weight: 800;
+  z-index: 2;
+  pointer-events: none;
+}
+/* Phase 5.4.4 — countdown redesign (report section 4): 準備好了 → 3 → 2 →
+   1 → 開始！, differentiated by data-kind so "ready" reads as an intro line
+   (smaller, with a subtitle feel) while "go" is the biggest, brightest
+   moment of the sequence — not just a number swap. */
+.squat-countdown-overlay[data-kind="ready"] #squatCountdownText { font-size: 40px; color: #fff; }
+.squat-countdown-overlay[data-kind="go"] #squatCountdownText { font-size: 80px; color: #f4c542; }
+@keyframes squatCountdownPulseIn {
+  0% { opacity: 0; transform: scale(0.55); }
+  55% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+#squatCountdownText.pulse-in { animation: squatCountdownPulseIn 420ms ease-out; display: inline-block; }
+.squat-status-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.6;
+  z-index: 1;
+}
+
+/* Phase 5.1 — small, always-visible framing indicator (distinct from the
+   blocking status overlay above). Never covers the camera view. */
+.squat-readiness-indicator {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  z-index: 3;
+  max-width: calc(100% - 20px);
+}
+.squat-readiness-dot { width: 8px; height: 8px; border-radius: 50%; background: #999; flex-shrink: 0; }
+.squat-readiness-dot.ready { background: #7ea866; }
+.squat-readiness-dot.partial { background: #efc65d; }
+.squat-readiness-dot.not-found { background: #c0392b; }
+
+.squat-debug-toggle { font-size: 11px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.squat-voice-toggle { font-size: 11px; color: var(--muted); text-decoration: underline; cursor: pointer; margin-right: 10px; }
+.squat-debug-panel { display: grid; gap: 2px; margin-bottom: 10px; font-family: monospace; }
+
+/* Phase 5.2 — large-distance training HUD (readable from ~1.5-3m). These
+   sit on top of the camera view; only one of countdown/status-overlay/
+   primary-feedback is ever visible at a time (enforced in app.js), so they
+   never compete for attention. */
+/* Phase 5.4.3 — Rep Counter becomes a Progress Ring (report section 3):
+   an SVG ring (not canvas — never touches the MediaPipe/skeleton canvas or
+   its FPS) wraps the still-dominant number. Ring progress is purely
+   decorative/derived from completedReps/targetReps; it is updated only on
+   REP_COMPLETED events (see app.js), never per animation frame. */
+.squat-rep-counter {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.squat-rep-ring { position: absolute; inset: 0; transform: rotate(-90deg); }
+.squat-rep-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.22); stroke-width: 5; }
+.squat-rep-ring-progress {
+  fill: none;
+  stroke: #7ea866;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 188.5;
+  stroke-dashoffset: 188.5;
+  transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+}
+.squat-rep-counter-text {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+#squatRepCounterValue { font-size: 22px; }
+.squat-rep-counter-sep { display: block; font-size: 11px; font-weight: 600; opacity: 0.75; margin-top: 1px; }
+.squat-rep-counter.complete {
+  background: rgba(126, 168, 102, 0.55);
+  transform: scale(1.06);
+}
+.squat-rep-counter.complete .squat-rep-ring-progress { stroke: #f4c542; }
+
+/* LEVEL 1 — Micro feedback (report section 9): one completed rep. 300-700ms,
+   one-shot, triggered only on the REP_COMPLETED event. */
+/* Phase 5.4.4 — real-device feedback bug A: the rep pulse/sparkle
+   "technically exists but is barely visible". Strengthened both instead of
+   adding a new animation: pulse scale 1.18->1.32 and a warm glow so the
+   moment reads clearly even at a glance from 1.5-3m. */
+@keyframes squatRepPulse {
+  0% { transform: scale(1); filter: none; }
+  40% { transform: scale(1.32); filter: drop-shadow(0 0 10px rgba(244, 197, 66, 0.85)); }
+  100% { transform: scale(1); filter: none; }
+}
+.squat-rep-counter.pulse { animation: squatRepPulse 480ms ease-out; }
+
+@keyframes squatSparkleBurst {
+  0% { opacity: 0; transform: scale(0.5) rotate(-8deg); }
+  20% { opacity: 1; transform: scale(1.15) rotate(2deg); }
+  65% { opacity: 1; transform: scale(1.1) rotate(3deg); }
+  100% { opacity: 0; transform: scale(1.4) rotate(6deg); }
+}
+.squat-rep-sparkle {
+  position: absolute;
+  top: -18px;
+  right: -18px;
+  width: 112px;
+  height: 112px;
+  z-index: 4;
+  pointer-events: none;
+  object-fit: contain;
+  opacity: 0;
+  filter: drop-shadow(0 0 8px rgba(244, 197, 66, 0.6));
+}
+.squat-rep-sparkle.play { animation: squatSparkleBurst 700ms ease-out; }
+
+/* Phase 5.4.4 — dedicated milestone badge (report section 8; real-device bug
+   B: the old approach reused the small bottom banner, which turned out to
+   be a silent no-op — see triggerSquatMilestoneBadge()). Center-top, large
+   enough to read as its own moment, self-clearing pop-in/hold/fade. */
+.squat-milestone-badge {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.7);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(244, 197, 66, 0.95), rgba(230, 150, 40, 0.95));
+  color: #3a2a00;
+  font-size: 17px;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.squat-milestone-badge img { width: 24px; height: 24px; object-fit: contain; }
+@keyframes squatMilestoneBadgePop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.6) translateY(-6px); }
+  20% { opacity: 1; transform: translateX(-50%) scale(1.08) translateY(0); }
+  35% { transform: translateX(-50%) scale(1) translateY(0); }
+  85% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.94) translateY(-4px); }
+}
+.squat-milestone-badge.play { animation: squatMilestoneBadgePop 1100ms ease-out; }
+
+/* Moved up from the very bottom edge (Phase 5.4.2, kept in 5.4.3 per report
+   section 8 — "不要重新貼回底部") using a proportional offset so it scales
+   across screen sizes instead of a fixed px. */
+.squat-primary-feedback {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Phase 5.4.3 — bumped from 12% to 18% (report section 25 responsive QA)
+     to clear the robot companion's top edge. Phase 5.4.4 (bug D) grew the
+     robot further via clamp(72px, 20vw, 96px), so this is bumped again to
+     20% to keep the same clearance margin at the new max size. */
+  bottom: 20%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 10px 16px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+.squat-primary-feedback-icon { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
+
+/* LEVEL 2 — Milestone feedback (report section 9): 25/50/75/near-complete.
+   Two escalating intensities — "subtle" for the earlier thresholds, "strong"
+   for near-complete — both still clearly smaller than Level 3. 500-1000ms. */
+@keyframes squatMilestoneFlashSubtle {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+@keyframes squatMilestoneFlashStrong {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.14); }
+  55% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+.squat-primary-feedback.milestone-flash-subtle { animation: squatMilestoneFlashSubtle 600ms ease-out; }
+.squat-primary-feedback.milestone-flash-strong { animation: squatMilestoneFlashStrong 900ms ease-out; }
+@keyframes squatRingEmphasis {
+  0%, 100% { filter: none; }
+  50% { filter: drop-shadow(0 0 6px rgba(244, 197, 66, 0.9)); }
+}
+.squat-rep-counter.ring-emphasis .squat-rep-ring-progress { animation: squatRingEmphasis 900ms ease-in-out; }
+
+/* LEVEL 3 — Celebration (report section 6/9/12/13): session ends, either by
+   reaching target (success) or by manual early stop (incomplete). The
+   entrance animation is bounded (~1.5s), but — unlike Phase 5.4.3 — the
+   overlay itself no longer self-hides: it hands off to the persistent
+   #squatEndingCard, which stays until the patient presses 查看成果 (report
+   section 12: "動畫結束後畫面不能自動消失"). The card (and its CTA) opt back
+   into pointer-events so it stays interactive despite the overlay's own
+   pointer-events:none. */
+.squat-celebration-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.32);
+  pointer-events: none;
+  text-align: center;
+}
+.squat-celebration-overlay.play { display: flex; }
+/* INCOMPLETE reads gentler on purpose — no success-intensity backdrop, no
+   confetti/checkmark (already hidden via inline style in showSquatEndingScreen),
+   so it never looks like a target-reached celebration (report section 13). */
+.squat-celebration-overlay.incomplete { background: rgba(20, 22, 26, 0.5); }
+@keyframes squatCelebrationConfetti {
+  0% { opacity: 0; transform: translateY(-8px) scale(0.85); }
+  25% { opacity: 1; transform: translateY(0) scale(1.05); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(6px) scale(1); }
+}
+.squat-celebration-confetti { width: 96px; height: 96px; object-fit: contain; opacity: 0; }
+.squat-celebration-overlay.play .squat-celebration-confetti { animation: squatCelebrationConfetti 1.4s ease-out; }
+@keyframes squatCelebrationCheckPop {
+  0% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1.2); }
+  70% { transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.squat-celebration-check {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+  opacity: 0;
+}
+.squat-celebration-overlay.play .squat-celebration-check { animation: squatCelebrationCheckPop 700ms ease-out 200ms forwards; }
+.squat-celebration-text {
+  color: #fff; font-size: 22px; font-weight: 800;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+}
+.squat-celebration-overlay.play .squat-celebration-text { animation: squatCelebrationCheckPop 700ms ease-out 300ms forwards; }
+
+/* Phase 5.4.4 — persistent ending card (report section 12/13). Revealed by
+   JS (cardEl.style.display = "flex") after the entrance animation finishes;
+   the "display:none" default below is only the pre-reveal/reset state, not
+   the source of the delay itself. */
+.squat-ending-card {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 18px 22px;
+  min-width: 220px;
+  border-radius: 18px;
+  background: rgba(20, 22, 26, 0.88);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+.squat-ending-card .small { color: #e8e8e8; font-size: 14px; }
+.squat-ending-badges { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.squat-ending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.squat-ending-badge img { width: 18px; height: 18px; object-fit: contain; }
+#squatEndingCta { margin-top: 4px; }
+
+/* Phase 5.4.4 — real-device feedback bug D: 60px still unreadable at
+   1.5-3m. clamp() scales with the camera wrap's own width (bounded by the
+   viewport, same as the wrap itself) instead of a fixed px, while staying
+   corner-anchored so it never covers the skeleton/body. */
+.squat-robot-companion {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: clamp(72px, 20vw, 96px);
+  height: clamp(72px, 20vw, 96px);
+  object-fit: contain;
+  z-index: 2;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+  transition: transform 0.15s ease;
+}
+@keyframes squatRobotMoodChange {
+  0% { transform: scale(0.85) translateY(4px); }
+  60% { transform: scale(1.08) translateY(-2px); }
+  100% { transform: scale(1) translateY(0); }
+}
+.squat-robot-companion.mood-change { animation: squatRobotMoodChange 350ms ease-out; }
+
+/* Report section 10 — reduced motion must never remove information, only
+   the motion itself. Progress ring value/feedback text/icons still update
+   instantly; only the scale/opacity/translate animations are disabled. */
+@media (prefers-reduced-motion: reduce) {
+  .squat-rep-counter.pulse,
+  .squat-rep-sparkle.play,
+  .squat-primary-feedback.milestone-flash-subtle,
+  .squat-primary-feedback.milestone-flash-strong,
+  .squat-rep-counter.ring-emphasis .squat-rep-ring-progress,
+  .squat-celebration-overlay.play .squat-celebration-confetti,
+  .squat-celebration-overlay.play .squat-celebration-check,
+  .squat-celebration-overlay.play .squat-celebration-text,
+  .squat-robot-companion.mood-change,
+  .squat-milestone-badge.play,
+  #squatCountdownText.pulse-in {
+    animation: none !important;
+  }
+  .squat-celebration-overlay.play .squat-celebration-check,
+  .squat-celebration-overlay.play .squat-celebration-text,
+  .squat-milestone-badge.play {
+    opacity: 1;
+  }
+  .squat-milestone-badge.play { transform: translateX(-50%) scale(1); }
+  .squat-rep-ring-progress { transition: stroke-dashoffset 0s, stroke 0s; }
+  .squat-rep-counter { transition: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 2 — Landing / Assessment / Self Practice components.
+   Reuses existing tokens (--color-*, --radius-*, --space-*) and the
+   established .card/.btn/.pill visual language — no new framework, no
+   large-scale rewrite of existing rules.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Reserved slot for future hand-made illustration/game assets (stars,
+   plants, fruit, badges...). Deliberately plain today — a soft rounded
+   placeholder, no emoji, no generated art — so a future <img>/<svg> can
+   drop straight in without any layout change. */
+.illustration-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-large);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.illustration-slot.slot-hero { width: 100%; height: 160px; }
+.illustration-slot.slot-card { width: 56px; height: 56px; flex-shrink: 0; border-radius: var(--radius-medium); }
+
+/* Landing page */
+.landing-page { display: flex; flex-direction: column; gap: var(--space-lg); padding: var(--space-md) 0 var(--space-lg); }
+.landing-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--space-sm); }
+.landing-hero .title { margin-bottom: 0; }
+.landing-hero .landing-tagline { margin: 0; font-size: 15px; color: var(--color-text-secondary); }
+.landing-cta-group { display: flex; flex-direction: column; gap: var(--space-sm); width: 100%; }
+.landing-features { display: flex; flex-direction: column; gap: var(--space-sm); }
+.landing-feature-card { display: flex; gap: var(--space-sm); align-items: flex-start; background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-medium); padding: var(--space-md); }
+.landing-feature-card b { display: block; margin-bottom: 4px; }
+.landing-feature-card p { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+.landing-safety-note { background: #fffaf0; border: 1px solid #f0e0b8; border-radius: var(--radius-medium); padding: var(--space-md); font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+
+/* Selectable chip cards (assessment form multi-select) */
+.chip-grid { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.chip-select {
+  border: 2px solid var(--line);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-large);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.chip-select.selected { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--primary-dark); }
+
+/* Assessment step flow */
+.assessment-step-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: var(--space-sm); }
+.assessment-step-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.assessment-step-dots span.active { background: var(--color-primary); }
+.assessment-option-card {
+  display: block; width: 100%; text-align: left;
+  border: 2px solid var(--line); background: var(--color-surface);
+  border-radius: var(--radius-medium); padding: var(--space-md);
+  margin-bottom: var(--space-sm); cursor: pointer;
+}
+.assessment-option-card b { display: block; margin-bottom: 2px; }
+.assessment-option-card p { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.assessment-option-card.selected { border-color: var(--color-primary); background: var(--color-primary-soft); }
+.assessment-summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.assessment-summary-row:last-child { border-bottom: none; }
+.assessment-summary-row span:first-child { color: var(--color-text-secondary); }
+
+/* Self practice library */
+.self-practice-filters { display: flex; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+.self-practice-filters select { flex: 1; }
+.self-practice-card { display: flex; gap: var(--space-sm); align-items: center; background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-medium); padding: var(--space-sm) var(--space-md); margin-bottom: var(--space-sm); cursor: pointer; }
+.self-practice-card .self-practice-info { flex: 1; min-width: 0; }
+.self-practice-card .self-practice-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.self-practice-card .self-practice-badges { margin-top: 4px; }
+.ai-tag-badge { display: inline-block; background: var(--color-primary-soft); color: var(--primary-dark); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; margin-top: 4px; }
+/* .goal-tag-badge (Phase 3.1) removed in Phase 6.5 -- the recommendation
+   card's badges/match text were replaced by the real engine reason strip
+   (renderRecommendationSessionItem's own comment) and no other caller used it. */
+.source-tag-badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+.source-tag-badge.assigned { background: var(--color-primary-soft); color: var(--primary-dark); }
+.source-tag-badge.self-practice { background: #fff5da; color: #8a6d1c; }
+
+/* Difficulty badge — display-only mapping of the real 4-value difficulty
+   text (易/普通/非常容易/難) onto a 3-tier beginner/intermediate/advanced
+   visual language. Never mutates the underlying `difficulty` data. */
+.difficulty-badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+.difficulty-badge.tier-beginner { background: #e8f3e0; color: #4a7a35; }
+.difficulty-badge.tier-intermediate { background: #fdf1d6; color: #8a6d1c; }
+.difficulty-badge.tier-advanced { background: #f3e3dc; color: #8a4a35; }
+.difficulty-badge.tier-unknown { background: #eee; color: #888; }
+
+/* Reserved image slots (Phase 2.5: neutral placeholder blocks only, no
+   emoji, no generated art — real half-3D/soft-clay assets land here later). */
+.exercise-thumbnail, .category-illustration, .ai-plan-illustration {
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-medium);
+  flex-shrink: 0;
+}
+.exercise-thumbnail { width: 48px; height: 48px; border-radius: var(--radius-small); }
+.category-illustration { width: 100%; height: 40px; margin-bottom: 6px; }
+.ai-plan-illustration { width: 100%; height: 120px; border-radius: var(--radius-large); }
+
+/* Real category/goal icon frame (Self Practice Library quick cards only —
+   never used for Exercise Card thumbnails). Fixed square display box so
+   the icon never stretches or crops; sized per row below. Background tint
+   deliberately weakened (low-opacity rgba, not the flat --color-primary-
+   soft fill) so it stays a small, refined container rather than a block
+   that competes with the icon. */
+.category-icon-slot {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(126, 168, 102, 0.12);
+  border-radius: var(--radius-medium);
+  padding: 4px;
+  box-sizing: border-box;
+}
+.category-icon-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* 依部位 (3+2 rows) and 依目標 (single row of 3) share this exact same
+   icon-left/text-right card + row-grid system — column count is the only
+   difference between rows, driven by how many cards are in that row. */
+.category-quick-row { display: grid; gap: 6px; margin-bottom: 6px; }
+.category-quick-row-3 { grid-template-columns: repeat(3, 1fr); }
+.category-quick-row-2 { grid-template-columns: repeat(2, 1fr); }
+.category-quick-row-auto { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+
+.category-quick-card {
+  display: flex; flex-direction: row; align-items: center; text-align: left;
+  border: 2px solid var(--line); background: var(--color-surface);
+  border-radius: var(--radius-medium);
+  height: 80px; /* fixed — every card across every row is the same height */
+  box-sizing: border-box;
+  font-weight: 600; color: var(--color-text); cursor: pointer;
+  white-space: nowrap; overflow: hidden;
+}
+.category-quick-card span { overflow: hidden; text-overflow: ellipsis; }
+.category-quick-card.selected { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--primary-dark); }
+
+/* Row-specific sizing: the 3-column row is narrower per card, so icon and
+   padding shrink slightly to keep labels on one line without crowding;
+   the 2-column row has more room per card for a slightly larger icon. */
+.category-quick-row-3 .category-quick-card { gap: 8px; padding: 8px; font-size: 12px; }
+.category-quick-row-3 .category-icon-slot { width: 40px; height: 40px; }
+.category-quick-row-2 .category-quick-card,
+.category-quick-row-auto .category-quick-card { gap: 12px; padding: 8px 12px; font-size: 13px; }
+.category-quick-row-2 .category-icon-slot,
+.category-quick-row-auto .category-icon-slot { width: 48px; height: 48px; }
+
+.self-practice-safety-note { font-size: 12px; color: var(--color-text-secondary); margin-bottom: var(--space-sm); }
+
+/* "顯示全部" demoted to a secondary/ghost text action — never a
+   full-width primary-looking CTA. */
+.ghost-btn {
+  background: transparent;
+  border: none;
+  color: var(--primary-dark);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+.results-header-row { display: flex; align-items: center; justify-content: space-between; }
+
+/* Scoped, tighter section spacing for just this exploration block (body
+   part / goal / difficulty) so patients reach the Exercise Results below
+   with less scrolling — .section-title elsewhere in the app is untouched. */
+.self-practice-explore .section-title { margin: 12px 0 6px; }
+.self-practice-explore .section-title:first-child { margin-top: 0; }
+
+/* ReMotion Phase 6.2 — Exercise Library search is now the dominant, near
+   full-width primary entry point (report section 5) — the old Phase 6.1
+   "AI 姿勢分析" chip that used to sit here fighting the search box for width
+   is gone; AI discovery now lives in its own Discovery Mode section
+   (.discovery-section) instead. .more-filters-btn stays compact and never
+   competes with search for width. */
+.self-practice-search-row { display: flex; gap: 8px; margin-bottom: var(--space-sm); }
+.self-practice-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-sizing: border-box;
+}
+.self-practice-search-input:focus { outline: none; border-color: var(--color-primary); }
+.more-filters-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.more-filters-btn.open { border-color: var(--color-primary); background: var(--color-primary-soft); color: var(--primary-dark); }
+
+/* Report section 7 — collapsible inline panel (lowest-risk option for this
+   single-page vanilla-JS app; no bottom-sheet/framework introduced). */
+.filters-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+.filter-panel-label { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); margin: 10px 0 6px; }
+.filter-panel-label:first-child { margin-top: 0; }
+.filters-panel-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; gap: 8px; }
+.filters-panel-footer .btn { flex: 1; }
+
+/* Report section 6 — compact horizontal-scroll category pills, replacing
+   the old 80px-tall icon cards. */
+.category-pill-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: var(--space-sm);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.category-pill-row::-webkit-scrollbar { display: none; }
+.category-pill {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.category-pill.selected { border-color: var(--color-primary); background: var(--color-primary); color: #fff; }
+
+/* Report section 12 — compact removable active-filter chips, replacing the
+   old always-expanded filter blocks in Results Mode. */
+.active-filter-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: var(--space-sm); }
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Report section 9 — Discovery Mode preview sections: compact header (title
+   + 查看全部) above a horizontally-scrolling row of cards, so 2-4 exercises
+   preview without committing full grid vertical space. */
+.discovery-section { margin-bottom: var(--space-md); }
+.discovery-section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.discovery-section-subtitle { color: var(--color-text-secondary); margin-top: 1px; }
+.discovery-scroll-row {
+  display: flex;
+  gap: var(--space-sm);
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.discovery-scroll-row::-webkit-scrollbar { display: none; }
+.discovery-scroll-row .exercise-grid-card { flex: 0 0 132px; width: 132px; }
+
+/* Phase 6.1 — 2-column compact card grid (report section 7/8), replacing
+   the old single-column horizontal row list. Chosen over a single-column
+   horizontal layout because the card content (image on top, stacked text
+   below) matches the spec's own example layout, and a grid scans/scrolls
+   faster once the catalog grows toward ~100 items. */
+.exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.exercise-grid-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  overflow: hidden;
+  cursor: pointer;
+  min-width: 0;
+}
+.exercise-grid-card-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--color-primary-soft);
+  overflow: hidden;
+}
+/* Phase 6.2 report section 15 — switched from object-fit:cover to contain.
+   These 6 real per-exercise photos can't be visually inspected in this
+   environment to confirm a cover-crop never cuts off the person/limb doing
+   the movement, so contain (never crops) is the safer choice — costs a
+   small amount of tinted letterboxing, never costs correctness. */
+.exercise-grid-card-image img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Category-icon fallback (no per-exercise photo yet) — Phase 6.2 report
+   section 14: shrunk further and lightened so a fallback tile reads
+   unmistakably as "no photo yet" rather than as a real, cropped
+   illustration, even when many fallback cards repeat the same handful of
+   category icons in a row. The small sparkle accent (position: absolute,
+   pointer-events: none, low opacity) is a purely decorative "this is a
+   placeholder" cue, not a claim about the exercise itself. */
+.exercise-grid-card-image-fallback { position: relative; display: flex; align-items: center; justify-content: center; background: rgba(126, 168, 102, 0.08); }
+.exercise-grid-card-image-fallback img { width: 34%; height: 34%; object-fit: contain; position: relative; z-index: 1; }
+.exercise-grid-card-image-sparkle { position: absolute !important; top: 8%; right: 12%; width: 20% !important; height: 20% !important; opacity: 0.35; z-index: 0; }
+.exercise-grid-card-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.exercise-grid-card-name {
+  font-size: 14px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.exercise-grid-card-meta { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* trainingMode badge tiers (report section 6) — pose_analysis is the only
+   one with an icon and the strongest color; guided/reference_only stay
+   low-key text-only per spec ("guided 低調標示", "reference_only 最弱"). */
+.training-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  width: fit-content;
+}
+.training-mode-badge img { width: 12px; height: 12px; object-fit: contain; }
+.training-mode-badge.tier-pose { background: var(--color-primary-soft); color: var(--primary-dark); }
+.training-mode-badge.tier-interactive { background: #fdf1d6; color: #8a6d1c; }
+.training-mode-badge.tier-guided { background: #f2f2f2; color: var(--color-text-secondary); font-weight: 600; }
+.training-mode-badge.tier-reference { background: transparent; color: var(--color-text-secondary); font-weight: 500; padding-left: 0; }
+
+.self-practice-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+}
+.self-practice-empty-state .small { color: var(--color-text-secondary); }
+
+/* Patient Home — "AI 今日建議" feature card (visually distinct from the
+   lightweight secondary self-practice section below it, per Phase 2.5). */
+/* Phase 4.2 — compact secondary action row (icon + text + arrow), roughly
+   40-60% the height of the AI recommendation card above it, with a
+   deliberate section gap so the two never share a visual boundary. */
+.secondary-section-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-medium);
+  padding: 14px var(--space-md);
+  margin-top: 16px;
+  min-height: 72px;
+}
+/* Phase 4.4 hotfix — exercise_plan.png was replaced with a genuinely
+   transparent asset (verified via raw alpha channel), so the icon now
+   sits directly in the row without a background tile behind it. */
+/* Phase 7.1.2 — bumped from 32px so the clipboard/exercise-plan
+   illustration reads as a real visual anchor (target 64-76px per spec);
+   min-height below grows to match instead of clipping/overlapping text. */
+.secondary-section-icon { width: 68px; height: 68px; object-fit: contain; flex-shrink: 0; }
+.secondary-section-text { flex: 1; min-width: 0; }
+.secondary-section-card .more-link { flex-shrink: 0; }
+
+/* ReMotion 2.0 Phase 3.1 — Recommendation UX refinement */
+
+.source-tag-badge.recommendation { background: var(--color-primary-soft); color: var(--primary-dark); }
+
+/* Read-only summary chips (Recommendation header / "為什麼這樣安排") — not
+   clickable filters, so styled distinctly from .chip-select. */
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.summary-chip {
+  display: inline-block;
+  background: var(--color-primary-soft);
+  color: var(--primary-dark);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Phase 6.5 report section 8/9 — AI Recommendation Hero: headline+robot
+   share one row (never robot-above-text-above-stats stacking), at most
+   one low-opacity decorative sparkle, tags below. */
+.recommendation-hero-card { position: relative; display: grid; gap: 10px; overflow: hidden; }
+.recommendation-hero-decor { position: absolute; top: -12px; right: 40px; width: 40px; height: 40px; object-fit: contain; opacity: 0.14; pointer-events: none; }
+.recommendation-hero-top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; position: relative; z-index: 1; }
+.recommendation-hero-headline { margin: 6px 0 4px; font-size: 19px; }
+.recommendation-hero-robot { width: 76px; height: 76px; object-fit: contain; flex: none; }
+
+/* Report section 10 — compact icon rows instead of a chip/filter-looking
+   list, reusing the real CATEGORY_ICON_MAP/GOAL_ICON_MAP assets. */
+.recommendation-basis-card { display: grid; gap: 8px; }
+.recommendation-basis-row { display: flex; align-items: center; gap: 10px; }
+.recommendation-basis-icon { width: 22px; height: 22px; object-fit: contain; flex: none; }
+
+/* Report section 13 — Today's Training Route: a real star per item
+   (progress_star_green solid = completed, dimmed = pending), connected by
+   a thin line, matching the Progress page's own star visual language. */
+.recommendation-route-row { position: relative; display: flex; justify-content: space-between; margin: 4px 0 12px; padding: 0 4px; }
+.recommendation-route-row::before { content: ""; position: absolute; left: 20px; right: 20px; top: 12px; height: 1px; background: var(--line); z-index: 0; }
+.recommendation-route-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.recommendation-route-star { width: 24px; height: 24px; object-fit: contain; background: var(--card); }
+.recommendation-route-star.inactive { opacity: 0.25; filter: grayscale(1); }
+
+/* Report section 11/12/14 — image + main info share one row, a single
+   compact reason strip below (never a tall vertical text stack). */
+.recommendation-item-card {
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  cursor: pointer;
+}
+.recommendation-item-top { display: flex; align-items: center; gap: 12px; }
+.recommendation-item-image { width: 80px; height: 80px; flex: none; }
+.recommendation-item-image .exercise-grid-card-image { width: 80px; height: 80px; border-radius: var(--radius-medium); overflow: hidden; }
+.recommendation-item-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.recommendation-item-name-row { display: flex; align-items: baseline; gap: 6px; }
+.recommendation-item-index { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+.recommendation-item-name { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recommendation-item-tags-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.recommendation-item-done { font-size: 11px; font-weight: 700; color: var(--color-success); background: #eaf6ea; padding: 2px 8px; border-radius: 999px; }
+.recommendation-item-next { font-size: 11px; font-weight: 700; color: var(--primary-dark); background: var(--color-primary-soft); padding: 2px 8px; border-radius: 999px; }
+.recommendation-item-reason-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.recommendation-item-reason-star { width: 14px; height: 14px; object-fit: contain; flex: none; }
+
+.recommendation-cta-summary { text-align: center; color: var(--color-text-secondary); margin-top: 4px; }
+
+/* Report section 16 — Why This Plan: bullet rows instead of a paragraph card. */
+.recommendation-why-card { display: grid; gap: 8px; }
+.recommendation-why-title { display: flex; align-items: center; gap: 8px; }
+.recommendation-why-title img { width: 22px; height: 22px; object-fit: contain; }
+.recommendation-why-row { display: flex; align-items: center; gap: 10px; }
+.recommendation-why-icon { width: 20px; height: 20px; object-fit: contain; flex: none; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 4 — Gamification Foundation + Patient Home 2.0.
+   Kept inside the existing card/soft-green/rounded language — no new
+   framework, no large illustrations stacked on top of each other.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* AI companion robot — reusable avatar, never full-screen, sized per call site. */
+.robot-avatar { display: block; object-fit: contain; flex-shrink: 0; }
+.robot-avatar-sm { width: 36px; height: 36px; }
+.robot-avatar-md { width: 56px; height: 56px; }
+.robot-avatar-lg { width: 84px; height: 84px; }
+.robot-avatar-xl { width: 128px; height: 128px; }
+.home-greeting-row .robot-avatar { margin-right: 16px; }
+
+/* Compact Level / XP / streak summary — never the visual focal point. */
+.level-xp-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+  padding: 8px 14px;
+  margin-bottom: 18px;
+}
+.level-xp-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--primary-dark);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.level-xp-badge-num { font-size: 16px; font-weight: 800; }
+.level-xp-badge-label { font-size: 9px; }
+.level-xp-main { flex: 1; min-width: 0; }
+.level-xp-title-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+.level-xp-title-row b { font-size: 14px; }
+.level-xp-amount { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.xp-icon-inline { width: 12px; height: 12px; object-fit: contain; }
+
+/* Phase 4.3 — a slightly gamified XP bar: a real star marker sits at the
+   current fill position (never a static/fabricated position — always
+   `left: {xpPercent}%`), plus a real "XP to next level" line computed
+   from the same numbers, never hardcoded. */
+.xp-track.gamified { position: relative; overflow: visible; }
+.xp-track-marker { position: absolute; top: 50%; width: 14px; height: 14px; object-fit: contain; transform: translate(-50%, -50%); pointer-events: none; }
+.level-xp-next-hint { font-size: 10px; color: var(--color-text-secondary); margin-top: 3px; }
+
+/* Achievement count folded in as a second compact aux row next to streak
+   — a number only, not a repeat of the full achievement card below. */
+.level-xp-aux { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; padding-left: 10px; border-left: 1px solid var(--line); }
+.level-xp-aux-row { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.level-xp-aux-row .muted-value { color: var(--color-text-secondary); }
+.level-xp-aux-icon { width: 15px; height: 15px; object-fit: contain; }
+.level-xp-aux-label { font-size: 10px; color: var(--color-text-secondary); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 4.1 — Patient Home visual polish. No new logic —
+   presentation only. Replaces the old plain "white card + text" stack
+   with grouped, asset-integrated cards; the standalone 今日進度 section
+   is retired in favor of folding each progress into its own source card
+   (assigned progress lives in 今日復健, recommendation progress lives in
+   the AI card) per spec section 3.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Greeting + robot companion — a single visual group in a softly-tinted
+   band, not a robot floating alone on the plain white header. */
+.home-companion-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--color-primary-soft), #f7fbf4);
+  border-radius: var(--radius-large);
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.home-companion-text { min-width: 0; flex: 1; position: relative; z-index: 1; }
+.home-companion-greeting { font-size: 12px; color: var(--primary-dark); margin-bottom: 2px; }
+.home-companion-message { display: block; font-size: 16px; line-height: 1.4; margin-bottom: 3px; }
+.home-companion-encourage { color: var(--primary-dark); }
+.home-companion-banner .robot-avatar { flex-shrink: 0; position: relative; z-index: 1; }
+/* Very low-opacity decorative accent — never competes with text/robot. */
+.home-companion-decor { position: absolute; top: -10px; right: 30%; width: 70px; height: 70px; object-fit: contain; opacity: 0.14; pointer-events: none; }
+
+/* Phase 4.2 — subtle "look here first" accent for whichever one card
+   matches the current primary-action priority (assigned > recommendation
+   > self practice). A border-color change only — never a competing button. */
+.home-focus-card { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
+
+/* Reusable horizontal CSS progress bar — width always driven by a real
+   ratio, never a static image. Shared by 今日復健 and AI 個人化建議. */
+.home-progress-bar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.home-progress-bar-track { flex: 1; height: 8px; background: var(--color-primary-soft); border-radius: 999px; overflow: hidden; }
+.home-progress-bar-track span { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width 0.2s ease; }
+.home-progress-bar-label { font-size: 12px; color: var(--color-text-secondary); flex-shrink: 0; white-space: nowrap; }
+.home-progress-check { color: var(--color-success); font-weight: 700; margin-left: 2px; }
+
+/* 今日復健 — Daily Task Card: exercise thumbnail + date, its own inline
+   action folded into the footer (no separate full-width CTA below it).
+   Subtle-done state never turns the whole card bright green. */
+.today-card { position: relative; display: grid; gap: 4px; padding: 14px 16px; margin-bottom: 18px; overflow: hidden; }
+.today-card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; position: relative; z-index: 1; }
+.today-card-header b { font-size: 15px; }
+.today-card-date { font-size: 12px; color: var(--color-text-secondary); }
+.today-card-body { display: flex; gap: 10px; align-items: center; position: relative; z-index: 1; }
+.today-card-thumb { width: 58px; height: 58px; border-radius: var(--radius-medium); object-fit: cover; flex-shrink: 0; background: var(--color-primary-soft); }
+.today-card-info { min-width: 0; flex: 1; }
+.today-card-subtle-done { border-color: #cfe3cf; }
+.today-card-footer { display: flex; align-items: center; gap: 10px; margin-top: 8px; position: relative; z-index: 1; }
+.today-card-footer-bar-only .home-progress-bar { margin-top: 0; }
+.today-card-footer .home-progress-bar { flex: 1; margin-top: 0; }
+
+/* Phase 4.3 — the status/action pill sits in the SAME slot whether the
+   schedule is complete or not, so the card layout never shifts between
+   states. Done state is a filled status pill (not a button — see spec
+   section 4: "不需要再觸發訓練"), reusing the real checkmark asset
+   instead of a plain glyph. */
+.today-card-status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
+.today-card-status-pill.done { background: var(--color-success); color: #fff; }
+.today-card-status-check { width: 12px; height: 12px; object-fit: contain; filter: brightness(0) invert(1); }
+.today-card-decor { position: absolute; top: -14px; right: -14px; width: 64px; height: 64px; object-fit: contain; opacity: 0.15; pointer-events: none; }
+
+/* Reusable pill-style inline CTA — a real button-like action, not a plain
+   grey text link (Phase 4.2 spec section 9). */
+.card-inline-cta { display: inline-flex; align-items: center; gap: 3px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; cursor: pointer; }
+
+/* Empty assigned-schedule state — friendly and compact, never a blank
+   system message and never as tall as the populated card above it. */
+.today-card-empty { text-align: center; padding: 16px; }
+.today-card-empty-icon { width: 32px; height: 32px; object-fit: contain; margin: 0 auto 6px; opacity: 0.85; }
+.today-card-empty .card-inline-cta { margin-top: 8px; }
+
+/* AI 個人化建議 — Home's secondary visual focus: left content (label,
+   headline, meta), a robot companion on the right (capped well under the
+   card's height), a thumbnail row, and progress+CTA folded into a footer. */
+.ai-recommend-card { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--color-primary-soft), #f7fbf4); border: 1px solid var(--color-primary-soft); padding: 14px 16px; margin-bottom: 18px; }
+.ai-recommend-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; position: relative; z-index: 1; }
+.ai-recommend-left { flex: 1; min-width: 0; }
+.ai-recommend-top .robot-avatar { flex-shrink: 0; }
+.ai-recommend-headline { display: block; font-size: 15px; margin: 4px 0 4px; }
+.ai-recommend-thumbs { display: flex; gap: 8px; margin-bottom: 10px; position: relative; z-index: 1; }
+.ai-recommend-thumb { width: 48px; height: 48px; border-radius: var(--radius-medium); object-fit: cover; background: #fff; }
+.ai-recommend-footer { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
+.ai-recommend-footer .home-progress-bar { flex: 1; margin-top: 0; }
+.ai-recommend-decor { position: absolute; top: -16px; right: -10px; width: 56px; height: 56px; object-fit: contain; opacity: 0.16; pointer-events: none; }
+
+/* Phase 4.3 introduced 我的成就 + 我的進度 side by side (.home-two-col/
+   .home-half-card). Phase 6.3's My Progress redesign needed full card
+   width for its richer content, so both cards now stack via
+   .home-stack-col instead (defined further below) — .home-two-col/
+   .home-half-card had no other callers and were removed. */
+
+/* Achievement preview — compact only, never the full library on Home. */
+.achievement-preview-card { display: grid; gap: 8px; }
+/* Phase 4.4 — sized so all 4 preview badges (3 unlocked + 1 locked) fit
+   on one row inside the half-width card at 375px without wrapping:
+   4*30 + 3*5 = 135px, comfortably under the ~161px column width. */
+.achievement-badge-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.achievement-badge-mini {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.achievement-badge-mini img { width: 19px; height: 19px; object-fit: contain; }
+.achievement-badge-mini.locked { background: #eceee9; }
+.achievement-badge-lock { color: var(--color-text-secondary); font-weight: 700; font-size: 13px; }
+.achievement-next-goal { color: var(--color-text-secondary); }
+
+/* Phase 6.4.2 report section 5/28/30 — 我的進度 + 我的成就 restored to a
+   side-by-side two-column row (Phase 6.3/6.4 had stacked them full-width
+   once 我的進度 grew, then shrunk it back down without restoring this).
+   Grid rows stretch children to equal height automatically, satisfying
+   "同大致 height" without any extra JS/CSS bookkeeping. Only widens to a
+   single column below 340px — 375/390/430px (the phone widths this app
+   actually targets) all stay two-column. */
+.home-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; margin-bottom: 18px; }
+@media (max-width: 340px) {
+  .home-two-col { grid-template-columns: 1fr; }
+}
+.home-half-card { padding: 14px; }
+
+/* 我的進度 — Home/My Page compact summary (report section 3/4/6/7): one
+   glance answers "did I train recently?". A tiny 7-star trail reuses the
+   exact real per-day data (buildWeekdayStrip) the full page's Weekly
+   Activity card uses — never a second, fake weekly-goal fraction. */
+.home-progress-compact { display: grid; gap: 6px; }
+.home-progress-main-row { display: flex; align-items: center; justify-content: space-between; }
+.home-progress-week-number { font-size: 22px; font-weight: 800; color: var(--primary-dark); }
+.home-progress-visual { width: 28px; height: 28px; object-fit: contain; }
+.home-week-star-mini-row { display: flex; gap: 2px; }
+.home-week-star-mini { width: 12px; height: 12px; object-fit: contain; }
+.home-week-star-mini.inactive { opacity: 0.18; filter: grayscale(1); }
+.home-week-star-mini.is-today { filter: drop-shadow(0 0 2px rgba(212, 160, 23, 0.6)); }
+.home-progress-bottom-row { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.home-progress-recent-line { line-height: 1.4; color: var(--color-text-secondary); }
+.home-progress-xp-line { display: flex; align-items: center; gap: 4px; color: var(--primary-dark); font-weight: 700; }
+.home-progress-xp-icon { width: 14px; height: 14px; object-fit: contain; }
+.home-progress-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 2px; text-align: center; }
+.home-progress-empty-robot { width: 40px; height: 40px; object-fit: contain; }
+
+/* Generic empty state — centered icon/text, reused by the full Progress
+   page/Training History/Record Detail wherever there is genuinely nothing
+   to show. */
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center; }
+.empty-state img { width: 64px; height: 64px; object-fit: contain; }
+.empty-state .small { color: var(--color-text-secondary); }
+
+/* Full Progress page (actionRecordsPage) — Hero (report section 8/9):
+   main number + robot share one top row (never robot-above-text-above-
+   stats stacking), a single low-opacity star_glow behind as texture, 3
+   compact tinted stat tiles directly under the headline. */
+/* Phase 6.4.1 report section 2F — compacted further from 6.4.2: smaller
+   gap, smaller robot, smaller stat tiles. Still one horizontal
+   composition (headline+robot share a row, never robot-then-text-then-
+   stats stacked). */
+.progress-hero-card { position: relative; display: grid; gap: 8px; overflow: hidden; }
+.progress-hero-decor { position: absolute; top: -14px; right: -10px; width: 64px; height: 64px; object-fit: contain; opacity: 0.12; pointer-events: none; }
+.progress-hero-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; position: relative; z-index: 1; }
+.progress-hero-image { width: 46px; height: 46px; object-fit: contain; flex: none; }
+.progress-hero-number { font-size: 24px; font-weight: 800; color: var(--primary-dark); line-height: 1.2; }
+.progress-week-stats-row { display: flex; gap: 8px; position: relative; z-index: 1; }
+.progress-week-stat-tile { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; min-height: 50px; background: var(--color-primary-soft); border-radius: var(--radius-medium); padding: 5px 4px; }
+.progress-week-stat-icon { width: 16px; height: 16px; object-fit: contain; }
+.progress-week-stat-tile b { font-size: 14px; }
+.progress-week-delta { color: var(--color-text-secondary); }
+.progress-hero-streak-encourage { color: var(--primary-dark); position: relative; z-index: 1; }
+
+/* Weekly Activity card (report section 4/10/11) — the same star visual
+   language as Home's mini trail, just bigger: a real progress_star_green
+   for an active day, star_gold for an active TODAY specifically (the
+   "highlight" semantic), the identical asset dimmed+grayscaled for an
+   inactive day. A thin connector line behind the row echoes the "path"
+   feel from the mockup without building a full roadmap graphic. */
+/* Report section H/I — the timeline itself is now the card's main visual
+   weight (bigger nodes, tighter surrounding whitespace) instead of small
+   nodes floating in a mostly-empty card. Each day uses a CSS Grid with a
+   fixed-height icon row (40px, the largest node's size) so active/
+   inactive/today icons of DIFFERENT declared sizes still line up on the
+   same vertical center — required for the connector line to visually pass
+   through every node regardless of its individual size. */
+.progress-weekly-activity-card { display: grid; gap: 6px; margin-top: 12px; }
+.progress-weekly-activity-copy { color: var(--color-text-secondary); }
+.weekday-activity-row { position: relative; display: flex; justify-content: space-between; padding: 2px 0; }
+.weekday-activity-row::before { content: ""; position: absolute; left: calc(100% / 14); right: calc(100% / 14); top: 37px; height: 1px; background: var(--line); z-index: 0; }
+.weekday-activity-day { position: relative; z-index: 1; display: grid; grid-template-rows: auto 40px auto; row-gap: 2px; justify-items: center; align-items: center; flex: 1; }
+.weekday-activity-label { font-size: 11px; color: var(--color-text-secondary); }
+.weekday-activity-day.is-today .weekday-activity-label { color: var(--primary-dark); font-weight: 700; }
+.weekday-activity-icon { width: 32px; height: 32px; object-fit: contain; }
+.weekday-activity-icon.inactive { width: 28px; height: 28px; opacity: 0.25; filter: grayscale(1); }
+.weekday-activity-day.is-today .weekday-activity-icon { width: 38px; height: 38px; filter: drop-shadow(0 0 3px rgba(212, 160, 23, 0.55)); }
+.weekday-activity-day.is-today .weekday-activity-icon.inactive { width: 34px; height: 34px; }
+.weekday-activity-count { font-size: 10px; color: var(--color-text-secondary); min-height: 12px; }
+
+/* Training History — section header + source filter chips +
+   fitness-app-style record cards (report section 13-16). Date group
+   labels are deliberately small/gray, never a big section-title heading. */
+.history-section-header { display: flex; justify-content: space-between; align-items: baseline; margin-top: 16px; }
+.history-filter-row { display: flex; gap: 8px; overflow-x: auto; margin: 10px 0 8px; padding-bottom: 2px; }
+/* Report section 6 — no large blank gap between the filter chips and the
+   first record: the first date-group-label's own margin-top would stack
+   on top of the filter row's margin-bottom otherwise. */
+.history-filter-row + .history-date-group-label { margin-top: 0; }
+.history-filter-chip { flex: none; padding: 6px 14px; border-radius: 999px; background: #f2f2ee; color: var(--color-text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; }
+.history-filter-chip.active { background: var(--color-primary-soft); color: var(--primary-dark); }
+/* Report section F — 8-12px from a date group to its own records, 16-20px
+   before the NEXT date group starts (so a new date reads as a clear new
+   group, never crowding the previous group's last completion/quality
+   line). The filter-row override above still zeroes this out for the very
+   first group, where the filter chips already provide the separation. */
+.history-date-group-label { margin: 18px 2px 8px; color: var(--color-text-secondary); }
+/* Phase 6.4.3 report section A — ROOT CAUSE of the reported overlap/
+   vertical-scatter bug: this rule set align-items/gap/min-height/max-height
+   on .history-card but NEVER declared `display: flex`. Without that, the
+   three children below (image/center/right) are plain block-level <div>s
+   that stack vertically full-width — align-items, gap, flex:1, flex:none
+   all silently do nothing without a flex (or grid) container. That single
+   missing line is why image/name/date/quality/XP never formed one row,
+   and why a taller-than-expected stacked card (with a hard max-height and
+   no overflow handling) visually bled into the next card. Fixed by
+   actually making this a flex row — LEFT (fixed) / CENTER (flex:1,
+   min-width:0) / RIGHT (fixed) — and removing the max-height cap (a flex
+   row's real height should come from its content, not an arbitrary clip
+   that risks the exact overlap this phase exists to fix). */
+.history-card { display: flex; align-items: center; gap: 10px; min-height: 88px; margin-top: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.history-card-image { width: 68px; height: 68px; flex: none; }
+.history-card-image .exercise-grid-card-image { width: 68px; height: 68px; border-radius: var(--radius-medium); overflow: hidden; }
+.history-card-center { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+.history-card-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.history-card-meta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.history-card-meta .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-card-facts { color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+.history-card-facts-star { width: 13px; height: 13px; object-fit: contain; flex: none; }
+.history-card-right { flex: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 6px; align-self: stretch; padding: 2px 0; }
+.history-card-xp { display: flex; align-items: center; gap: 3px; color: var(--primary-dark); font-weight: 700; font-size: 13px; white-space: nowrap; }
+.history-card-xp-icon { width: 14px; height: 14px; object-fit: contain; }
+
+/* Source badge — non-color-only distinction (report section 14): assigned
+   is a solid tinted chip, self_practice is an outlined chip using the same
+   tint, so the shapes read differently even in grayscale. */
+.source-tag-badge.self-practice { background: transparent; border: 1px solid #d8c27a; }
+.source-tag-badge.unknown { background: #f2f2ee; color: var(--color-text-secondary); }
+
+/* Single Record Detail — Hero (report section 17): image/name/date/source
+   share one horizontal composition, XP anchored bottom-right. */
+.record-detail-hero-card { display: grid; gap: 8px; margin-bottom: 10px; }
+/* Report section 23 audit — every stacked card in Record Detail (完成表現/
+   動作觀察/追蹤穩定度/legacy-generic card) gets a consistent 10px gap from
+   whatever precedes it, matching the existing squat-result page's own
+   .result-reward-card/.result-tech-details convention (this app has no
+   global .card+.card rule — each stacked section sets its own margin). */
+.detail-block-card { margin-top: 10px; }
+.record-detail-hero-top-row { display: flex; align-items: flex-start; gap: 10px; }
+.record-detail-hero-image { width: 56px; height: 56px; flex: none; }
+.record-detail-hero-image .exercise-grid-card-image { width: 56px; height: 56px; border-radius: var(--radius-medium); overflow: hidden; }
+.record-detail-hero-text { flex: 1; display: grid; gap: 3px; }
+.record-detail-hero-name { margin: 0; font-size: 18px; }
+.record-detail-hero-xp { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--primary-dark); font-weight: 700; }
+
+/* Completion visual (report section 18/19) — a real progress bar (a
+   genuine per-record targetReps, never a fabricated weekly goal) reusing
+   the existing .xp-track.gamified marker mechanics already used by the
+   level/XP bar, with a real progress_star_green marker at the fill
+   position instead of a 5-star rating. */
+.completion-progress-bar { margin-top: 10px; width: 100%; }
+
+.detail-section-label { display: block; margin-bottom: 8px; }
+.quality-issue-row { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.quality-issue-row:last-child { border-bottom: none; }
+.quality-issue-count { color: #8a6d1c; font-weight: 600; }
+.quality-issue-ok { display: flex; align-items: center; gap: 4px; color: var(--color-text-secondary); }
+.quality-issue-check { width: 14px; height: 14px; object-fit: contain; }
+.tracking-reliability-card { display: flex; align-items: center; gap: 10px; }
+.tracking-reliability-icon { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.detail-metrics-grid { display: flex; gap: 12px; }
+.detail-metric-col { flex: 1; background: #f7f8f4; border-radius: var(--radius-medium); padding: 8px 10px; }
+.detail-metric-col b { font-size: 16px; }
+
+/* Report section 27 — a one-shot pulse on a freshly-active star, never an
+   infinite/looping animation, and fully skipped when the user has
+   prefers-reduced-motion set. */
+@keyframes progressStarPulse { 0% { transform: scale(0.7); opacity: 0.4; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.weekday-activity-day.is-today .weekday-activity-icon:not(.inactive) { animation: progressStarPulse 0.4s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .weekday-activity-day.is-today .weekday-activity-icon:not(.inactive) { animation: none; }
+}
+
+.badge-row-icon { width: 14px; height: 14px; object-fit: contain; vertical-align: -2px; margin-right: 4px; }
+.badge-icon-img { width: 26px; height: 26px; object-fit: contain; }
+.badge-card.locked { opacity: 0.55; }
+
+/* Reward / completion feedback — small inline panel, never a blocking modal. */
+.reward-feedback-panel { margin-bottom: 14px; background: var(--color-primary-soft); border-color: #cfe3cf; }
+.reward-feedback-row { display: flex; align-items: center; gap: 10px; }
+.reward-feedback-row b { font-size: 14px; }
+.reward-milestone-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; font-weight: 600; color: var(--primary-dark); }
+.reward-milestone-row img { width: 22px; height: 22px; object-fit: contain; }
+.reward-xp-line { display: flex; align-items: center; gap: 4px; }
+.reward-xp-icon { width: 14px; height: 14px; object-fit: contain; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.1 — AI Dynamic Functional Assessment: Body Region
+   Selection + Shoulder Prep shell. Reuses existing card/button/typography
+   tokens throughout; only the region-grid layout itself is new.
+   ───────────────────────────────────────────────────────────────────── */
+.body-region-intro { margin: 14px 2px 10px; }
+.body-region-main-visual { display: block; width: 120px; height: auto; margin: 0 auto 14px; object-fit: contain; }
+.body-region-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.body-region-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px; border-radius: var(--radius-medium); border: 1px solid var(--line); background: var(--card); text-align: center; font-size: 13px; }
+.body-region-btn.available { border-color: var(--color-primary-soft); background: var(--color-primary-soft); color: var(--primary-dark); font-weight: 700; cursor: pointer; }
+.body-region-btn.disabled { opacity: 0.55; }
+.body-region-icon { width: 32px; height: 32px; object-fit: contain; }
+.body-region-icon-fallback { width: 32px; height: 32px; border-radius: 50%; border: 1.5px dashed var(--line); display: inline-block; }
+.body-region-soon { font-size: 10px; color: var(--color-text-secondary); }
+.body-region-footer { text-align: center; margin-top: 12px; color: var(--color-text-secondary); }
+
+.functional-assessment-prep-card { display: grid; gap: 10px; }
+.functional-assessment-prep-row { display: flex; align-items: center; gap: 10px; }
+.functional-assessment-prep-check { width: 16px; height: 16px; object-fit: contain; flex: none; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.2 — Shoulder Functional Assessment: Intro,
+   Session (index-driven, shared by both movements), Complete. Reuses
+   existing tokens/card/button language throughout; only the movement
+   frame-sequence grid is genuinely new layout.
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-intro-card { display: grid; gap: 8px; }
+.functional-assessment-intro-point { padding: 8px 10px; background: var(--color-primary-soft); border-radius: var(--radius-small); color: var(--primary-dark); }
+
+.functional-assessment-progress-label { text-align: center; margin: 10px 0 4px; color: var(--color-text-secondary); }
+/* Reuses the exact same dot pattern as .assessment-step-dots (the
+   existing preference-questionnaire wizard) for a consistent step
+   indicator language across both assessment flows. */
+.functional-assessment-progress-dots { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
+.functional-assessment-progress-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.functional-assessment-progress-dots span.active { background: var(--color-primary); }
+
+.functional-assessment-movement-title { text-align: center; margin: 4px 0 2px; }
+.functional-assessment-view-label { text-align: center; color: var(--color-text-secondary); margin-bottom: 8px; }
+.functional-assessment-instruction { margin: 0 2px 12px; line-height: 1.6; }
+
+/* Frames use a shared neutral card container so the source PNGs'
+   inconsistent white/transparent backgrounds (confirmed during the
+   Phase 7.2 asset re-check) never show a visible seam against each
+   other or against the page background — no PNG files are edited. */
+.functional-assessment-frame-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.functional-assessment-frame { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-medium); padding: 6px 4px; }
+.functional-assessment-frame img { width: 100%; height: auto; object-fit: contain; }
+.functional-assessment-frame-caption { color: var(--color-text-secondary); }
+
+.functional-assessment-safety-note { margin-top: 10px; color: var(--color-text-secondary); }
+
+.functional-assessment-complete-card { display: grid; gap: 6px; text-align: center; }
+.functional-assessment-complete-note { color: var(--color-text-secondary); margin-top: 4px; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.3A — Shoulder Camera Foundation.
+   Phase 7.3B.1 — viewport changed from 4:3 + 320px max-height to Squat's
+   own proven portrait 3:4 strategy (no height cap), per the Phase 7.3B
+   pre-check's real-device finding: shoulder movement travels vertically
+   (arm-down to overhead), so a landscape-shaped, height-capped box forced
+   the patient to stand further back than necessary. CSS/display-only
+   change — object-fit: cover still crops whatever the browser's native
+   camera stream provides; MediaPipe's detectForVideo() reads the video
+   element's underlying decoded frame buffer directly, never this box, so
+   normalized landmark coordinates are entirely unaffected (see pre-check
+   report section 7). No skeleton overlay, no scaleX(-1) mirror yet (report
+   section 16/17 — deliberately left un-mirrored, deferred; if/when an
+   overlay canvas is ever added it must share this exact aspect-ratio/
+   object-fit/transform, per the same report's mirroring policy).
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-camera-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #1c1f1a;
+  border-radius: var(--radius-large);
+  overflow: hidden;
+  margin: 10px 0;
+}
+.functional-assessment-camera-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.functional-assessment-camera-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--line); }
+.functional-assessment-camera-dot.not-found { background: #c8c8c8; }
+.functional-assessment-camera-dot.partial { background: #f0c265; }
+.functional-assessment-camera-dot.ready { background: var(--color-success); }
+.functional-assessment-camera-dot.error { background: #e0664f; }
+.functional-assessment-camera-error-actions { display: grid; gap: 8px; margin-top: 12px; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.3A.1 — Remote Assessment UX. Shoulder-scoped only
+   (report section 16 — global .small and Squat's own camera typography
+   are untouched). Primary status is sized to stay readable from roughly
+   1-2m on a laptop screen once the camera is active; the compact identity
+   row (movement name + progress dots) replaces the longer pre-camera
+   progress-label/view-label/instruction stack, which only renders before
+   Camera starts (report section 15/20).
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-remote-identity { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 2px 0 8px; }
+.functional-assessment-remote-identity b { font-size: 15px; }
+.functional-assessment-remote-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 20px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-large);
+}
+.functional-assessment-remote-status .functional-assessment-camera-dot { width: 14px; height: 14px; }
+.functional-assessment-remote-status-primary { display: block; font-size: 26px; line-height: 1.35; }
+.functional-assessment-remote-status-secondary { font-size: 14px; }
+.functional-assessment-manual-continue { opacity: 0.8; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.3B.2C — Shoulder Real-device Calibration
+   Foundation. Developer/test-only — mirrors Squat's own established
+   .squat-debug-toggle/.squat-debug-panel convention, but sized for
+   REMOTE readability (report section 9), since a calibration tester is
+   physically standing away from the laptop while reading this. Scoped
+   entirely under functional-assessment-calibration-* — never touches
+   global .small or any other exercise's camera/debug CSS.
+
+   Phase 7.3B.2C.1 additions: tracking overlay canvas (shares the SAME
+   mirror transform as the video, applied only while calibration mode is
+   on — see .functional-assessment-camera-wrap-mirrored below and
+   toggleShoulderCalibrationMode() in app.js; the base, non-calibration
+   .functional-assessment-camera-video rule is untouched, so ordinary
+   patient sessions are visually unaffected); big status/guidance/running-
+   max typography per the required hierarchy (report section 14); raw
+   debug values de-emphasized below the readable landmark-quality labels.
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-calibration-toggle { font-size: 11px; color: var(--muted); text-decoration: underline; cursor: pointer; }
+.functional-assessment-calibration-panel { margin-top: 12px; display: grid; gap: 10px; }
+.functional-assessment-calibration-controls { display: grid; gap: 6px; background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-medium); padding: 10px; }
+.functional-assessment-calibration-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.functional-assessment-calibration-btn { padding: 6px 10px; font-size: 13px; }
+.functional-assessment-calibration-marker-btn { padding: 6px 10px; font-size: 12px; }
+
+/* Tracking overlay: absolutely positioned over the video, same box, drawn
+   with RAW (unmirrored) coordinates — this transform is what makes it
+   visually track a mirrored video, per the mirroring contract. */
+.functional-assessment-calibration-overlay-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.functional-assessment-camera-wrap-mirrored .functional-assessment-camera-video,
+.functional-assessment-camera-wrap-mirrored .functional-assessment-calibration-overlay-canvas {
+  transform: scaleX(-1);
+}
+
+.functional-assessment-calibration-readout {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  padding: 16px 12px;
+  background: #1c1f1a;
+  color: #fff;
+  border-radius: var(--radius-large);
+}
+/* Hierarchy per report section 14: big status -> raw angle -> running max
+   are the most visually prominent; selection/landmark-quality readable
+   but smaller; raw debug numbers and the marker log are the smallest,
+   monospace, de-emphasized rows. */
+.functional-assessment-calibration-status { font-size: 22px; font-weight: 700; line-height: 1.3; }
+.functional-assessment-calibration-guidance { font-size: 15px; color: #f0c265; line-height: 1.4; }
+.functional-assessment-calibration-label { color: #b9c4b3; font-family: monospace; }
+.functional-assessment-calibration-primary-angle { font-size: 44px; line-height: 1.2; font-weight: 700; }
+.functional-assessment-calibration-primary-angle.functional-assessment-calibration-unavailable { font-size: 16px; font-weight: 400; color: #e0664f; }
+.functional-assessment-calibration-runningmax { font-size: 16px; color: #cfe3c4; }
+.functional-assessment-calibration-attempt-complete { margin-top: 6px; padding: 10px; border: 1px solid #3a4235; border-radius: var(--radius-medium); background: #232a1e; font-family: monospace; }
+.functional-assessment-calibration-attempt-hint { color: #b9c4b3; font-family: monospace; }
+.functional-assessment-calibration-selection { font-size: 14px; font-weight: 600; margin-top: 4px; }
+.functional-assessment-calibration-landmarks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin-top: 4px; font-family: monospace; }
+.functional-assessment-calibration-debug, .functional-assessment-calibration-meta, .functional-assessment-calibration-marker-list { color: #8a958a; font-family: monospace; font-size: 11px; }
+.functional-assessment-calibration-disclaimer { color: #f0c265; margin-top: 4px; font-family: monospace; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   ReMotion 2.0 Phase 7.1.1 — Home IA restructure. AI 動態功能評估 becomes
+   Home's primary featured section, reusing the exact same soft-green
+   gradient card language already established for the old AI 個人化建議
+   hero (.ai-recommend-card) — same tokens, new class name since this is
+   now a different feature. 我的課表 becomes a short full-width summary
+   row instead of the old thumbnail+status-pill hero.
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-feature-card { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--color-primary-soft), #f7fbf4); border: 1px solid var(--color-primary-soft); padding: 18px 16px; margin-bottom: 16px; }
+/* Phase 7.1.2 — text left, hero illustration right; text column can
+   shrink/wrap (min-width:0) so the hero never gets pushed into overflow.
+   Hero width is proportional (~38% of the card's content width, clamped
+   between a legibility floor and a card-boundary ceiling) instead of a
+   fixed 96px, so its girl/shoulder-detection/analysis-board content stays
+   legible; aspect-ratio:1/1 keeps it square (matching the source PNG)
+   without a separate height calc, and object-fit:contain guarantees no
+   cropping regardless of the resolved width. */
+.functional-assessment-feature-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.functional-assessment-feature-text { flex: 1; min-width: 0; }
+.functional-assessment-feature-hero-img { width: clamp(104px, 38%, 148px); aspect-ratio: 1 / 1; height: auto; object-fit: contain; flex: none; }
+.functional-assessment-feature-title { display: block; font-size: 18px; margin-bottom: 4px; }
+.functional-assessment-actions { display: flex; gap: 10px; }
+.functional-assessment-action { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; border-radius: var(--radius-medium); text-align: center; }
+/* Phase 7.1.2 — bumped from 44px so the new waving-robot icon reads
+   clearly (target ~50-58px per spec); action padding unchanged, so the
+   action card only grows by the icon's own +10px, not more. */
+.functional-assessment-action-icon { width: 54px; height: 54px; object-fit: contain; }
+.functional-assessment-action-title { font-size: 13px; }
+.functional-assessment-action.primary { background: var(--primary); color: #fff; cursor: pointer; }
+.functional-assessment-action.primary .functional-assessment-action-sub { color: rgba(255,255,255,0.85); }
+.functional-assessment-action.secondary { background: var(--card); border: 1px solid var(--line); }
+.functional-assessment-action.secondary.locked { opacity: 0.55; }
+
+.home-schedule-card { padding: 14px 16px; margin-bottom: 14px; }
+/* Phase 7.1.2 — real existing calendar/checklist asset (streak_calendar.png,
+   previously unused anywhere) added on the left; the row itself only
+   arranges [image | main], and .home-schedule-main keeps the original
+   text/CTA space-between relationship unchanged. */
+.home-schedule-row { display: flex; align-items: center; gap: 12px; }
+.home-schedule-image { width: 60px; height: 60px; object-fit: contain; flex: none; }
+.home-schedule-main { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.home-schedule-row.clickable { cursor: pointer; }
+.home-schedule-text { min-width: 0; flex: 1; }
+.home-schedule-bar .home-progress-bar { margin-top: 10px; }

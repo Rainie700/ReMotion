@@ -1,0 +1,5 @@
+import { LE05_THRESHOLDS } from "./constants.js";
+export const LE05_QUALITY_ISSUE={INCOMPLETE_STAND:"incomplete_stand",EXCESSIVE_TRUNK_LEAN:"excessive_trunk_lean",KNEE_VALGUS:"knee_valgus",ASYMMETRY:"asymmetry",TOO_FAST:"too_fast",FAST_DESCENT:"fast_descent"};
+export const LE05_QUALITY_ISSUE_LABELS={incomplete_stand:"沒有完全站直",excessive_trunk_lean:"身體前傾較多",knee_valgus:"膝蓋向內夾",asymmetry:"左右出力不平均",too_fast:"起身速度較快",fast_descent:"坐下速度較快"};
+export const LE05_QUALITY_SUGGESTIONS={incomplete_stand:"站起後將髖部與膝蓋自然伸直。",excessive_trunk_lean:"重心前移後再穩定站起，避免持續彎腰。",knee_valgus:"讓膝蓋方向盡量與腳尖一致。",asymmetry:"讓雙腳平均踩穩地面後再起身。",too_fast:"放慢起身速度，減少使用慣性。",fast_descent:"坐下時慢慢屈髖屈膝，控制下降速度。"};
+export function evaluateSitToStandQuality(m,t=LE05_THRESHOLDS){const i=[];if(m.maxKneeAngle<t.STANDING_KNEE_ANGLE_MIN_DEG)i.push("incomplete_stand");if(m.maxTrunkLeanDeg>t.TRUNK_LEAN_MAX_DEG)i.push("excessive_trunk_lean");if(m.kneeValgusSuspected)i.push("knee_valgus");if(m.maxKneeAsymmetryDeg>t.KNEE_ASYMMETRY_MAX_DEG)i.push("asymmetry");if(m.durationMs<t.MIN_REP_DURATION_MS*1.25)i.push("too_fast");if(m.descentDurationMs<t.FAST_DESCENT_MAX_MS)i.push("fast_descent");return{valid:i.length===0,issues:i};}

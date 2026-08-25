@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { createBalanceSession } from "../js/ai/exercises/balance/session.js";
+import { calculateBalanceScore } from "../js/ai/exercises/balance/score.js";
+const session=createBalanceSession({targetDurationMs:1000});
+for(let t=0;t<=1200;t+=100)session.processFrame({timestamp:t,centerX:.5,stanceWidth:.2,bodyScale:.7,trunkLeanDeg:2,bodyReady:true});
+const summary=session.getSummary();
+assert.equal(summary.completed,true);
+assert.equal(summary.largeSwayCount,0);
+assert.equal(calculateBalanceScore(summary).score,100);
+const interrupted=createBalanceSession({targetDurationMs:1000});
+interrupted.processFrame({timestamp:0,centerX:.5,stanceWidth:.2,bodyScale:.7,trunkLeanDeg:2,bodyReady:true});
+interrupted.processFrame({timestamp:100,bodyReady:false});
+assert.equal(interrupted.getSummary().trackingInterruptionCount,1);
+console.log("LE06 balance session tests passed");

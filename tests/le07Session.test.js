@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { createCalfRaiseSession } from "../js/ai/exercises/calfRaise/session.js";
+import { calculateCalfRaiseScore } from "../js/ai/exercises/calfRaise/score.js";
+const session=createCalfRaiseSession({targetReps:1});
+const rises=[0,.03,.05,.06,.065,.055,.04,.018,.01,.005];
+rises.forEach((rise,i)=>session.processFrame({timestamp:i*250,heelY:.8-rise*.5,heelAsymmetryRatio:.005,averageKneeAngle:175,trunkLeanDeg:3,bodyScale:.5,bodyReady:true}));
+const s=session.getSummary();
+assert.equal(s.totalReps,1);
+assert.equal(s.validReps,1);
+assert.equal(calculateCalfRaiseScore(s).score,100);
+console.log("LE07 calf-raise session tests passed");

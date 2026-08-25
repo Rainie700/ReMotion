@@ -4,15 +4,33 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-  "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview"
-},
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:cr05": "node tests/cr05Session.test.js",
+    "test:kn03": "node tests/kn03Session.test.js",
+    "test:le05": "node tests/le05Session.test.js",
+    "test:le03": "node tests/le03Session.test.js",
+    "test:le04": "node tests/le04Session.test.js",
+    "test:le06": "node tests/le06Session.test.js",
+    "test:le07": "node tests/le07Session.test.js",
+    "test:sh01": "node tests/sh01Session.test.js",
+    "test:sh02": "node tests/sh02Session.test.js",
+    "test:sh03": "node tests/sh03Session.test.js",
+    "test:hp04": "node tests/hp04Session.test.js",
+    "test:hp05": "node tests/hp05Session.test.js",
+    "test:hp06": "node tests/hp06Session.test.js",
+    "test:le02": "node tests/le02Session.test.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "vite": "^8.0.10"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^0.10.35",
+    "firebase": "^12.17.1"
   }
 }
