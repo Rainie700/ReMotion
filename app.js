@@ -1418,7 +1418,7 @@ const ABILITY_LEVEL_OPTIONS = [
 const SESSION_MINUTES_OPTIONS = [10, 15, 20, 30];
 // Preferred display order — purely cosmetic sorting of real category
 // values, never invents a category that doesn't exist in the data.
-const BODY_PART_DISPLAY_ORDER = ["下肢", "髖關節", "上肢肩部", "核心", "日常生活功能"];
+const BODY_PART_DISPLAY_ORDER = ["下肢", "髖關節", "膝關節", "踝關節", "上肢肩部", "核心", "日常生活功能"];
 
 /**
  * Display-only mapping from the real 4-value exercise `difficulty` text
