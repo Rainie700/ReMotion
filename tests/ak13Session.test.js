@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import {createSingleLegAnkleStabilitySession} from "../js/ai/exercises/singleLegAnkleStability/session.js";
+import {AK13_THRESHOLDS} from "../js/ai/exercises/singleLegAnkleStability/constants.js";
+import {calculateSingleLegAnkleStabilityScore} from "../js/ai/exercises/singleLegAnkleStability/score.js";
+
+const tracker=createSingleLegAnkleStabilitySession({targetDurationMs:1000,thresholds:AK13_THRESHOLDS});
+const left={bodyReady:true,leftFootLiftRatio:0,rightFootLiftRatio:.1,leftKneeAngle:170,rightKneeAngle:170,leftAnkleDeviationRatio:.03,rightAnkleDeviationRatio:.03,centerX:.5,bodyScale:.3,pelvisTiltDeg:2,trunkLeanDeg:2};
+tracker.processFrame({timestamp:0,...left});
+for(let t=100;t<=1100;t+=100)tracker.processFrame({timestamp:t,...left});
+let s=tracker.getSummary();
+assert.equal(s.leftHeldMs,1000,"左腳正確支撐應累積完整秒數");
+assert.equal(s.rightHeldMs,0);
+const unstable={...left,leftAnkleDeviationRatio:.2};
+tracker.processFrame({timestamp:1200,...unstable});
+assert.equal(tracker.getSummary().leftHeldMs,1000,"腳踝偏移時不可繼續累積");
+const right={...left,leftFootLiftRatio:.1,rightFootLiftRatio:0};
+for(let t=1300;t<=2300;t+=100)tracker.processFrame({timestamp:t,...right});
+s=tracker.getSummary();
+assert.equal(s.rightHeldMs,1000,"右腳正確支撐應累積完整秒數");
+assert.equal(s.completed,true);
+assert.ok(calculateSingleLegAnkleStabilityScore(s).score>=85);
+console.log("AK13 single-leg ankle stability session test passed");

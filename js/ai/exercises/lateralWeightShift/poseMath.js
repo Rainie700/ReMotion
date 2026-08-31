@@ -1,0 +1,7 @@
+import {AK12_REQUIRED_LANDMARKS as R,AK12_THRESHOLDS as T} from "./constants.js";
+const ok=(p,m)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>=m;
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const angle=(a,b,c)=>{const u={x:a.x-b.x,y:a.y-b.y},v={x:c.x-b.x,y:c.y-b.y},d=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);return d?Math.acos(Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/d)))*180/Math.PI:null};
+const valgus=(h,k,a)=>Math.abs(k.x-(h.x+a.x)/2)/Math.max(.05,dist(h,a));
+export function computeLateralWeightShiftMetrics(l,t=T){if(!Array.isArray(l)||!R.every(i=>ok(l[i],t.MIN_VISIBILITY)))return{bodyReady:false};const shoulder=mid(l[11],l[12]),hip=mid(l[23],l[24]),ankle=mid(l[27],l[28]),shoulderWidth=Math.max(.08,dist(l[11],l[12])),leg=(s,i)=>({[s+"KneeFlexionDeg"]:Math.max(0,180-(angle(l[i.h],l[i.k],l[i.a])||180)),[s+"HipAbductionDeg"]:Math.abs(Math.atan2(l[i.k].x-l[i.h].x,l[i.k].y-l[i.h].y))*180/Math.PI,[s+"KneeValgusRatio"]:valgus(l[i.h],l[i.k],l[i.a]),[s+"HeelLiftRatio"]:Math.max(0,(l[i.toe].y-l[i.heel].y)/Math.max(.05,dist(l[i.k],l[i.a])))});return{bodyReady:true,shoulderWidth,ankleWidth:Math.abs(l[28].x-l[27].x),ankleCenterX:ankle.x,leftAnkleX:l[27].x,rightAnkleX:l[28].x,...leg("left",{h:23,k:25,a:27,heel:29,toe:31}),...leg("right",{h:24,k:26,a:28,heel:30,toe:32}),trunkSideLeanDeg:Math.abs(Math.atan2(shoulder.x-hip.x,Math.max(.001,hip.y-shoulder.y))*180/Math.PI),pelvisTiltDeg:Math.abs(Math.atan2(l[24].y-l[23].y,l[24].x-l[23].x))*180/Math.PI};}

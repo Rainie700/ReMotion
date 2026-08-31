@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {createBalancePadSingleLegSession} from "../js/ai/exercises/balancePadSingleLeg/session.js";
+import {AK14_THRESHOLDS} from "../js/ai/exercises/balancePadSingleLeg/constants.js";
+import {calculateBalancePadSingleLegScore} from "../js/ai/exercises/balancePadSingleLeg/score.js";
+
+const tracker=createBalancePadSingleLegSession({targetDurationMs:1000,thresholds:AK14_THRESHOLDS});
+const left={bodyReady:true,leftFootLiftRatio:0,rightFootLiftRatio:.1,leftKneeAngle:165,rightKneeAngle:165,leftAnkleDeviationRatio:.03,rightAnkleDeviationRatio:.03,centerX:.5,bodyScale:.3,pelvisTiltDeg:2,trunkLeanDeg:2,armSpreadRatio:.2};
+tracker.processFrame({timestamp:0,...left});
+for(let t=100;t<=1100;t+=100)tracker.processFrame({timestamp:t,...left});
+assert.equal(tracker.getSummary().leftHeldMs,1000,"穩定的左腳支撐應完成目標秒數");
+const compensating={...left,armSpreadRatio:.9};
+tracker.processFrame({timestamp:1200,...compensating});
+assert.equal(tracker.getSummary().armSwingCount,1,"手臂過度張開應記錄代償");
+const right={...left,leftFootLiftRatio:.1,rightFootLiftRatio:0};
+for(let t=1300;t<=2300;t+=100)tracker.processFrame({timestamp:t,...right});
+const s=tracker.getSummary();
+assert.equal(s.rightHeldMs,1000);
+assert.equal(s.completed,true);
+assert.ok(calculateBalancePadSingleLegScore(s).score>=80);
+console.log("AK14 balance-pad single-leg session test passed");

@@ -83,6 +83,11 @@ export const AK07_EXERCISE_ID = "AK07";
 export const AK08_EXERCISE_ID = "AK08";
 export const AK09_EXERCISE_ID = "AK09";
 export const AK10_EXERCISE_ID = "AK10";
+export const AK11_EXERCISE_ID = "AK11";
+export const AK12_EXERCISE_ID = "AK12";
+export const AK13_EXERCISE_ID = "AK13";
+export const AK14_EXERCISE_ID = "AK14";
+export const AK15_EXERCISE_ID = "AK15";
 
 /**
  * ReMotion Phase 5.6.1 — which real Camera/MediaPipe pose analyzer (if any)
@@ -155,6 +160,11 @@ export const POSE_ANALYZER = {
   AK08_SINGLE_LEG_TOE_RAISE: "ak08_single_leg_toe_raise",
   AK09_HEEL_WALK: "ak09_heel_walk",
   AK10_TOE_WALK: "ak10_toe_walk",
+  AK11_FORWARD_WEIGHT_SHIFT: "ak11_forward_weight_shift",
+  AK12_LATERAL_WEIGHT_SHIFT: "ak12_lateral_weight_shift",
+  AK13_SINGLE_LEG_ANKLE_STABILITY: "ak13_single_leg_ankle_stability",
+  AK14_BALANCE_PAD_SINGLE_LEG: "ak14_balance_pad_single_leg",
+  AK15_SINGLE_LEG_FORWARD_REACH: "ak15_single_leg_forward_reach",
 };
 
 export function resolvePoseAnalyzer(exercise) {
@@ -215,6 +225,11 @@ export function resolvePoseAnalyzer(exercise) {
   if (id === AK08_EXERCISE_ID) return POSE_ANALYZER.AK08_SINGLE_LEG_TOE_RAISE;
   if (id === AK09_EXERCISE_ID) return POSE_ANALYZER.AK09_HEEL_WALK;
   if (id === AK10_EXERCISE_ID) return POSE_ANALYZER.AK10_TOE_WALK;
+  if (id === AK11_EXERCISE_ID) return POSE_ANALYZER.AK11_FORWARD_WEIGHT_SHIFT;
+  if (id === AK12_EXERCISE_ID) return POSE_ANALYZER.AK12_LATERAL_WEIGHT_SHIFT;
+  if (id === AK13_EXERCISE_ID) return POSE_ANALYZER.AK13_SINGLE_LEG_ANKLE_STABILITY;
+  if (id === AK14_EXERCISE_ID) return POSE_ANALYZER.AK14_BALANCE_PAD_SINGLE_LEG;
+  if (id === AK15_EXERCISE_ID) return POSE_ANALYZER.AK15_SINGLE_LEG_FORWARD_REACH;
   return null;
 }
 
@@ -287,7 +302,7 @@ export function normalizeExercise(raw) {
   }
 
   const id = raw.exercise_id || raw.exerciseId || raw.id || null;
-  const aiSupported = isSquatExercise(raw) || id === LE02_EXERCISE_ID || id === HP01_EXERCISE_ID || id === HP03_EXERCISE_ID || id === HP07_EXERCISE_ID || id === HP08_EXERCISE_ID || id === HP09_EXERCISE_ID || id === HP10_EXERCISE_ID || id === AD01_EXERCISE_ID || id === AD02_EXERCISE_ID || id === AD03_EXERCISE_ID || id === AD04_EXERCISE_ID || id === AD05_EXERCISE_ID || id === AD06_EXERCISE_ID || id === AD07_EXERCISE_ID || id === AD08_EXERCISE_ID || id === AD09_EXERCISE_ID || id === AD10_EXERCISE_ID || id === AD11_EXERCISE_ID || id === AD12_EXERCISE_ID || id === AK01_EXERCISE_ID || id === AK02_EXERCISE_ID || id === AK03_EXERCISE_ID || id === AK04_EXERCISE_ID || id === AK05_EXERCISE_ID || id === AK06_EXERCISE_ID || id === AK07_EXERCISE_ID || id === AK08_EXERCISE_ID || id === AK09_EXERCISE_ID || id === AK10_EXERCISE_ID || id === CR01_EXERCISE_ID || id === CR02_EXERCISE_ID || id === CR03_EXERCISE_ID || id === CR04_EXERCISE_ID || id === CR05_EXERCISE_ID || id === CR06_EXERCISE_ID || id === CR07_EXERCISE_ID || id === CR08_EXERCISE_ID || id === KN03_EXERCISE_ID || id === LE05_EXERCISE_ID || id === LE03_EXERCISE_ID || id === LE04_EXERCISE_ID || id === LE06_EXERCISE_ID || id === LE07_EXERCISE_ID || id === SH01_EXERCISE_ID || id === SH02_EXERCISE_ID || id === SH03_EXERCISE_ID || id === SH04_EXERCISE_ID || id === SH05_EXERCISE_ID || id === SH06_EXERCISE_ID || id === SH07_EXERCISE_ID || id === HP04_EXERCISE_ID || id === HP05_EXERCISE_ID || id === HP06_EXERCISE_ID;
+  const aiSupported = isSquatExercise(raw) || id === LE02_EXERCISE_ID || id === HP01_EXERCISE_ID || id === HP03_EXERCISE_ID || id === HP07_EXERCISE_ID || id === HP08_EXERCISE_ID || id === HP09_EXERCISE_ID || id === HP10_EXERCISE_ID || id === AD01_EXERCISE_ID || id === AD02_EXERCISE_ID || id === AD03_EXERCISE_ID || id === AD04_EXERCISE_ID || id === AD05_EXERCISE_ID || id === AD06_EXERCISE_ID || id === AD07_EXERCISE_ID || id === AD08_EXERCISE_ID || id === AD09_EXERCISE_ID || id === AD10_EXERCISE_ID || id === AD11_EXERCISE_ID || id === AD12_EXERCISE_ID || id === AK01_EXERCISE_ID || id === AK02_EXERCISE_ID || id === AK03_EXERCISE_ID || id === AK04_EXERCISE_ID || id === AK05_EXERCISE_ID || id === AK06_EXERCISE_ID || id === AK07_EXERCISE_ID || id === AK08_EXERCISE_ID || id === AK09_EXERCISE_ID || id === AK10_EXERCISE_ID || id === AK11_EXERCISE_ID || id === AK12_EXERCISE_ID || id === AK13_EXERCISE_ID || id === AK14_EXERCISE_ID || id === AK15_EXERCISE_ID || id === CR01_EXERCISE_ID || id === CR02_EXERCISE_ID || id === CR03_EXERCISE_ID || id === CR04_EXERCISE_ID || id === CR05_EXERCISE_ID || id === CR06_EXERCISE_ID || id === CR07_EXERCISE_ID || id === CR08_EXERCISE_ID || id === KN03_EXERCISE_ID || id === LE05_EXERCISE_ID || id === LE03_EXERCISE_ID || id === LE04_EXERCISE_ID || id === LE06_EXERCISE_ID || id === LE07_EXERCISE_ID || id === SH01_EXERCISE_ID || id === SH02_EXERCISE_ID || id === SH03_EXERCISE_ID || id === SH04_EXERCISE_ID || id === SH05_EXERCISE_ID || id === SH06_EXERCISE_ID || id === SH07_EXERCISE_ID || id === HP04_EXERCISE_ID || id === HP05_EXERCISE_ID || id === HP06_EXERCISE_ID;
 
   return {
     id,

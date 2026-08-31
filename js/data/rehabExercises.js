@@ -910,7 +910,7 @@ export const rehabExercises = [
     "defaultRepetitions": 10,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "正面（全身、骨盆、雙膝、腳跟與雙腳完整入鏡，預留左右空間）",
     "analysisRequired": true,
     "rewardXp": 30,
     "rewardStars": 1,
@@ -1635,11 +1635,11 @@ export const rehabExercises = [
     "defaultRepetitions": 10,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "斜前方（全身、骨盆、雙膝、腳跟與雙腳完整入鏡）",
     "analysisRequired": true,
     "rewardXp": 30,
     "rewardStars": 2,
-    "trainingMode": "guided"
+    "trainingMode": "pose_analysis"
   },
   {
     "exercise_id": "AK12",
@@ -1664,11 +1664,11 @@ export const rehabExercises = [
     "defaultRepetitions": 10,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "正面（全身、骨盆、雙膝、腳跟與雙腳完整入鏡，預留左右空間）",
     "analysisRequired": true,
     "rewardXp": 30,
     "rewardStars": 2,
-    "trainingMode": "guided"
+    "trainingMode": "pose_analysis"
   },
   {
     "exercise_id": "AK13",
@@ -1693,11 +1693,11 @@ export const rehabExercises = [
     "defaultRepetitions": 5,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "正面（全身、骨盆、雙膝、腳踝與雙腳完整入鏡）",
     "analysisRequired": true,
     "rewardXp": 40,
     "rewardStars": 3,
-    "trainingMode": "guided"
+    "trainingMode": "pose_analysis"
   },
   {
     "exercise_id": "AK14",
@@ -1722,11 +1722,11 @@ export const rehabExercises = [
     "defaultRepetitions": 5,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "正面（全身、雙手、骨盆、雙膝、腳踝與平衡墊完整入鏡）",
     "analysisRequired": true,
     "rewardXp": 40,
     "rewardStars": 3,
-    "trainingMode": "guided"
+    "trainingMode": "pose_analysis"
   },
   {
     "exercise_id": "AK15",
@@ -1751,10 +1751,10 @@ export const rehabExercises = [
     "defaultRepetitions": 10,
     "defaultDurationSeconds": null,
     "measurementType": "repetition",
-    "cameraAngle": "unspecified",
+    "cameraAngle": "斜前方（全身、雙手、骨盆、雙膝、腳踝與雙腳完整入鏡）",
     "analysisRequired": true,
     "rewardXp": 40,
     "rewardStars": 3,
-    "trainingMode": "guided"
+    "trainingMode": "pose_analysis"
   }
 ];
