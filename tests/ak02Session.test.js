@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { createAnklePlantarflexionSession } from "../js/ai/exercises/anklePlantarflexion/session.js";
+import { calculateAnklePlantarflexionScore } from "../js/ai/exercises/anklePlantarflexion/score.js";
+
+const session=createAnklePlantarflexionSession({targetReps:1});
+const ready={bodyReady:true,leftHeelRiseRatio:.01,rightHeelRiseRatio:.01,leftPlantarflexionDeg:2,rightPlantarflexionDeg:2,leftKneeFlexionDeg:5,rightKneeFlexionDeg:5,leftToeX:.4,rightToeX:.6,leftAnkleRollRatio:.05,rightAnkleRollRatio:.05,leftLegScale:.2,rightLegScale:.2,pelvisCenterX:.5,pelvisScale:.5};
+const raised={...ready,leftHeelRiseRatio:.15,leftPlantarflexionDeg:35};
+session.processFrame({timestamp:0,...ready});
+session.processFrame({timestamp:100,...raised});
+session.processFrame({timestamp:200,...raised});
+session.processFrame({timestamp:300,...raised});
+session.processFrame({timestamp:400,...raised});
+const result=session.processFrame({timestamp:900,...ready});
+const summary=session.getSummary();
+assert.equal(summary.totalReps,1,"腳跟抬起、停留並放回應計為一次");
+assert.equal(summary.leftReps,1,"應辨識主要抬起的左腳");
+assert.equal(summary.validReps,1,"標準蹠屈角度且腳尖穩定應列為品質符合");
+assert.equal(summary.completed,true,"達到目標次數後應完成");
+assert.deepEqual(result.completedRep?.issues,[],"標準踝蹠屈不應產生錯誤標記");
+assert.ok(calculateAnklePlantarflexionScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AK02 ankle-plantarflexion session tests passed");

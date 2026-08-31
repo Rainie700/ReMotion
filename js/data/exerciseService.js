@@ -30,7 +30,14 @@ export function isSquatExercise(exercise) {
  * Analysis prototype (Phase 5.6.1).
  */
 export const HP02_EXERCISE_ID = "HP02";
+export const CR01_EXERCISE_ID = "CR01";
+export const CR02_EXERCISE_ID = "CR02";
+export const CR03_EXERCISE_ID = "CR03";
+export const CR04_EXERCISE_ID = "CR04";
 export const CR05_EXERCISE_ID = "CR05";
+export const CR06_EXERCISE_ID = "CR06";
+export const CR07_EXERCISE_ID = "CR07";
+export const CR08_EXERCISE_ID = "CR08";
 export const KN03_EXERCISE_ID = "KN03";
 export const LE05_EXERCISE_ID = "LE05";
 export const LE03_EXERCISE_ID = "LE03";
@@ -40,10 +47,42 @@ export const LE07_EXERCISE_ID = "LE07";
 export const SH01_EXERCISE_ID = "SH01";
 export const SH02_EXERCISE_ID = "SH02";
 export const SH03_EXERCISE_ID = "SH03";
+export const SH04_EXERCISE_ID = "SH04";
+export const SH05_EXERCISE_ID = "SH05";
+export const SH06_EXERCISE_ID = "SH06";
+export const SH07_EXERCISE_ID = "SH07";
 export const HP04_EXERCISE_ID = "HP04";
 export const HP05_EXERCISE_ID = "HP05";
 export const HP06_EXERCISE_ID = "HP06";
 export const LE02_EXERCISE_ID = "LE02";
+export const HP01_EXERCISE_ID = "HP01";
+export const HP03_EXERCISE_ID = "HP03";
+export const HP07_EXERCISE_ID = "HP07";
+export const HP08_EXERCISE_ID = "HP08";
+export const HP09_EXERCISE_ID = "HP09";
+export const HP10_EXERCISE_ID = "HP10";
+export const AD01_EXERCISE_ID = "AD01";
+export const AD02_EXERCISE_ID = "AD02";
+export const AD03_EXERCISE_ID = "AD03";
+export const AD04_EXERCISE_ID = "AD04";
+export const AD05_EXERCISE_ID = "AD05";
+export const AD06_EXERCISE_ID = "AD06";
+export const AD07_EXERCISE_ID = "AD07";
+export const AD08_EXERCISE_ID = "AD08";
+export const AD09_EXERCISE_ID = "AD09";
+export const AD10_EXERCISE_ID = "AD10";
+export const AD11_EXERCISE_ID = "AD11";
+export const AD12_EXERCISE_ID = "AD12";
+export const AK01_EXERCISE_ID = "AK01";
+export const AK02_EXERCISE_ID = "AK02";
+export const AK03_EXERCISE_ID = "AK03";
+export const AK04_EXERCISE_ID = "AK04";
+export const AK05_EXERCISE_ID = "AK05";
+export const AK06_EXERCISE_ID = "AK06";
+export const AK07_EXERCISE_ID = "AK07";
+export const AK08_EXERCISE_ID = "AK08";
+export const AK09_EXERCISE_ID = "AK09";
+export const AK10_EXERCISE_ID = "AK10";
 
 /**
  * ReMotion Phase 5.6.1 — which real Camera/MediaPipe pose analyzer (if any)
@@ -63,7 +102,14 @@ export const LE02_EXERCISE_ID = "LE02";
 export const POSE_ANALYZER = {
   SQUAT: "squat",
   HP02_HIP_FLEXION: "hp02_hip_flexion",
+  CR01_PLANK: "cr01_plank",
+  CR02_CRUNCH: "cr02_crunch",
+  CR03_PELVIC_TILT: "cr03_pelvic_tilt",
+  CR04_SEATED_CORE: "cr04_seated_core",
   CR05_SEATED_KNEE_RAISE: "cr05_seated_knee_raise",
+  CR06_HEEL_TAP: "cr06_heel_tap",
+  CR07_KNEE_SWAY: "cr07_knee_sway",
+  CR08_ANTI_ROTATION: "cr08_anti_rotation",
   KN03_SEATED_KNEE_EXTENSION: "kn03_seated_knee_extension",
   LE05_SIT_TO_STAND: "le05_sit_to_stand",
   LE03_BRIDGE: "le03_bridge",
@@ -73,10 +119,42 @@ export const POSE_ANALYZER = {
   SH01_SHOULDER_PENDULUM: "sh01_shoulder_pendulum",
   SH02_EXTERNAL_ISOMETRIC: "sh02_external_isometric",
   SH03_INTERNAL_ISOMETRIC: "sh03_internal_isometric",
+  SH04_ABDUCTION_ISOMETRIC: "sh04_abduction_isometric",
+  SH05_ADDUCTION_ISOMETRIC: "sh05_adduction_isometric",
+  SH06_EXTENSION_ISOMETRIC: "sh06_extension_isometric",
+  SH07_FLEXION_ISOMETRIC: "sh07_flexion_isometric",
   HP04_HIP_ABDUCTION: "hp04_hip_abduction",
   HP05_HIP_ADDUCTION: "hp05_hip_adduction",
   HP06_CLAMSHELL: "hp06_clamshell",
   LE02_STRAIGHT_LEG_RAISE: "le02_straight_leg_raise",
+  HP01_STRAIGHT_LEG_RAISE: "hp01_straight_leg_raise",
+  HP03_STANDING_HIP_EXTENSION: "hp03_standing_hip_extension",
+  HP07_FIRE_HYDRANT: "hp07_fire_hydrant",
+  HP08_LATERAL_STEP: "hp08_lateral_step",
+  HP09_MONSTER_WALK: "hp09_monster_walk",
+  HP10_SINGLE_LEG_HIP_STABILITY: "hp10_single_leg_hip_stability",
+  AD01_BED_ROLLING: "ad01_bed_rolling",
+  AD02_BEDSIDE_SIT_UP: "ad02_bedside_sit_up",
+  AD03_SHOE_DRESSING: "ad03_shoe_dressing",
+  AD04_FLOOR_OBJECT_PICKUP: "ad04_floor_object_pickup",
+  AD05_TURNING_WALK: "ad05_turning_walk",
+  AD06_STAIR_ASCENT: "ad06_stair_ascent",
+  AD07_STAIR_DESCENT: "ad07_stair_descent",
+  AD08_DOOR_PUSH: "ad08_door_push",
+  AD09_DOOR_PULL: "ad09_door_pull",
+  AD10_CARRY_WALK: "ad10_carry_walk",
+  AD11_COAT_DRESSING: "ad11_coat_dressing",
+  AD12_COAT_UNDRESSING: "ad12_coat_undressing",
+  AK01_ANKLE_DORSIFLEXION: "ak01_ankle_dorsiflexion",
+  AK02_ANKLE_PLANTARFLEXION: "ak02_ankle_plantarflexion",
+  AK03_ANKLE_INVERSION: "ak03_ankle_inversion",
+  AK04_ANKLE_EVERSION: "ak04_ankle_eversion",
+  AK05_DOUBLE_CALF_RAISE: "ak05_double_calf_raise",
+  AK06_DOUBLE_TOE_RAISE: "ak06_double_toe_raise",
+  AK07_SINGLE_LEG_CALF_RAISE: "ak07_single_leg_calf_raise",
+  AK08_SINGLE_LEG_TOE_RAISE: "ak08_single_leg_toe_raise",
+  AK09_HEEL_WALK: "ak09_heel_walk",
+  AK10_TOE_WALK: "ak10_toe_walk",
 };
 
 export function resolvePoseAnalyzer(exercise) {
@@ -84,7 +162,14 @@ export function resolvePoseAnalyzer(exercise) {
   if (isSquatExercise(exercise)) return POSE_ANALYZER.SQUAT;
   const id = exercise.exercise_id || exercise.exerciseId || exercise.id || "";
   if (id === HP02_EXERCISE_ID) return POSE_ANALYZER.HP02_HIP_FLEXION;
+  if (id === CR01_EXERCISE_ID) return POSE_ANALYZER.CR01_PLANK;
+  if (id === CR02_EXERCISE_ID) return POSE_ANALYZER.CR02_CRUNCH;
+  if (id === CR03_EXERCISE_ID) return POSE_ANALYZER.CR03_PELVIC_TILT;
+  if (id === CR04_EXERCISE_ID) return POSE_ANALYZER.CR04_SEATED_CORE;
   if (id === CR05_EXERCISE_ID) return POSE_ANALYZER.CR05_SEATED_KNEE_RAISE;
+  if (id === CR06_EXERCISE_ID) return POSE_ANALYZER.CR06_HEEL_TAP;
+  if (id === CR07_EXERCISE_ID) return POSE_ANALYZER.CR07_KNEE_SWAY;
+  if (id === CR08_EXERCISE_ID) return POSE_ANALYZER.CR08_ANTI_ROTATION;
   if (id === KN03_EXERCISE_ID) return POSE_ANALYZER.KN03_SEATED_KNEE_EXTENSION;
   if (id === LE05_EXERCISE_ID) return POSE_ANALYZER.LE05_SIT_TO_STAND;
   if (id === LE03_EXERCISE_ID) return POSE_ANALYZER.LE03_BRIDGE;
@@ -94,10 +179,42 @@ export function resolvePoseAnalyzer(exercise) {
   if (id === SH01_EXERCISE_ID) return POSE_ANALYZER.SH01_SHOULDER_PENDULUM;
   if (id === SH02_EXERCISE_ID) return POSE_ANALYZER.SH02_EXTERNAL_ISOMETRIC;
   if (id === SH03_EXERCISE_ID) return POSE_ANALYZER.SH03_INTERNAL_ISOMETRIC;
+  if (id === SH04_EXERCISE_ID) return POSE_ANALYZER.SH04_ABDUCTION_ISOMETRIC;
+  if (id === SH05_EXERCISE_ID) return POSE_ANALYZER.SH05_ADDUCTION_ISOMETRIC;
+  if (id === SH06_EXERCISE_ID) return POSE_ANALYZER.SH06_EXTENSION_ISOMETRIC;
+  if (id === SH07_EXERCISE_ID) return POSE_ANALYZER.SH07_FLEXION_ISOMETRIC;
   if (id === HP04_EXERCISE_ID) return POSE_ANALYZER.HP04_HIP_ABDUCTION;
   if (id === HP05_EXERCISE_ID) return POSE_ANALYZER.HP05_HIP_ADDUCTION;
   if (id === HP06_EXERCISE_ID) return POSE_ANALYZER.HP06_CLAMSHELL;
   if (id === LE02_EXERCISE_ID) return POSE_ANALYZER.LE02_STRAIGHT_LEG_RAISE;
+  if (id === HP01_EXERCISE_ID) return POSE_ANALYZER.HP01_STRAIGHT_LEG_RAISE;
+  if (id === HP03_EXERCISE_ID) return POSE_ANALYZER.HP03_STANDING_HIP_EXTENSION;
+  if (id === HP07_EXERCISE_ID) return POSE_ANALYZER.HP07_FIRE_HYDRANT;
+  if (id === HP08_EXERCISE_ID) return POSE_ANALYZER.HP08_LATERAL_STEP;
+  if (id === HP09_EXERCISE_ID) return POSE_ANALYZER.HP09_MONSTER_WALK;
+  if (id === HP10_EXERCISE_ID) return POSE_ANALYZER.HP10_SINGLE_LEG_HIP_STABILITY;
+  if (id === AD01_EXERCISE_ID) return POSE_ANALYZER.AD01_BED_ROLLING;
+  if (id === AD02_EXERCISE_ID) return POSE_ANALYZER.AD02_BEDSIDE_SIT_UP;
+  if (id === AD03_EXERCISE_ID) return POSE_ANALYZER.AD03_SHOE_DRESSING;
+  if (id === AD04_EXERCISE_ID) return POSE_ANALYZER.AD04_FLOOR_OBJECT_PICKUP;
+  if (id === AD05_EXERCISE_ID) return POSE_ANALYZER.AD05_TURNING_WALK;
+  if (id === AD06_EXERCISE_ID) return POSE_ANALYZER.AD06_STAIR_ASCENT;
+  if (id === AD07_EXERCISE_ID) return POSE_ANALYZER.AD07_STAIR_DESCENT;
+  if (id === AD08_EXERCISE_ID) return POSE_ANALYZER.AD08_DOOR_PUSH;
+  if (id === AD09_EXERCISE_ID) return POSE_ANALYZER.AD09_DOOR_PULL;
+  if (id === AD10_EXERCISE_ID) return POSE_ANALYZER.AD10_CARRY_WALK;
+  if (id === AD11_EXERCISE_ID) return POSE_ANALYZER.AD11_COAT_DRESSING;
+  if (id === AD12_EXERCISE_ID) return POSE_ANALYZER.AD12_COAT_UNDRESSING;
+  if (id === AK01_EXERCISE_ID) return POSE_ANALYZER.AK01_ANKLE_DORSIFLEXION;
+  if (id === AK02_EXERCISE_ID) return POSE_ANALYZER.AK02_ANKLE_PLANTARFLEXION;
+  if (id === AK03_EXERCISE_ID) return POSE_ANALYZER.AK03_ANKLE_INVERSION;
+  if (id === AK04_EXERCISE_ID) return POSE_ANALYZER.AK04_ANKLE_EVERSION;
+  if (id === AK05_EXERCISE_ID) return POSE_ANALYZER.AK05_DOUBLE_CALF_RAISE;
+  if (id === AK06_EXERCISE_ID) return POSE_ANALYZER.AK06_DOUBLE_TOE_RAISE;
+  if (id === AK07_EXERCISE_ID) return POSE_ANALYZER.AK07_SINGLE_LEG_CALF_RAISE;
+  if (id === AK08_EXERCISE_ID) return POSE_ANALYZER.AK08_SINGLE_LEG_TOE_RAISE;
+  if (id === AK09_EXERCISE_ID) return POSE_ANALYZER.AK09_HEEL_WALK;
+  if (id === AK10_EXERCISE_ID) return POSE_ANALYZER.AK10_TOE_WALK;
   return null;
 }
 
@@ -170,7 +287,7 @@ export function normalizeExercise(raw) {
   }
 
   const id = raw.exercise_id || raw.exerciseId || raw.id || null;
-  const aiSupported = isSquatExercise(raw) || id === LE02_EXERCISE_ID || id === CR05_EXERCISE_ID || id === KN03_EXERCISE_ID || id === LE05_EXERCISE_ID || id === LE03_EXERCISE_ID || id === LE04_EXERCISE_ID || id === LE06_EXERCISE_ID || id === LE07_EXERCISE_ID || id === SH01_EXERCISE_ID || id === SH02_EXERCISE_ID || id === SH03_EXERCISE_ID || id === HP04_EXERCISE_ID || id === HP05_EXERCISE_ID || id === HP06_EXERCISE_ID;
+  const aiSupported = isSquatExercise(raw) || id === LE02_EXERCISE_ID || id === HP01_EXERCISE_ID || id === HP03_EXERCISE_ID || id === HP07_EXERCISE_ID || id === HP08_EXERCISE_ID || id === HP09_EXERCISE_ID || id === HP10_EXERCISE_ID || id === AD01_EXERCISE_ID || id === AD02_EXERCISE_ID || id === AD03_EXERCISE_ID || id === AD04_EXERCISE_ID || id === AD05_EXERCISE_ID || id === AD06_EXERCISE_ID || id === AD07_EXERCISE_ID || id === AD08_EXERCISE_ID || id === AD09_EXERCISE_ID || id === AD10_EXERCISE_ID || id === AD11_EXERCISE_ID || id === AD12_EXERCISE_ID || id === AK01_EXERCISE_ID || id === AK02_EXERCISE_ID || id === AK03_EXERCISE_ID || id === AK04_EXERCISE_ID || id === AK05_EXERCISE_ID || id === AK06_EXERCISE_ID || id === AK07_EXERCISE_ID || id === AK08_EXERCISE_ID || id === AK09_EXERCISE_ID || id === AK10_EXERCISE_ID || id === CR01_EXERCISE_ID || id === CR02_EXERCISE_ID || id === CR03_EXERCISE_ID || id === CR04_EXERCISE_ID || id === CR05_EXERCISE_ID || id === CR06_EXERCISE_ID || id === CR07_EXERCISE_ID || id === CR08_EXERCISE_ID || id === KN03_EXERCISE_ID || id === LE05_EXERCISE_ID || id === LE03_EXERCISE_ID || id === LE04_EXERCISE_ID || id === LE06_EXERCISE_ID || id === LE07_EXERCISE_ID || id === SH01_EXERCISE_ID || id === SH02_EXERCISE_ID || id === SH03_EXERCISE_ID || id === SH04_EXERCISE_ID || id === SH05_EXERCISE_ID || id === SH06_EXERCISE_ID || id === SH07_EXERCISE_ID || id === HP04_EXERCISE_ID || id === HP05_EXERCISE_ID || id === HP06_EXERCISE_ID;
 
   return {
     id,

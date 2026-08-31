@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(node test_phase5_4_2_squat.mjs)",
+      "Bash(node test_phase5_4_2_xp_economy.mjs)",
+      "Bash(node probe_phase5_4_2_squat.mjs)",
+      "Bash(node probe_phase4_journeys.mjs)",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/probe_phase6_3_training_history.mjs\")",
+      "Bash(cd \"/c/Users/User/Desktop/江芸芸/07_ReMotion_WebApp\" && rm -f app.probe.mjs js/package.json)",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/probe_phase3_1_journeys.mjs\")",
+      "Bash(cp app.js app.probe.mjs)",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/probe_phase6_5_ai_recommendation_ui.mjs\")",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/probe_phase6_5_training_navigation.mjs\")",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/test_phase7_1_functional_assessment.mjs\")",
+      "Bash(echo '{\"type\":\"module\"}')",
+      "Bash(node \"/c/Users/User/AppData/Local/Temp/claude/c--Users-User-Desktop-----07-ReMotion-WebApp/ec8cbbed-2eb1-47c1-85d9-ede75f545e1a/scratchpad/probe_phase7_1_functional_assessment.mjs\")",
+      "Bash(node __TRACKED_VAR__/probe_phase4_journeys.mjs)",
+      "Bash(node -c app.probe.mjs)"
+    ]
+  }
+}

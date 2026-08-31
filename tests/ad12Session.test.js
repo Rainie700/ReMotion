@@ -1,0 +1,26 @@
+import assert from "node:assert/strict";
+import { createCoatUndressingSession } from "../js/ai/exercises/coatUndressing/session.js";
+import { calculateCoatUndressingScore } from "../js/ai/exercises/coatUndressing/score.js";
+
+const session=createCoatUndressingSession({targetReps:1});
+const ready={bodyReady:true,leftShoulderExtensionDeg:5,rightShoulderExtensionDeg:5,leftElbowDeg:150,rightElbowDeg:150,trunkRotationRatio:.1,trunkSideLeanDeg:4,leftShrugRatio:1,rightShrugRatio:1};
+const leftSleeve={...ready,leftShoulderExtensionDeg:35,leftElbowDeg:110};
+const rightSleeve={...ready,leftShoulderExtensionDeg:35,rightShoulderExtensionDeg:40,leftElbowDeg:110,rightElbowDeg:105};
+session.processFrame({timestamp:0,...ready});
+session.processFrame({timestamp:100,...leftSleeve});
+session.processFrame({timestamp:200,...leftSleeve});
+session.processFrame({timestamp:300,...leftSleeve});
+session.processFrame({timestamp:400,...leftSleeve});
+session.processFrame({timestamp:600,...rightSleeve});
+session.processFrame({timestamp:700,...rightSleeve});
+session.processFrame({timestamp:800,...rightSleeve});
+session.processFrame({timestamp:900,...rightSleeve});
+const result=session.processFrame({timestamp:1500,...ready});
+const summary=session.getSummary();
+assert.equal(summary.totalReps,1,"完成兩側脫袖並放下雙手應計為一次");
+assert.equal(summary.validReps,1,"肩伸展角度與軀幹穩定應列為品質符合");
+assert.equal(summary.completed,true,"達到目標次數後應完成");
+assert.equal(result.completedRep?.firstSide,"left","應記錄先脫出的左側袖子");
+assert.deepEqual(result.completedRep?.issues,[],"標準脫外套流程不應產生錯誤標記");
+assert.ok(calculateCoatUndressingScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AD12 coat-undressing session tests passed");

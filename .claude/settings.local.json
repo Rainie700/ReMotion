@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"c:\\\\Users\\\\User\\\\Desktop\\\\江芸芸\\\\07_ReMotion_WebApp\" && mkdir -p js/utils js/data && echo done)",
+      "Bash(npm run *)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command npm -ErrorAction SilentlyContinue)",
+      "Bash(node \"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-User-Desktop-----07-ReMotion-WebApp\\\\ec8cbbed-2eb1-47c1-85d9-ede75f545e1a\\\\scratchpad\\\\probe_squat_flow.mjs\")",
+      "Bash(node -e ' *)",
+      "Bash(node __TRACKED_VAR__/probe7.mjs)",
+      "Bash(echo \"probe7 exit=$?\")",
+      "Bash(node __TRACKED_VAR__/probe8.mjs)",
+      "Bash(echo \"probe8 exit=$?\")",
+      "Bash(node __TRACKED_VAR__/probe9.mjs)",
+      "Bash(node --input-type=module -e ' *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\User\\Desktop\\江芸芸\\07_ReMotion_WebApp\\js"
+    ]
+  }
+}

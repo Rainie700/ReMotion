@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { createDoorPullSession } from "../js/ai/exercises/doorPull/session.js";
+import { calculateDoorPullScore } from "../js/ai/exercises/doorPull/score.js";
+
+const session=createDoorPullSession({targetReps:1});
+const ready={bodyReady:true,leftElbowAngle:165,rightElbowAngle:130,leftShoulderExtensionDeg:10,rightShoulderExtensionDeg:10,leftReachRatio:1,rightReachRatio:.6,trunkLeanDeg:5,leftShrugRatio:1,rightShrugRatio:1,shoulderAsymmetryRatio:.02};
+const pulled={...ready,leftElbowAngle:100,leftShoulderExtensionDeg:35,leftReachRatio:.65};
+session.processFrame({timestamp:0,...ready});
+session.processFrame({timestamp:100,...ready});
+session.processFrame({timestamp:300,...pulled});
+session.processFrame({timestamp:400,...pulled});
+session.processFrame({timestamp:500,...pulled});
+const result=session.processFrame({timestamp:900,...ready});
+const summary=session.getSummary();
+assert.equal(summary.totalReps,1,"完整拉回並控制伸回應計為一次");
+assert.equal(summary.validReps,1,"標準肩肘角度與穩定軀幹應列為品質符合");
+assert.equal(summary.completed,true,"達到目標次數後應完成");
+assert.equal(result.completedRep?.side,"left","應辨識主要拉門的左手");
+assert.deepEqual(result.completedRep?.issues,[],"標準動作不應產生錯誤標記");
+assert.ok(calculateDoorPullScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AD09 door pull session tests passed");

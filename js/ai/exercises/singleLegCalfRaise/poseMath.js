@@ -1,0 +1,6 @@
+import { AK07_REQUIRED_LANDMARKS as R,AK07_THRESHOLDS as T } from "./constants.js";
+const ok=(p,m)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>=m;
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const angle=(a,b,c)=>{const u={x:a.x-b.x,y:a.y-b.y},v={x:c.x-b.x,y:c.y-b.y},d=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);return d?Math.acos(Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/d)))*180/Math.PI:null};
+export function computeSingleLegCalfRaiseMetrics(l,t=T){const bodyReady=Array.isArray(l)&&R.every(i=>ok(l[i],t.MIN_VISIBILITY));if(!bodyReady)return{bodyReady:false};const shoulder=mid(l[11],l[12]),hip=mid(l[23],l[24]),bodyScale=Math.max(.08,dist(shoulder,hip)*2),leftLegScale=Math.max(.05,dist(l[25],l[27])),rightLegScale=Math.max(.05,dist(l[26],l[28])),leftKneeFlexionDeg=Math.max(0,180-(angle(l[23],l[25],l[27])||180)),rightKneeFlexionDeg=Math.max(0,180-(angle(l[24],l[26],l[28])||180)),trunkLeanDeg=Math.abs(Math.atan2(shoulder.x-hip.x,Math.max(.001,hip.y-shoulder.y))*180/Math.PI);return{bodyReady:true,leftHeelY:l[29].y,rightHeelY:l[30].y,leftToeY:l[31].y,rightToeY:l[32].y,leftAnkleX:l[27].x,rightAnkleX:l[28].x,leftKneeFlexionDeg,rightKneeFlexionDeg,leftLegScale,rightLegScale,pelvisTiltRatio:Math.abs(l[23].y-l[24].y)/bodyScale,pelvisCenterX:hip.x,pelvisScale:bodyScale,trunkLeanDeg};}

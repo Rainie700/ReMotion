@@ -1,0 +1,6 @@
+import{AD06_REQUIRED_LANDMARKS as R,AD06_THRESHOLDS as T}from"./constants.js";
+const ok=(p,m)=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&(p.visibility??1)>=m;
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const angle=(a,b,c)=>{const u={x:a.x-b.x,y:a.y-b.y},v={x:c.x-b.x,y:c.y-b.y},d=Math.hypot(u.x,u.y)*Math.hypot(v.x,v.y);return d?Math.acos(Math.max(-1,Math.min(1,(u.x*v.x+u.y*v.y)/d)))*180/Math.PI:null};
+export function computeStairAscentMetrics(l,t=T){const bodyReady=Array.isArray(l)&&R.every(i=>ok(l[i],t.MIN_VISIBILITY));if(!bodyReady)return{bodyReady:false};const shoulder=mid(l[11],l[12]),hip=mid(l[23],l[24]),scale=Math.max(.04,dist(shoulder,hip)),torsoAngle=Math.abs(Math.atan2(shoulder.y-hip.y,shoulder.x-hip.x)*180/Math.PI);const leftKnee=angle(l[23],l[25],l[27]),rightKnee=angle(l[24],l[26],l[28]);return{bodyReady:true,leftFootY:l[27].y,rightFootY:l[28].y,hipCenterY:hip.y,leftHipFlexionDeg:180-(angle(l[11],l[23],l[25])??180),rightHipFlexionDeg:180-(angle(l[12],l[24],l[26])??180),leftKneeFlexionDeg:180-(leftKnee??180),rightKneeFlexionDeg:180-(rightKnee??180),leftValgusRatio:Math.max(0,(l[25].x-(l[23].x+l[27].x)/2)/scale),rightValgusRatio:Math.max(0,((l[24].x+l[28].x)/2-l[26].x)/scale),trunkLeanDeg:Math.abs(90-torsoAngle),bodyScale:scale};}
