@@ -4,6 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "test:f01-additions": "node tests/f01Additions.test.js",
+    "test:f02-additions": "node tests/f02Additions.test.js",
+    "test:six-domains": "node tests/sixDomainCatalog.test.js",
     "test:ad07": "node tests/ad07Session.test.js",
     "test:ad06": "node tests/ad06Session.test.js",
     "test:ad05": "node tests/ad05Session.test.js",

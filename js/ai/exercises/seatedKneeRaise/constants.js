@@ -46,5 +46,5 @@ export const CR05_SCORE_RULES = {
   ],
 };
 
-export const CR05_ANALYSIS_MODE = "mediapipe_cr05_seated_knee_raise";
+export const CR05_ANALYSIS_MODE = "mediapipe_f01_09_seated_knee_raise";
 export const DEFAULT_CR05_REWARD_XP = 30;

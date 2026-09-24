@@ -35,7 +35,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const mk = (id, over = {}) => ({
     exerciseId: id,
     name: id,
-    bodyPart: "上肢肩部",
+    bodyPart: "上肢功能",
     goal: "關節活動度",
     difficulty: "普通",
     aiSupported: false,
@@ -49,14 +49,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     mk("SH-A"),
     mk("SH-B", { goal: "肌力" }),
     mk("SH-C", { difficulty: "難" }),
-    mk("OTHER", { bodyPart: "下肢" }),
+    mk("OTHER", { bodyPart: "下肢功能" }),
   ];
 
   // The four canonical engine inputs — nothing else.
   const base = {
     id: "assess_1",
     updatedAt: "2026-09-02T00:00:00.000Z",
-    bodyParts: ["上肢肩部"],
+    bodyParts: ["上肢功能"],
     goals: ["關節活動度"],
     abilityLevel: "intermediate",
     preferredSessionMinutes: 15,
@@ -86,7 +86,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   );
   assert.ok(a.items.length > 0, "the shared engine still produces a session from body-region context alone");
   assert.ok(
-    a.items.every((it) => it.bodyPart === "上肢肩部"),
+    a.items.every((it) => it.bodyPart === "上肢功能"),
     "cross-region items are still hard-filtered out (body-region context is the only assessment-derived input)"
   );
 
@@ -111,7 +111,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const fromAssessment = assessmentService.createAssessment({
     patientId: "sr_p1",
     createdBy: "sr_p1",
-    bodyParts: ["上肢肩部"],
+    bodyParts: ["上肢功能"],
     goals: ["關節活動度"],
     abilityLevel: "beginner",
     preferredSessionMinutes: 10,
@@ -128,7 +128,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     assert.ok(!(banned in fromAssessment), `assessment record must not carry measurement field "${banned}"`);
   }
   // canonical engine inputs intact
-  assert.deepEqual(fromAssessment.bodyParts, ["上肢肩部"]);
+  assert.deepEqual(fromAssessment.bodyParts, ["上肢功能"]);
   assert.equal(fromAssessment.abilityLevel, "beginner");
   assert.equal(fromAssessment.preferredSessionMinutes, 10);
 
@@ -136,7 +136,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const direct = assessmentService.createAssessment({
     patientId: "sr_p2",
     createdBy: "sr_p2",
-    bodyParts: ["下肢"],
+    bodyParts: ["下肢功能"],
     goals: ["肌力"],
     abilityLevel: "intermediate",
     preferredSessionMinutes: 20,
@@ -149,7 +149,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const legacy = assessmentService.createAssessment({
     patientId: "sr_p3",
     createdBy: "sr_p3",
-    bodyParts: ["軀幹核心"],
+    bodyParts: ["功能性移動"],
     goals: ["肌力"],
     abilityLevel: "beginner",
     preferredSessionMinutes: 15,
@@ -211,7 +211,7 @@ assert.ok(
 
   const s = sliceFn("function startRecommendationFromAssessment(");
   assert.ok(/state\.recommendationEntrySource = "assessment"/.test(s));
-  assert.ok(/bodyParts: \["上肢肩部"\]/.test(s), "shoulder body region (category 上肢肩部) pre-supplied");
+  assert.ok(/bodyParts: \["上肢功能"\]/.test(s), "shoulder body region (category 上肢功能) pre-supplied");
   assert.ok(/state\.assessmentFormStep = 2/.test(s), "body-region step is skipped (starts at step 2)");
   assert.ok(
     /functionalSessionId \|\| state\.shoulderResultSessionId/.test(s),

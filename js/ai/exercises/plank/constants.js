@@ -17,5 +17,5 @@ export const CR01_THRESHOLDS = {
   BODY_INCLINE_MAX_DEG: 25,
   MAX_FRAME_GAP_MS: 1000,
 };
-export const CR01_ANALYSIS_MODE = "mediapipe_cr01_plank";
+export const CR01_ANALYSIS_MODE = "mediapipe_f03_09_plank";
 export const DEFAULT_CR01_REWARD_XP = 30;

@@ -15,15 +15,14 @@
  * (bodyPart / goal / difficulty) to work against without re-deriving it.
  */
 export const PHASE1_TEST_EXERCISE_GOALS = {
-  LE01: "肌力", // 深蹲 — 下肢／肌力／易／AI 支援
-  LE05: "肌力", // 坐站 — 下肢／肌力／易
-  HP01: "肌力", // 仰躺直腿抬腿 — 髖關節／肌力／易
-  LE03: "肌力", // 橋式 — 下肢／肌力／易
-  LE04: "肌力", // 側抬腿 — 下肢／肌力／非常容易
-  SH01: "活動度", // 肩關節擺盪運動 — 上肢肩部／活動度／非常容易
-  SH04: "肌力", // 站姿肩外展等長收縮 — 上肢肩部／肌力／易
-  HP10: "平衡", // 單腳站姿髖穩定 — 髖關節／平衡／普通／duration
-  CR01: "肌力", // 棒式 — 核心／肌力／普通／duration
+  "F01-01": "肌力", // 深蹲
+  "F01-04": "肌力", // 坐姿起立
+  "F01-08": "肌力", // 直腿抬腿
+  "F01-10": "肌力", // 橋式
+  "F01-13": "肌力", // 側躺髖外展
+  "F06-01": "活動度", // 肩關節擺盪運動
+  "F02-04": "平衡", // 單腳站立平衡
+  "F03-09": "肌力", // 棒式
 };
 
 export const PHASE1_TEST_EXERCISE_IDS = Object.keys(PHASE1_TEST_EXERCISE_GOALS);

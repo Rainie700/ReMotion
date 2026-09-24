@@ -70,11 +70,51 @@ function createLegTracker(side) {
   return { update, getState: () => state };
 }
 
+function createFlexionLegTracker(side) {
+  let state = KN03_LEG_STATE.NEUTRAL;
+  let startedAt = null;
+  let lastValidAt = null;
+  let minKneeAngle = Infinity;
+  let maxTrunkLeanDeg = 0;
+  let flexConfirm = 0;
+  let neutralConfirm = 0;
+  const reset = () => { state = KN03_LEG_STATE.NEUTRAL; startedAt = null; minKneeAngle = Infinity; maxTrunkLeanDeg = 0; flexConfirm = 0; neutralConfirm = 0; };
+  function update(kneeAngle, hipAngle, trunkLeanDeg, timestamp, thresholds) {
+    if (kneeAngle == null || !Number.isFinite(kneeAngle)) return { state, completed: null, started: false };
+    if (lastValidAt != null && state !== KN03_LEG_STATE.NEUTRAL && timestamp - lastValidAt > thresholds.MAX_FRAME_GAP_MS) reset();
+    lastValidAt = timestamp;
+    let started = false, completed = null;
+    if (state === KN03_LEG_STATE.NEUTRAL && kneeAngle <= thresholds.FLEXION_START_KNEE_ANGLE_MAX_DEG) {
+      state = KN03_LEG_STATE.EXTENDING; startedAt = timestamp; minKneeAngle = kneeAngle; maxTrunkLeanDeg = trunkLeanDeg ?? 0; started = true;
+    } else if (state !== KN03_LEG_STATE.NEUTRAL) {
+      minKneeAngle = Math.min(minKneeAngle, kneeAngle);
+      maxTrunkLeanDeg = Math.max(maxTrunkLeanDeg, trunkLeanDeg ?? 0);
+      if (state === KN03_LEG_STATE.EXTENDING) {
+        if (kneeAngle <= thresholds.FLEXION_TOP_KNEE_ANGLE_MAX_DEG) { flexConfirm += 1; if (flexConfirm >= thresholds.TOP_CONFIRM_FRAMES) state = KN03_LEG_STATE.TOP; }
+        else flexConfirm = 0;
+      } else if (state === KN03_LEG_STATE.TOP && kneeAngle > thresholds.FLEXION_TOP_KNEE_ANGLE_MAX_DEG) state = KN03_LEG_STATE.RETURNING;
+      else if (state === KN03_LEG_STATE.RETURNING) {
+        if (kneeAngle >= thresholds.FLEXION_RETURN_KNEE_ANGLE_MIN_DEG) {
+          neutralConfirm += 1;
+          if (neutralConfirm >= thresholds.NEUTRAL_CONFIRM_FRAMES) {
+            const durationMs = timestamp - startedAt;
+            if (durationMs >= thresholds.MIN_REP_DURATION_MS && durationMs <= thresholds.MAX_REP_DURATION_MS) completed = { side, startedAt, completedAt: timestamp, durationMs, minKneeAngle, maxKneeAngle: 180, maxTrunkLeanDeg, maxHipAngleDeviationDeg: 0 };
+            reset();
+          }
+        } else neutralConfirm = 0;
+      }
+    }
+    return { state, completed, started };
+  }
+  return { update, getState: () => state };
+}
+
 export function createSeatedKneeExtensionSession(config = {}) {
   const thresholds = config.thresholds || KN03_THRESHOLDS;
+  const motion = config.motion === "flexion" ? "flexion" : "extension";
   const targetReps = Math.max(1, Number(config.targetReps) || 10);
-  let left = createLegTracker("left");
-  let right = createLegTracker("right");
+  let left = motion === "flexion" ? createFlexionLegTracker("left") : createLegTracker("left");
+  let right = motion === "flexion" ? createFlexionLegTracker("right") : createLegTracker("right");
   let repRecords = [];
   let lastCompletedSide = null;
   let lastStart = { side: null, at: null };
@@ -134,8 +174,8 @@ export function createSeatedKneeExtensionSession(config = {}) {
   }
 
   function reset() {
-    left = createLegTracker("left");
-    right = createLegTracker("right");
+    left = motion === "flexion" ? createFlexionLegTracker("left") : createLegTracker("left");
+    right = motion === "flexion" ? createFlexionLegTracker("right") : createLegTracker("right");
     repRecords = [];
     lastCompletedSide = null;
     lastStart = { side: null, at: null };

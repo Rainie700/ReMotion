@@ -229,6 +229,10 @@ import { calculateStraightLegRaiseScore, buildStraightLegRaiseRemark, LE02_ISSUE
 import { HP01_REQUIRED_LANDMARKS, HP01_THRESHOLDS, HP01_ANALYSIS_MODE, DEFAULT_HP01_REWARD_XP } from "./js/ai/exercises/hipStraightLegRaise/constants.js";
 import { createHipStraightLegRaiseSession } from "./js/ai/exercises/hipStraightLegRaise/session.js";
 import { calculateHipStraightLegRaiseScore, buildHipStraightLegRaiseRemark, HP01_ISSUE_LABELS } from "./js/ai/exercises/hipStraightLegRaise/score.js";
+import { F02_PROFILES, F02_REQUIRED_LANDMARKS, F02_THRESHOLDS, F02_ANALYSIS_MODE_PREFIX, DEFAULT_F02_REWARD_XP } from "./js/ai/exercises/balanceSeries/constants.js";
+import { computeBalanceSeriesMetrics } from "./js/ai/exercises/balanceSeries/poseMath.js";
+import { createBalanceSeriesSession } from "./js/ai/exercises/balanceSeries/session.js";
+import { calculateBalanceSeriesScore, buildBalanceSeriesRemark } from "./js/ai/exercises/balanceSeries/score.js";
 import { assessmentService } from "./js/data/assessmentService.js";
 import { PHASE1_TEST_EXERCISE_GOALS } from "./js/data/phase1SchemaTestData.js";
 import { recommendationService } from "./js/data/recommendationService.js";
@@ -381,12 +385,12 @@ function generateScheduleGoal(exercises) {
   const list = [...categories];
   const onlyHas = (...names) => list.length > 0 && list.every((c) => names.includes(c));
 
-  if (onlyHas("下肢")) return "提升下肢肌力與動作穩定";
-  if (onlyHas("髖關節")) return "改善髖關節控制與核心穩定";
-  if (onlyHas("髖關節", "核心")) return "改善髖關節控制與核心穩定";
-  if (onlyHas("上肢肩部")) return "維持肩關節活動度與上肢控制";
-  if (onlyHas("日常生活功能")) return "提升日常活動與功能性移動能力";
-  if (onlyHas("核心")) return "強化核心穩定與軀幹控制";
+  if (onlyHas("下肢功能")) return "提升下肢肌力與動作穩定";
+  if (onlyHas("平衡")) return "提升站立平衡與重心控制";
+  if (onlyHas("功能性移動")) return "提升日常移動與軀幹控制";
+  if (onlyHas("步行功能")) return "改善步態控制與行走穩定";
+  if (onlyHas("上肢功能")) return "維持上肢活動度與動作控制";
+  if (onlyHas("柔軟度／活動能力")) return "提升關節活動度與身體柔軟度";
   if (list.length > 1) return "全身功能性訓練與動作穩定";
   return "依復健師指示完成今日訓練";
 }
@@ -453,8 +457,8 @@ function getExerciseImage(exercise) {
   //  - "踮腳" (calf raise / rising onto toes) matched exercise_ankle_
   //    rotation.png, a different motion (rotating the ankle); removed.
   if (name.includes("深蹲")) return `${base}exercise_squat.png`;
-  if (name.includes("外展") && category === "上肢肩部") return `${base}exercise_arm_abduction.png`;
-  if (category === "上肢肩部" || name.includes("肩")) return `${base}exercise_shoulder_raise.png`;
+  if (name.includes("外展") && category === "上肢功能") return `${base}exercise_arm_abduction.png`;
+  if (category === "上肢功能" || name.includes("肩")) return `${base}exercise_shoulder_raise.png`;
   if (name.includes("踝")) return `${base}exercise_ankle_rotation.png`;
   if (name.includes("頸")) return `${base}exercise_neck_stretch.png`;
   if (name.includes("抬膝")) return `${base}exercise_knee_raise.png`;
@@ -1643,7 +1647,7 @@ const ABILITY_LEVEL_OPTIONS = [
 const SESSION_MINUTES_OPTIONS = [10, 15, 20, 30];
 // Preferred display order — purely cosmetic sorting of real category
 // values, never invents a category that doesn't exist in the data.
-const BODY_PART_DISPLAY_ORDER = ["下肢", "髖關節", "膝關節", "踝關節", "上肢肩部", "核心", "日常生活功能"];
+const BODY_PART_DISPLAY_ORDER = ["下肢功能", "平衡", "功能性移動", "步行功能", "上肢功能", "柔軟度／活動能力"];
 
 /**
  * Display-only mapping from the real 4-value exercise `difficulty` text
@@ -1681,11 +1685,12 @@ function renderDifficultyBadge(rawDifficulty) {
  * here yet, the card simply falls back to the plain illustration slot.
  */
 const CATEGORY_ICON_MAP = {
-  "下肢": "/images/icon_body_lower_limb.png",
-  "髖關節": "/images/icon_body_hip.png",
-  "上肢肩部": "/images/icon_body_shoulder.png",
-  "核心": "/images/icon_body_core.png",
-  "日常生活功能": "/images/icon_body_daily_function.png",
+  "下肢功能": "/images/icon_body_lower_limb.png",
+  "平衡": "/images/icon_goal_balance.png",
+  "功能性移動": "/images/icon_body_daily_function.png",
+  "步行功能": "/images/icon_goal_mobility.png",
+  "上肢功能": "/images/icon_body_shoulder.png",
+  "柔軟度／活動能力": "/images/icon_body_core.png",
 };
 const GOAL_ICON_MAP = {
   "肌力": "/images/icon_goal_strength.png",
@@ -1704,66 +1709,53 @@ const GOAL_ICON_MAP = {
  * renderExerciseCardImage()) rather than a mismatched or generic photo.
  */
 const EXERCISE_IMAGE_MAP = {
-  LE01: "/images/exercise/exercise_squat.png", // 深蹲
-  LE02: "/images/exercise/exercise_high_knees.png", // 仰躺直腿抬腿
-  HP01: "/images/exercise/exercise_knee_extension.png", // 仰躺直腿抬腿 — knee held extended throughout
-  HP02: "/images/exercise/exercise_knee_raise.png", // 站姿髖屈曲 — standing knee raise
-  HP03: "/images/exercise/exercise_hip_extension.png", // 站姿髖伸展
-  CR01: "/images/exercise/exercise_plank.png", // 棒式
-  CR02: "/images/exercise/exercise_crunch.png", // 捲腹
-  CR03: "/images/exercise/exercise_pelvic_tilt.png", // 骨盆傾斜
-  CR04: "/images/exercise/exercise_seated_core_contraction.png", // 坐姿核心收縮
-  CR06: "/images/exercise/exercise_alternating_heel_tap.png", // 仰躺交替腳跟點地
-  CR07: "/images/exercise/exercise_supine_knee_sway.png", // 仰躺膝蓋左右擺動
-  CR08: "/images/exercise/exercise_standing_anti_rotation.png", // 站姿核心抗旋轉
-  CR05: "/images/exercise/exercise_seated_leg_raise.png", // 坐姿抬膝 — seated leg/knee raise
-  KN03: "/images/exercise/exercise_seated_leg_raise.png", // 若專案尚無此圖，既有 fallback 會自動處理
-  LE05: "/images/exercise/exercise_sit_to_stand.png", // 若專案尚無此圖，既有 fallback 會自動處理
-  LE03: "/images/exercise/exercise_bridge.png", // 若專案尚無此圖，既有 fallback 會自動處理
-  LE04: "/images/exercise/exercise_side_leg_raise.png", // 若專案尚無此圖，既有 fallback 會自動處理
-  LE06: "/images/exercise/exercise_balance.png",
-  LE07: "/images/exercise/exercise_calf_raise.png",
-  SH01: "/images/exercise/exercise_shoulder_pendulum.png",
-  SH02: "/images/exercise/exercise_shoulder_external_rotation.png",
-  SH03: "/images/exercise/exercise_shoulder_internal_rotation.png",
-  HP04: "/images/exercise/exercise_side_leg_raise2.png",
-  HP05: "/images/exercise/exercise_hip_adduction.png",
-  HP06: "/images/exercise/exercise_clamshell.png",
-  HP07: "/images/exercise/exercise_fire_hydrant.png", // 消防栓式
-  HP08: "/images/exercise/exercise_lateral_step.png", // 側向跨步
-  HP09: "/images/exercise/exercise_monster_walk.png", // 怪獸走
-  HP10: "/images/exercise/exercise_single_leg_hip_stability.png", // 單腳站姿髖穩定
-  AD01: "/images/exercise/exercise_bed_rolling.png", // 床上翻身
-  AD02: "/images/exercise/exercise_bedside_sit_up.png", // 床邊坐起
-  AD03: "/images/exercise/exercise_shoe_dressing.png", // 穿鞋訓練
-  AD04: "/images/exercise/exercise_floor_object_pickup.png", // 撿拾地面物品
-  AD05: "/images/exercise/exercise_turning_walk.png", // 轉身行走
-  AD06: "/images/exercise/exercise_stair_ascent.png", // 上樓梯
-  AD07: "/images/exercise/exercise_stair_descent.png", // 下樓梯
-  AD08: "/images/exercise/exercise_door_push.png", // 推門
-  AD09: "/images/exercise/exercise_door_pull.png", // 拉門
-  AD10: "/images/exercise/exercise_carry_walk.png", // 提物行走
-  AD11: "/images/exercise/exercise_put_on_coat.png", // 穿外套
-  AD12: "/images/exercise/exercise_take_off_coat.png", // 脫外套
-  AK01: "/images/exercise/exercise_ankle_dorsiflexion.png", // 踝背屈
-  AK02: "/images/exercise/exercise_ankle_plantarflexion.png", // 踝蹠屈
-  AK03: "/images/exercise/exercise_ankle_inversion.png", // 踝內翻
-  AK04: "/images/exercise/exercise_ankle_eversion.png", // 踝外翻
-  AK05: "/images/exercise/exercise_double_calf_raise.png", // 雙腳提踵
-  AK06: "/images/exercise/exercise_double_toe_raise.png", // 雙腳抬腳
-  AK07: "/images/exercise/exercise_single_leg_calf_raise.png", // 單腳提踵
-  AK08: "/images/exercise/exercise_single_leg_toe_raise.png", // 單腳抬腳尖
-  AK09: "/images/exercise/exercise_heel_walk.png", // 腳跟行走
-  AK10: "/images/exercise/exercise_toe_walk.png", // 腳尖行走
-  AK11: "/images/exercise/exercise_forward_weight_shift.png", // 前跨步重心轉移
-  AK12: "/images/exercise/exercise_lateral_weight_shift.png", // 側跨步重心轉移
-  AK13: "/images/exercise/exercise_single_leg_ankle_stability.png", // 單腳站立踝穩定
-  AK14: "/images/exercise/exercise_balance_pad_single_leg.png", // 平衡墊單腳站立
-  AK15: "/images/exercise/exercise_single_leg_forward_reach.png", // 單腳前伸觸地
-  SH04: "/images/exercise/exercise_arm_abduction.png", // 站姿肩外展等長收縮
-  SH05: "/images/exercise/exercise_arm_adduction.png", // 站姿肩內收等長收縮
-  SH06: "/images/exercise/exercise_shoulder_extension.png", // 站姿肩伸展等長收縮
-  SH07: "/images/exercise/exercise_shoulder_raise.png", // 站姿肩屈曲等長收縮
+  "F01-01": "/images/exercise/exercise_squat.png",
+  "F01-02": "/images/exercise/exercise_mini_squat.png",
+  "F01-03": "/images/exercise/exercise_wall_half_squat.png",
+  "F01-04": "/images/exercise/exercise_sit_to_stand.png",
+  "F01-05": "/images/exercise/exercise_terminal_knee_extension.png",
+  "F01-06": "/images/exercise/exercise_seated_leg_raise.png",
+  "F01-07": "/images/exercise/exercise_seated_knee_flexion.png",
+  "F01-08": "/images/exercise/exercise_knee_extension.png",
+  "F01-09": "/images/exercise/exercise_seated_leg_raise.png",
+  "F01-10": "/images/exercise/exercise_bridge.png",
+  "F01-11": "/images/exercise/exercise_knee_raise.png",
+  "F01-12": "/images/exercise/exercise_hip_extension.png",
+  "F01-13": "/images/exercise/exercise_side_leg_raise2.png",
+  "F01-14": "/images/exercise/exercise_hip_adduction.png",
+  "F01-15": "/images/exercise/exercise_clamshell.png",
+  "F01-16": "/images/exercise/exercise_fire_hydrant.png",
+  "F01-17": "/images/exercise/exercise_double_calf_raise.png",
+  "F01-18": "/images/exercise/exercise_double_toe_raise.png",
+  "F01-19": "/images/exercise/exercise_single_leg_calf_raise.png",
+  "F01-20": "/images/exercise/exercise_single_leg_toe_raise.png",
+  "F02-04": "/images/exercise/exercise_single_leg_ankle_stability.png",
+  "F02-08": "/images/exercise/exercise_single_leg_forward_reach.png",
+  "F02-01": "/images/exercise/exercise_side_by_side_balance.png",
+  "F02-02": "/images/exercise/exercise_semi_tandem_stance.png",
+  "F02-03": "/images/exercise/exercise_tandem_stance.png",
+  "F02-05": "/images/exercise/exercise_lateral_weight_shift.png",
+  "F02-06": "/images/exercise/exercise_forward_backward_weight_shift.png",
+  "F02-07": "/images/exercise/exercise_functional_forward_reach.png",
+  "F02-09": "/images/exercise/exercise_lateral_reach.png",
+  "F03-01": "/images/exercise/exercise_bedside_sit_up.png",
+  "F03-02": "/images/exercise/exercise_floor_object_pickup.png",
+  "F03-03": "/images/exercise/exercise_turning_walk.png",
+  "F03-05": "/images/exercise/exercise_lateral_step.png",
+  "F03-06": "/images/exercise/exercise_forward_weight_shift.png",
+  "F03-07": "/images/exercise/exercise_lateral_weight_shift.png",
+  "F03-08": "/images/exercise/exercise_monster_walk.png",
+  "F03-09": "/images/exercise/exercise_plank.png",
+  "F03-10": "/images/exercise/exercise_crunch.png",
+  "F03-11": "/images/exercise/exercise_alternating_heel_tap.png",
+  "F04-07": "/images/exercise/exercise_heel_walk.png",
+  "F04-08": "/images/exercise/exercise_toe_walk.png",
+  "F06-01": "/images/exercise/exercise_shoulder_pendulum.png",
+  "F06-04": "/images/exercise/exercise_supine_knee_sway.png",
+  "F06-05": "/images/exercise/exercise_ankle_dorsiflexion.png",
+  "F06-06": "/images/exercise/exercise_ankle_plantarflexion.png",
+  "F06-07": "/images/exercise/exercise_ankle_inversion.png",
+  "F06-08": "/images/exercise/exercise_ankle_eversion.png",
 };
 
 /**
@@ -1938,7 +1930,7 @@ function buildAssessmentRecommendationContext(functionalSessionId) {
 /**
  * From a completed Functional Assessment Result — enter the SAME
  * recommendation questionnaire with the body region already supplied
- * (task section 4). For the Shoulder MVP that is category "上肢肩部".
+ * (task section 4). For the Shoulder MVP that is category "上肢功能".
  * Only the still-needed engine inputs are asked (goal / ability / time),
  * so the form starts at step 2. The assessment's MEASUREMENT values are
  * NOT read here (task section 5) — only its body region, the selected
@@ -1949,7 +1941,7 @@ function startRecommendationFromAssessment(functionalSessionId) {
   state.recommendationEntrySource = "assessment";
   state.recommendationFunctionalSessionId = sessionId;
   state.recommendationAssessmentContext = buildAssessmentRecommendationContext(sessionId);
-  state.assessmentDraft = { bodyParts: ["上肢肩部"], goals: [], abilityLevel: null, preferredSessionMinutes: null };
+  state.assessmentDraft = { bodyParts: ["上肢功能"], goals: [], abilityLevel: null, preferredSessionMinutes: null };
   state.assessmentEditMode = null;
   state.assessmentFormStep = 2; // skip body-region selection
   state.route = "patientAssessmentForm";
@@ -8309,7 +8301,7 @@ function detectionPrepPage() {
       : poseAnalyzer === POSE_ANALYZER.LE02_STRAIGHT_LEG_RAISE
       ? `<div class="ai-box"><div class="ai-content"><img src="/images/ai_robot.png" class="ai-avatar" alt="AI"><p class="ai-text">仰躺直腿抬腿已支援左右腿計次、抬腿高度、膝蓋伸直、骨盆穩定與速度提醒，以及 0–100 分品質評估。請從側面或斜側面拍攝並讓肩、髖、膝與腳踝完整入鏡。</p></div></div>`
       : poseAnalyzer === POSE_ANALYZER.HP01_STRAIGHT_LEG_RAISE
-      ? `<div class="ai-box"><div class="ai-content"><img src="/images/ai_robot.png" class="ai-avatar" alt="AI"><p class="ai-text">HP01 仰躺直腿抬腿已支援左右腿各 10 次、30°～45°抬腿範圍、頂端停留約 2 秒、膝蓋伸直、骨盆穩定與速度提醒，以及 0–100 分品質評估。</p></div></div>`
+      ? `<div class="ai-box"><div class="ai-content"><img src="/images/ai_robot.png" class="ai-avatar" alt="AI"><p class="ai-text">F01-08 直腿抬腿已支援左右腿各 10 次、30°～45°抬腿範圍、頂端停留約 2 秒、膝蓋伸直、骨盆穩定與速度提醒，以及 0–100 分品質評估。</p></div></div>`
       : poseAnalyzer === POSE_ANALYZER.HP03_STANDING_HIP_EXTENSION
       ? `<div class="ai-box"><div class="ai-content"><img src="/images/ai_robot.png" class="ai-avatar" alt="AI"><p class="ai-text">站姿髖伸展已支援左右腿各 10 次、向後抬腿方向、15°～20°伸展幅度、膝蓋伸直、頂端停留、軀幹與骨盆穩定及速度提醒，以及 0–100 分品質評估。請從側面拍攝。</p></div></div>`
       : poseAnalyzer === POSE_ANALYZER.HP07_FIRE_HYDRANT
@@ -8527,7 +8519,7 @@ function squatDetectionPage() {
   return `
     <div class="header">
       <button class="btn btn-light detail-back-btn" onclick="exitSquatDetection()">返回</button>
-      <b>AI 深蹲偵測</b>
+      <b>AI ${exerciseName}偵測</b>
       <span class="squat-voice-toggle" id="squatVoiceToggle" onclick="toggleSquatVoice()" title="語音提示開關">語音：開</span>
       <span class="squat-debug-toggle" onclick="toggleSquatDebugMode()" title="偵錯模式">偵錯</span>
       <img class="icon" src="/images/ai_robot.png" alt="AI" />
@@ -8624,13 +8616,18 @@ function beginSquatCameraSession() {
   // still-live controller, regardless of how this got invoked.
   stopSquatCamera();
   squatCanvasCtx = canvasEl.getContext("2d");
-  squatSessionTracker = createSquatSession(squatSessionMeta.targetReps);
+  const variantThresholds = squatSessionMeta.exerciseId === "F01-02"
+    ? { ...SQUAT_THRESHOLDS, STANDING_KNEE_ANGLE: 158, DOWN_KNEE_ANGLE: 145, TRUNK_LEAN_MAX_DEG: 25, MIN_REP_DURATION_MS: 1000 }
+    : squatSessionMeta.exerciseId === "F01-03"
+      ? { ...SQUAT_THRESHOLDS, STANDING_KNEE_ANGLE: 158, DOWN_KNEE_ANGLE: 145, TRUNK_LEAN_MAX_DEG: 20, MIN_REP_DURATION_MS: 2800 }
+      : SQUAT_THRESHOLDS;
+  squatSessionTracker = createSquatSession(squatSessionMeta.targetReps, variantThresholds);
   squatFrameTimestamps = [];
   // Phase 5.5.2 — explicitly passes squat's own required-landmark set (see
   // js/ai/poseMath.js) rather than relying on the function's default, so
   // this call site stays correct even if the default ever changes for a
   // future exercise's sake.
-  squatDetectionStability = createDetectionStabilityTracker(SQUAT_THRESHOLDS, SQUAT_REQUIRED_LANDMARKS);
+  squatDetectionStability = createDetectionStabilityTracker(variantThresholds, SQUAT_REQUIRED_LANDMARKS);
   squatModelReady = false;
   squatCountdownActive = false;
   squatLastRepDurationMs = null;
@@ -9677,7 +9674,7 @@ function persistSquatSession() {
     exerciseId: meta.exerciseId,
     exerciseName: meta.exerciseName,
     completedAt: now,
-    analysisMode: SQUAT_ANALYSIS_MODE,
+    analysisMode: meta.exerciseId === "F01-02" ? "mediapipe_f01_02_mini_squat" : meta.exerciseId === "F01-03" ? "mediapipe_f01_03_wall_half_squat" : SQUAT_ANALYSIS_MODE,
     source: isAssigned ? ANALYSIS_RECORD_SOURCES.ASSIGNED : ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,
     totalReps: summary.totalReps,
     targetReps: summary.targetReps,
@@ -11247,8 +11244,10 @@ function goKn03Detection() {
 
 function kn03DetectionPage() {
   const meta = kn03SessionMeta || { exerciseName: "坐姿膝伸直", targetReps: 10 };
-  return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitKn03Detection()">返回</button><b>AI 坐姿膝伸直</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div>
-    <h2 style="margin:10px 0 4px;">${meta.exerciseName}</h2><div class="small" style="margin-bottom:10px;">坐穩後左右腳輪流伸直；肩膀、髖部、雙膝與腳踝需完整入鏡。</div>
+  const isFlexion = meta.exerciseId === "F01-07", isTke = meta.exerciseId === "F01-05";
+  const instruction = isFlexion ? "坐穩後讓腳跟沿地面向後滑、停留再滑回，左右腳輪流；肩、髖、膝、腳踝與腳跟需完整入鏡。" : isTke ? "採前後站姿，訓練側膝由輕微彎曲伸直到中立位、停留後回位；全身與雙腳需完整入鏡。" : "坐穩後左右腳輪流伸直；肩膀、髖部、雙膝與腳踝需完整入鏡。";
+  return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitKn03Detection()">返回</button><b>AI ${meta.exerciseName}</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div>
+    <h2 style="margin:10px 0 4px;">${meta.exerciseName}</h2><div class="small" style="margin-bottom:10px;">${instruction}</div>
     <div class="squat-camera-wrap"><video id="kn03Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="kn03OverlayCanvas" class="squat-overlay-canvas"></canvas>
       <div class="squat-rep-counter" id="kn03RepCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72" width="72" height="72" aria-hidden="true"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="kn03RepRingProgress" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="kn03RepCounterValue">0</span><span class="squat-rep-counter-sep">/ ${meta.targetReps}</span></div></div>
       <div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="kn03ReadinessDot"></span><span id="kn03ReadinessText">尚未偵測</span></div><div class="squat-status-overlay" id="kn03StatusOverlay">正在請求攝影機權限…</div></div>
@@ -11263,7 +11262,10 @@ function beginKn03CameraSession() {
   if (!videoEl || !canvasEl || !kn03SessionMeta) return;
   stopKn03Camera();
   kn03CanvasCtx = canvasEl.getContext("2d");
-  kn03SessionTracker = createSeatedKneeExtensionSession({ targetReps: kn03SessionMeta.targetReps });
+  const isFlexion = kn03SessionMeta.exerciseId === "F01-07";
+  const isTke = kn03SessionMeta.exerciseId === "F01-05";
+  const thresholds = isTke ? { ...KN03_THRESHOLDS, NEUTRAL_KNEE_ANGLE_MAX_DEG: 165, REP_START_KNEE_ANGLE_MIN_DEG: 166, CANDIDATE_TOP_KNEE_ANGLE_MIN_DEG: 174, TARGET_EXTENSION_KNEE_ANGLE_MIN_DEG: 174, MIN_REP_DURATION_MS: 900 } : KN03_THRESHOLDS;
+  kn03SessionTracker = createSeatedKneeExtensionSession({ targetReps: kn03SessionMeta.targetReps, thresholds, motion: isFlexion ? "flexion" : "extension" });
   kn03DetectionStability = createDetectionStabilityTracker({ ...SQUAT_THRESHOLDS, MIN_VISIBILITY: KN03_THRESHOLDS.MIN_VISIBILITY }, KN03_REQUIRED_LANDMARKS);
   kn03CameraController = createSquatCameraController({ videoEl, onStatus: handleKn03CameraStatus, onFrame: handleKn03Frame, onFatalError: handleKn03FatalError });
   kn03CameraController.start();
@@ -11289,7 +11291,7 @@ function updateKn03Readiness(displayState, framing) {
   const dot = document.getElementById("kn03ReadinessDot"), text = document.getElementById("kn03ReadinessText"); if (!dot || !text) return;
   dot.className = `squat-readiness-dot ${displayState === DETECTION_DISPLAY_STATE.READY ? "ready" : displayState === DETECTION_DISPLAY_STATE.PARTIAL || displayState === DETECTION_DISPLAY_STATE.LOST_SUSTAINED ? "partial" : "not-found"}`;
   let label = SQUAT_READINESS_LABELS[displayState] || "請保持身體完整入鏡";
-  if (displayState === DETECTION_DISPLAY_STATE.READY) label = framing === "TOO_CLOSE" ? "請稍微退後，讓腳踝完整入鏡" : framing === "TOO_FAR" ? "請靠近一些" : "已偵測到身體，可以開始伸膝";
+  if (displayState === DETECTION_DISPLAY_STATE.READY) label = framing === "TOO_CLOSE" ? "請稍微退後，讓腳踝完整入鏡" : framing === "TOO_FAR" ? "請靠近一些" : `已偵測到身體，可以開始${kn03SessionMeta?.exerciseName || "伸膝"}`;
   text.textContent = label;
 }
 function updateKn03Ring(count, target) { const ring = document.getElementById("kn03RepRingProgress"); if (ring) ring.style.strokeDashoffset = String(188.5 * (1 - calculateProgressRatio(count, target))); }
@@ -11303,8 +11305,8 @@ function handleKn03Frame(landmarks, timestamp) {
   const bodyReady = !!landmarks && hasFullLowerBody(landmarks, KN03_THRESHOLDS, KN03_REQUIRED_LANDMARKS);
   const result = kn03SessionTracker.processFrame({ timestamp, ...metrics, bodyReady }); const s = result.summary;
   setKn03Text("kn03TotalReps", String(s.totalReps)); setKn03Text("kn03RepCounterValue", String(s.totalReps)); setKn03Text("kn03LeftReps", String(s.leftReps)); setKn03Text("kn03RightReps", String(s.rightReps)); setKn03Text("kn03LiveScore", s.totalReps ? String(calculateSeatedKneeExtensionScore(s).score) : "--"); updateKn03Ring(s.totalReps, s.targetReps);
-  if (result.completedReps.length) { const counter = document.getElementById("kn03RepCounter"); if (counter) { counter.classList.toggle("complete", s.completed); counter.classList.remove("pulse"); void counter.offsetWidth; counter.classList.add("pulse"); } const issue = result.completedReps.at(-1).issues[0]; setKn03Text("kn03Feedback", issue ? KN03_QUALITY_ISSUE_LABELS[issue] : "很好，放下小腿後換另一腳"); }
-  else if (!bodyReady) setKn03Text("kn03Feedback", "請讓肩膀、髖部、雙膝與腳踝完整入鏡"); else if (metrics.trunkLeanDeg > KN03_THRESHOLDS.TRUNK_LEAN_MAX_DEG) setKn03Text("kn03Feedback", "上半身盡量保持直立"); else setKn03Text("kn03Feedback", "左右腳輪流伸直膝蓋");
+  if (result.completedReps.length) { const counter = document.getElementById("kn03RepCounter"); if (counter) { counter.classList.toggle("complete", s.completed); counter.classList.remove("pulse"); void counter.offsetWidth; counter.classList.add("pulse"); } const issue = result.completedReps.at(-1).issues[0], flexion = kn03SessionMeta?.exerciseId === "F01-07"; setKn03Text("kn03Feedback", issue && !flexion ? KN03_QUALITY_ISSUE_LABELS[issue] : flexion ? "很好，腳跟沿地面控制回位後換腳" : "很好，放下小腿後換另一腳"); }
+  else if (!bodyReady) setKn03Text("kn03Feedback", "請讓肩膀、髖部、雙膝與腳踝完整入鏡"); else if (metrics.trunkLeanDeg > KN03_THRESHOLDS.TRUNK_LEAN_MAX_DEG) setKn03Text("kn03Feedback", "上半身盡量保持直立"); else setKn03Text("kn03Feedback", kn03SessionMeta?.exerciseId === "F01-07" ? "腳跟貼地，左右腳輪流向後滑動" : kn03SessionMeta?.exerciseId === "F01-05" ? "膝蓋平穩伸直到中立位，不要用力鎖死" : "左右腳輪流伸直膝蓋");
   if (s.completed) { kn03TargetReached = true; stopKn03Camera(); const overlay = document.getElementById("kn03StatusOverlay"); if (overlay) overlay.textContent = "訓練次數已完成！請儲存結果"; const button = document.getElementById("kn03FinishBtn"); if (button) button.textContent = "儲存並查看結果"; }
 }
 
@@ -11314,7 +11316,9 @@ function persistKn03Session() {
   const meta = kn03SessionMeta, s = kn03SessionTracker.getSummary(); const assigned = meta.mode === "assigned"; let schedule = null, ex = null;
   if (assigned) { schedule = scheduleService.getById(meta.scheduleId); ex = schedule ? schedule.exercises[meta.exerciseIndex] : null; if (!schedule || !ex) { alert("找不到課表或動作資訊，本次結果未儲存。"); return false; } if (ex.status === "completed") return false; }
   const { score, quality } = calculateSeatedKneeExtensionScore(s); const now = nowIso();
-  const record = analysisService.create({ id: generateId("analysis"), patientId: meta.patientId, therapistId: meta.therapistId, scheduleId: assigned ? schedule.id : null, exerciseId: meta.exerciseId, exerciseName: meta.exerciseName, completedAt: now, capturedAt: now, createdAt: now, analysisMode: KN03_ANALYSIS_MODE, source: assigned ? ANALYSIS_RECORD_SOURCES.ASSIGNED : ANALYSIS_RECORD_SOURCES.SELF_PRACTICE, totalReps: s.totalReps, targetReps: s.targetReps, validReps: s.validReps, score, overallScore: score, quality, remark: buildSeatedKneeExtensionRemark(s), repRecords: s.repRecords, summary: { totalReps: s.totalReps, targetReps: s.targetReps, leftReps: s.leftReps, rightReps: s.rightReps, qualityValidReps: s.qualityValidReps, insufficientExtensionCount: s.insufficientExtensionCount, excessiveTrunkLeanCount: s.excessiveTrunkLeanCount, thighLiftCount: s.thighLiftCount, rhythmIssueCount: s.rhythmIssueCount, tooFastCount: s.tooFastCount, trackingInterruptionCount: s.trackingInterruptionCount, repsWithTrackingGap: s.repsWithTrackingGap, averageMaxKneeAngle: s.averageMaxKneeAngle, averageRepDuration: s.averageRepDuration } });
+  const analysisMode = meta.exerciseId === "F01-05" ? "mediapipe_f01_05_terminal_knee_extension" : meta.exerciseId === "F01-07" ? "mediapipe_f01_07_seated_knee_flexion" : KN03_ANALYSIS_MODE;
+  const remark = meta.exerciseId === "F01-05" ? "終末膝伸直已完成；請維持腳跟著地並避免用力鎖死膝蓋。" : meta.exerciseId === "F01-07" ? "坐姿膝彎曲已完成；請保持腳跟沿地滑動並在舒適範圍內練習。" : buildSeatedKneeExtensionRemark(s);
+  const record = analysisService.create({ id: generateId("analysis"), patientId: meta.patientId, therapistId: meta.therapistId, scheduleId: assigned ? schedule.id : null, exerciseId: meta.exerciseId, exerciseName: meta.exerciseName, completedAt: now, capturedAt: now, createdAt: now, analysisMode, source: assigned ? ANALYSIS_RECORD_SOURCES.ASSIGNED : ANALYSIS_RECORD_SOURCES.SELF_PRACTICE, totalReps: s.totalReps, targetReps: s.targetReps, validReps: s.validReps, score, overallScore: score, quality, remark, repRecords: s.repRecords, summary: { totalReps: s.totalReps, targetReps: s.targetReps, leftReps: s.leftReps, rightReps: s.rightReps, qualityValidReps: s.qualityValidReps, insufficientExtensionCount: s.insufficientExtensionCount, excessiveTrunkLeanCount: s.excessiveTrunkLeanCount, thighLiftCount: s.thighLiftCount, rhythmIssueCount: s.rhythmIssueCount, tooFastCount: s.tooFastCount, trackingInterruptionCount: s.trackingInterruptionCount, repsWithTrackingGap: s.repsWithTrackingGap, averageMaxKneeAngle: s.averageMaxKneeAngle, averageRepDuration: s.averageRepDuration } });
   if (assigned) scheduleService.updateExerciseAt(schedule.id, meta.exerciseIndex, { status: "completed", completedAt: now, analysisRecordId: record.id }); gameService.addXp(meta.patientId, meta.rewardXp || DEFAULT_KN03_REWARD_XP); kn03SessionFinalized = true; return true;
 }
 function finalizeKn03Training() { if (!kn03SessionTracker || !kn03SessionTracker.getSummary().totalReps) { alert("尚未偵測到完整動作，請至少完成一次後再儲存。"); return; } stopKn03Camera(); const meta = kn03SessionMeta; if (persistKn03Session()) { kn03SessionTracker = null; kn03SessionMeta = null; navigateAfterSquat(meta); } }
@@ -12736,6 +12740,21 @@ const resultBeforeAk12=renderAnalysisResultSection;renderAnalysisResultSection=f
 const historyBeforeAk12=buildTrainingHistoryEntry;buildTrainingHistoryEntry=function(record){const e=historyBeforeAk12(record);if(record.analysisMode===AK12_ANALYSIS_MODE)e.summaryLabel=`${record.totalReps||0} / ${record.targetReps||0} 次｜品質 ${record.score??record.overallScore??"—"} 分`;return e;};
 const genericBeforeAk12=renderGenericRecordDetail;renderGenericRecordDetail=function(record,entry){return record.analysisMode===AK12_ANALYSIS_MODE?renderAk12Result(record):genericBeforeAk12(record,entry);};
 
+// F02 平衡系列共用偵測流程：靜態維持、重心轉移與伸手測試。
+let f02Meta=null,f02Cam=null,f02Ctx=null,f02Stable=null,f02Tracker=null,f02Done=false;
+function f02Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+function goF02Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,p=F02_PROFILES[x.exerciseId];if(!p)return;const rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;f02Meta={profile:p,mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:p.targetReps,rewardXp:x.rewardXp||DEFAULT_F02_REWARD_XP};f02Done=false;state.route="f02Detection";render();beginF02Camera();}
+function f02Page(){const m=f02Meta||{profile:F02_PROFILES["F02-01"],exerciseName:"平衡訓練",targetReps:1},p=m.profile,isStatic=p.mode==="static",target=isStatic?p.targetSeconds:m.targetReps;return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitF02Detection()">返回</button><b>AI ${m.exerciseName}</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">${p.instruction}</div><div class="squat-camera-wrap"><video id="f02Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="f02Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="f02Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="f02Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="f02Value">0</span><span class="squat-rep-counter-sep">/${target}${isStatic?"秒":"次"}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="f02Dot"></span><span id="f02Ready">尚未偵測</span></div><div class="squat-status-overlay" id="f02Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">${isStatic?"穩定維持":"完成次數"}</span><b><span id="f02Total">0</span> / ${target}${isStatic?"秒":"次"}</b></div><div class="stat"><span class="small">左右完成</span><b id="f02Sides">0 / 0</b></div><div class="stat"><span class="small">品質分數</span><b id="f02Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">動作狀態：<b id="f02Phase">準備中</b></div><div class="small">肩膀傾斜：<b id="f02Shoulder">--</b>　骨盆傾斜：<b id="f02Pelvis">--</b></div><div class="small">即時提醒：<b id="f02Feedback">請依說明建立起始姿勢</b></div></div><div class="small" style="margin:10px 0;color:#888">本分析以單一鏡頭估算可見姿勢與位移，無法直接量測足底壓力或實際伸手公分距離；非醫療診斷。</div><button class="btn btn-primary full" id="f02Finish" onclick="finalizeF02Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitF02Detection()">放棄本次訓練</button>`;}
+function beginF02Camera(){const v=document.getElementById("f02Video"),c=document.getElementById("f02Canvas");if(!v||!c||!f02Meta)return;stopF02Camera();f02Ctx=c.getContext("2d");f02Tracker=createBalanceSeriesSession(f02Meta.profile,{targetReps:f02Meta.targetReps});f02Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:F02_THRESHOLDS.MIN_VISIBILITY},F02_REQUIRED_LANDMARKS);f02Cam=createSquatCameraController({videoEl:v,onStatus:s=>f02Set("f02Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleF02Frame,onFatalError:m=>f02Set("f02Status",m)});f02Cam.start();}
+function drawF02(l){const c=document.getElementById("f02Canvas"),v=document.getElementById("f02Video");if(!c||!f02Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}f02Ctx.clearRect(0,0,c.width,c.height);if(!l)return;f02Ctx.strokeStyle="#7ea866";f02Ctx.fillStyle="#5f8d49";f02Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;f02Ctx.beginPath();f02Ctx.moveTo(a.x*c.width,a.y*c.height);f02Ctx.lineTo(b.x*c.width,b.y*c.height);f02Ctx.stroke()});l.forEach(p=>{if(!p)return;f02Ctx.beginPath();f02Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);f02Ctx.fill()});}
+function handleF02Frame(l,time){if(state.route!=="f02Detection"||!f02Tracker||!f02Stable||f02Done)return;drawF02(l);const d=f02Stable.update(l,time),m=computeBalanceSeriesMetrics(l,F02_THRESHOLDS),r=f02Tracker.processFrame({timestamp:time,...m}),s=r.summary,p=f02Meta.profile,isStatic=p.mode==="static",value=isStatic?s.heldSeconds:s.totalReps,target=isStatic?p.targetSeconds:s.targetReps;const dot=document.getElementById("f02Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");f02Set("f02Ready",m.bodyReady?"已偵測到全身，可以開始":"請保持全身、雙手與雙腳入鏡");f02Set("f02Value",value);f02Set("f02Total",value);f02Set("f02Sides",`${s.leftReps||0} / ${s.rightReps||0}`);f02Set("f02Phase",{calibrating:"校正中",ready:"起始位置",out:"移動中",returning:"回位中"}[s.phase]||s.phase);f02Set("f02Shoulder",m.shoulderTiltDeg==null?"--":Math.round(m.shoulderTiltDeg)+"°");f02Set("f02Pelvis",m.pelvisTiltDeg==null?"--":Math.round(m.pelvisTiltDeg)+"°");f02Set("f02Feedback",r.feedback);f02Set("f02Score",value?calculateBalanceSeriesScore(s).score:"--");const ring=document.getElementById("f02Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(value,target)));if(r.completedRep){const c=document.getElementById("f02Counter");if(c){c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse")}}if(s.completed){f02Done=true;stopF02Camera();f02Set("f02Status","目標已完成！請儲存結果");f02Set("f02Finish","儲存並查看結果");document.getElementById("f02Counter")?.classList.add("complete");}}
+function stopF02Camera(){f02Cam?.stop();f02Cam=null;f02Ctx=null;f02Stable=null;}
+function persistF02(){if(!f02Meta||!f02Tracker)return false;const m=f02Meta,s=f02Tracker.getSummary(),assigned=m.mode==="assigned",schedule=assigned?scheduleService.getById(m.scheduleId):null,q=calculateBalanceSeriesScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:schedule?.id||null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:F02_ANALYSIS_MODE_PREFIX+m.exerciseId.toLowerCase().replace("-","_"),source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score:q.score,overallScore:q.score,quality:q.quality,remark:buildBalanceSeriesRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}});if(schedule)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});gameService.addXp(m.patientId,m.rewardXp);return true;}
+function finalizeF02Training(){const s=f02Tracker?.getSummary();if(!s||(f02Meta.profile.mode==="static"?s.heldSeconds<1:s.totalReps<1))return alert("尚未偵測到完整動作，請至少完成一次後再儲存。");stopF02Camera();const m=f02Meta;if(persistF02()){f02Tracker=null;f02Meta=null;navigateAfterSquat(m);}}
+function exitF02Detection(){stopF02Camera();const m=f02Meta;f02Tracker=null;f02Meta=null;navigateAfterSquat(m);}
+function renderF02Result(record){const s=record.summary||{},isStatic=s.targetSeconds!=null,total=isStatic?(s.heldSeconds||0):(s.totalReps??record.totalReps??0),target=isStatic?s.targetSeconds:(s.targetReps??record.targetReps??0),unit=isStatic?"秒":"次",score=record.score??record.overallScore??"—";return `<div class="detail-analysis-result"><div class="card result-hero">${renderRobot(total>=target?"celebrate":"happy","sm")}<div class="result-hero-headline">完成 ${total} ${unit}${total>=target?"！":""}</div><div class="small result-hero-sub">${record.exerciseName}｜品質符合 ${s.validReps??record.validReps??0} 次</div></div><div class="card" style="margin-top:10px"><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成${unit}</div></div><div class="result-summary-col"><div class="result-summary-value">${s.stepCount||0}</div><div class="small">腳步移動</div></div><div class="result-summary-col"><div class="result-summary-value">${score}<span class="result-summary-value-sep">/100</span></div><div class="small">品質分數</div></div></div></div><div class="card result-feedback-card" style="margin-top:10px"><b>AI 建議</b><div class="small">${record.remark||"保持雙腳固定並緩慢控制重心。"}</div></div><details class="result-tech-details"><summary>詳細分析</summary><div class="small" style="margin-top:8px">腳步移動：${s.stepCount||0} 次｜較大晃動：${s.largeSwayCount||0} 次｜肩骨盆傾斜：${s.tiltCount||0} 次｜速度過快：${s.tooFastCount||0} 次｜追蹤中斷：${s.trackingInterruptionCount||0} 次</div><div class="small" style="margin-top:4px;color:#888">單一鏡頭只能估算可見姿勢與相對位移，無法量測足底壓力或實際伸手公分距離。</div></details></div>`;}
+const renderBeforeF02=render;render=function(){if(state.route==="f02Detection"){app.innerHTML=phone(f02Page(),true);attachImageFallbacks(app)}else renderBeforeF02();};const cameraBeforeF02=openCameraPlaceholder;openCameraPlaceholder=function(){const c=getExercisePageContext(),a=c&&(resolvePoseAnalyzer(c.catalog)||resolvePoseAnalyzer(c.ex));return a===POSE_ANALYZER.F02_BALANCE_SERIES?goF02Detection():cameraBeforeF02();};window.openCameraPlaceholder=openCameraPlaceholder;window.goF02Detection=goF02Detection;window.exitF02Detection=exitF02Detection;window.finalizeF02Training=finalizeF02Training;const resultBeforeF02=renderAnalysisResultSection;renderAnalysisResultSection=function(record,ex){return String(record.analysisMode||"").startsWith(F02_ANALYSIS_MODE_PREFIX)?renderF02Result(record):resultBeforeF02(record,ex);};const historyBeforeF02=buildTrainingHistoryEntry;buildTrainingHistoryEntry=function(record){const e=historyBeforeF02(record);if(String(record.analysisMode||"").startsWith(F02_ANALYSIS_MODE_PREFIX)){const s=record.summary||{},v=s.targetSeconds!=null?`${s.heldSeconds||0}/${s.targetSeconds} 秒`:`${record.totalReps||0}/${record.targetReps||0} 次`;e.summaryLabel=`${v}｜品質 ${record.score??record.overallScore??"—"} 分`;}return e;};const genericBeforeF02=renderGenericRecordDetail;renderGenericRecordDetail=function(record,entry){return String(record.analysisMode||"").startsWith(F02_ANALYSIS_MODE_PREFIX)?renderF02Result(record):genericBeforeF02(record,entry);};
+
 function installTrainingFinalizeNavigationGuard(finalizeName, exitName, getMeta) {
   const original = window[finalizeName];
   if (typeof original !== "function") return;
@@ -12769,6 +12788,7 @@ function installTrainingFinalizeNavigationGuard(finalizeName, exitName, getMeta)
 }
 
 [
+  ["finalizeF02Training","exitF02Detection",()=>f02Meta],
   ["finalizeCr08Training","exitCr08Detection",()=>cr08Meta],
   ["finalizeCr07Training","exitCr07Detection",()=>cr07Meta],
   ["finalizeCr06Training","exitCr06Detection",()=>cr06Meta],

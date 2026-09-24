@@ -45,16 +45,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     "../js/data/exerciseService.js"
   );
 
-  assert.equal(SQUAT_EXERCISE_ID, "LE01", "LE01 is the squat exercise id");
+  assert.equal(SQUAT_EXERCISE_ID, "F01-01", "F01-01 is the squat exercise id");
 
   // A — a 下肢 / 肌力 / 初階 self-rehab request produces a session containing LE01.
   const assessment = {
     id: "tp_assess_1",
     updatedAt: "2026-09-02T00:00:00.000Z",
-    bodyParts: ["下肢"],
+    bodyParts: ["下肢功能"],
     goals: ["肌力"],
     abilityLevel: "beginner",
-    preferredSessionMinutes: 15,
+    preferredSessionMinutes: 60,
   };
   const candidates = exerciseService.listNormalizedWithKnownGoals();
   const session = generateRecommendationForAssessment(assessment, candidates, {
@@ -62,14 +62,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     assessmentId: "tp_assess_1",
     dateStr: "2026-09-02",
   });
-  const le01 = session.items.find((it) => it.exerciseId === "LE01");
-  assert.ok(le01, "recommendation session contains LE01 深蹲");
-  assert.ok(le01.aiSupported === true, "the recommended LE01 item is flagged aiSupported");
+  const le01 = session.items.find((it) => it.exerciseId === "F01-01");
+  assert.ok(le01, "recommendation session contains F01-01 深蹲");
+  assert.ok(le01.aiSupported === true, "the recommended F01-01 item is flagged aiSupported");
 
   // LE01 genuinely maps to the implemented SQUAT analyzer.
-  const le01Norm = normalizeExercise({ exercise_id: "LE01", exercise_name: "深蹲", category: "下肢", difficulty: "易" });
+  const le01Norm = normalizeExercise({ exercise_id: "F01-01", exercise_name: "深蹲", category: "下肢功能", difficulty: "易" });
   assert.equal(le01Norm.aiSupported, true, "normalizeExercise marks LE01 aiSupported");
-  assert.equal(resolvePoseAnalyzer({ exercise_id: "LE01" }), POSE_ANALYZER.SQUAT, "LE01 -> SQUAT analyzer");
+  assert.equal(resolvePoseAnalyzer({ exercise_id: "F01-01" }), POSE_ANALYZER.SQUAT, "F01-01 -> SQUAT analyzer");
 
   // J — a catalog-only exercise with no detector must NOT gain fake AI support.
   const catalogOnly = { exercise_id: "SH08", exercise_name: "毛巾操", category: "上肢肩部", difficulty: "易" };
@@ -115,7 +115,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
     patientId: PID,
     therapistId: null,
     scheduleId: null,
-    exerciseId: "LE01",
+    exerciseId: "F01-01",
     exerciseName: "深蹲",
     completedAt: `${today}T09:00:00.000Z`,
     createdAt: `${today}T09:00:00.000Z`,
@@ -136,7 +136,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const fresh = (await import("../js/data/analysisService.js?reload=1")).analysisService;
   const reread = fresh.getByPatientId(PID);
   assert.equal(reread.length, 1, "the persisted record survives a reload");
-  assert.equal(reread[0].exerciseId, "LE01");
+  assert.equal(reread[0].exerciseId, "F01-01");
   assert.equal(reread[0].score, 82, "persisted score is intact after reload");
 
   // F / G — the recommendation-completion predicate (same shape as
@@ -149,9 +149,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
         getRecordSource(r) === "self_practice" &&
         (r.completedAt || r.createdAt || "").slice(0, 10) === dateStr
     );
-  assert.equal(isCompleted("LE01", today, PID), true, "the completed LE01 session marks the recommendation item done");
-  assert.equal(isCompleted("LE01", "2026-09-03", PID), false, "a different day is not falsely counted");
-  assert.equal(isCompleted("LE05", today, PID), false, "a different exercise is not falsely counted");
+  assert.equal(isCompleted("F01-01", today, PID), true, "the completed F01-01 session marks the recommendation item done");
+  assert.equal(isCompleted("F01-01", "2026-09-03", PID), false, "a different day is not falsely counted");
+  assert.equal(isCompleted("F01-04", today, PID), false, "a different exercise is not falsely counted");
 }
 
 // ── Part 4 — app.js static wiring ─────────────────────────────────
