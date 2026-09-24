@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { createShoulderPendulumSession } from "../js/ai/exercises/shoulderPendulum/session.js";
+import { calculateShoulderPendulumScore } from "../js/ai/exercises/shoulderPendulum/score.js";
+const session=createShoulderPendulumSession({targetReps:1});
+const x=[.5,.53,.56,.58,.56,.53,.51,.5];
+x.forEach((leftWristX,i)=>session.processFrame({timestamp:i*250,leftWristX,rightWristX:.7,leftArmAngle:10,rightArmAngle:5,trunkForwardDeg:30,shoulderAsymmetryRatio:.01,bodyScale:.5,bodyReady:true}));
+const s=session.getSummary();
+assert.equal(s.totalReps,1);
+assert.equal(s.validReps,1);
+assert.equal(s.activeSide,"left");
+assert.equal(calculateShoulderPendulumScore(s).score,100);
+console.log("SH01 shoulder-pendulum session tests passed");

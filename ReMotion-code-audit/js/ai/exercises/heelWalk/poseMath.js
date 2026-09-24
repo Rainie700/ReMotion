@@ -1,0 +1,4 @@
+import { computeAnkleDorsiflexionMetrics } from "../ankleDorsiflexion/poseMath.js";
+import { AK09_THRESHOLDS as T } from "./constants.js";
+const mid=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+export function computeHeelWalkMetrics(l,t=T){const base=computeAnkleDorsiflexionMetrics(l,t);if(!base.bodyReady||!l?.[11]||!l?.[12])return{...base,bodyReady:false};const shoulder=mid(l[11],l[12]),hip=mid(l[23],l[24]),scale=Math.max(.08,Math.hypot(shoulder.x-hip.x,shoulder.y-hip.y)*2),legScale=Math.max(.05,(base.leftLegScale+base.rightLegScale)/2),trunkLeanDeg=Math.abs(Math.atan2(shoulder.x-hip.x,Math.max(.001,hip.y-shoulder.y))*180/Math.PI);return{...base,leftAnkleX:l[27].x,leftAnkleY:l[27].y,rightAnkleX:l[28].x,rightAnkleY:l[28].y,leftStepLiftRatio:(l[28].y-l[27].y)/legScale,rightStepLiftRatio:(l[27].y-l[28].y)/legScale,ankleDistanceRatio:Math.hypot(l[27].x-l[28].x,l[27].y-l[28].y)/scale,trunkLeanDeg};}

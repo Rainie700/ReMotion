@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.role in ['patient', 'therapist'];
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    match /publicUsers/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    // Data records are scoped in the client by patientId/therapistId and are
+    // loaded only after authentication. Cross-account clinical sharing needs
+    // a relation-aware server layer before these rules can be tightened.
+    match /{collectionName}/{documentId} {
+      allow read, create, update, delete: if request.auth != null
+        && collectionName in [
+          'therapistPatientRelations',
+          'schedules',
+          'analysisRecords',
+          'patientAssessments',
+          'recommendationResults',
+          'functionalAssessmentSessions'
+        ];
+    }
+  }
+}

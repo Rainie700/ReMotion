@@ -234,12 +234,26 @@ import { PHASE1_TEST_EXERCISE_GOALS } from "./js/data/phase1SchemaTestData.js";
 import { recommendationService } from "./js/data/recommendationService.js";
 import { estimateExerciseMinutes as estimateRecommendationExerciseMinutes, RECOMMENDATION_CONFIG } from "./js/data/recommendationEngine.js";
 import { gamificationEngine } from "./js/data/gamificationEngine.js";
+import { resolveRehabAdventure } from "./js/data/rehabAdventureStages.js";
 import { functionalAssessmentService } from "./js/data/functionalAssessmentService.js";
 import { BODY_READINESS } from "./js/ai/poseMath.js";
 import { CAMERA_READY_LANDMARKS, SHOULDER_CAMERA_THRESHOLDS, SHOULDER_SIDE, SHOULDER_MEASUREMENT_LANDMARKS } from "./js/ai/exercises/shoulder/constants.js";
 import { createShoulderMeasurementSession, SHOULDER_MEASUREMENT_PHASE, SHOULDER_MEASUREMENT_SIGNAL } from "./js/ai/exercises/shoulder/measurementSession.js";
 import { computeShoulderMeasurementObservation } from "./js/ai/exercises/shoulder/poseMath.js";
 import { createShoulderCalibrationSession, SHOULDER_CALIBRATION_MOVEMENT } from "./js/ai/exercises/shoulder/calibrationSession.js";
+import { createShoulderFlexionMeasurement } from "./js/ai/exercises/shoulder/flexionMovement.js";
+import { createShoulderAbductionMeasurement } from "./js/ai/exercises/shoulder/abductionMovement.js";
+import {
+  SHOULDER_PROBLEMS,
+  getShoulderProblem,
+  getShoulderAssessmentMovement,
+  resolveProtocolMovements,
+  isShoulderProblemStartable,
+  getNextShoulderSide,
+  getShoulderMovementVoiceLine,
+  SHOULDER_FRAMING_LOSS_VOICE,
+} from "./js/data/shoulderAssessmentProtocol.js";
+import { buildShoulderAssessmentFindings, SHOULDER_FINDINGS_DISCLAIMER } from "./js/data/shoulderAssessmentFindings.js";
 import { CR01_REQUIRED_LANDMARKS, CR01_THRESHOLDS, CR01_ANALYSIS_MODE, DEFAULT_CR01_REWARD_XP } from "./js/ai/exercises/plank/constants.js";
 import { computePlankMetrics } from "./js/ai/exercises/plank/poseMath.js";
 import { createPlankSession } from "./js/ai/exercises/plank/session.js";
@@ -1161,7 +1175,7 @@ function renderPatientLeaveCard(relation) {
 
 function renderPatientCareHistory(patientId) {
   const history = relationService.findHistoryByPatientId(patientId);
-  if (!history.length) return `<div class="card muted center">尚無照護歷史。</div>`;
+  if (!history.length) return `<div class="card muted patient-profile-empty">尚無照護歷史。</div>`;
   return history
     .map((r) => {
       const therapist = userService.getById(r.therapistId);
@@ -1302,6 +1316,22 @@ const state = {
   assessmentFormStep: 1, // 1-4
   assessmentEditMode: null, // null = fresh create | "update" (in place) | "reassess" (new version)
   assessmentSuccessMessage: null,
+  // ReMotion Phase 7.6 — unified self-rehab entry. Which starting
+  // situation the current recommendation request came from:
+  //   "assessment" -> came from a completed AI Functional Assessment
+  //                   (body region is already known, step 1 is skipped)
+  //   "direct"     -> "just start training", full questionnaire
+  //   null         -> the original first-run onboarding intake
+  // Persisted onto the assessment record as `source`; kept here as the
+  // in-flight value + a fallback for todaysRecommendationPage().
+  recommendationEntrySource: null,
+  recommendationFunctionalSessionId: null, // REFERENCE only, never a copy of assessment data
+  // Phase 7.6.2 — lightweight assessment CONTEXT resolved once from the
+  // completed Functional Assessment Session: { functionalAssessmentSessionId,
+  // bodyRegion, problemId, movements:[{assessmentMovementId,label}] }. Never
+  // holds movementResults / ROM / findings / data-quality. Also persisted
+  // (flat, additive) onto the assessment record for traceability.
+  recommendationAssessmentContext: null,
 
   // Which context the exercise-detail/AI-detection pages are currently
   // showing for — "assigned" (therapist schedule task, existing behavior)
@@ -1344,6 +1374,15 @@ const state = {
   // preference-questionnaire wizard) — never persisted, never touches
   // functionalAssessmentService's frozen schema.
   functionalAssessmentShoulderMovementIndex: 0,
+  // Phase 7.4 — which Shoulder Problem (js/data/shoulderAssessmentProtocol.js)
+  // the patient selected on the Problem Menu; resolves to the active
+  // Protocol's movement list. Ephemeral runtime only — the completed
+  // session persists its own `problemId` (Phase 7.5).
+  shoulderSelectedProblemId: null,
+  // Phase 7.5 — which completed functionalAssessment session the Result
+  // page is currently showing. Ephemeral view state; the session id itself
+  // lives in persistence.
+  shoulderResultSessionId: null,
 };
 
 function setSession(user) {
@@ -1400,10 +1439,17 @@ function phone(content, withNav = false) {
 }
 
 function renderNav() {
-  const midTab = state.user?.role === "therapist"
-    ? { key: "work", off: "/images/files.png", on: "/images/files_selected.png", label: "檔案" }
+  const isTherapist = state.user?.role === "therapist";
+  // Therapist Workspace V2 IA (section 10): 首頁 / 個案 / 計畫 / 我的 —
+  // same 4 route keys (home/work/data/profile), therapist-specific labels
+  // + renderers. No bottom-nav architecture change.
+  const midTab = isTherapist
+    ? { key: "work", off: "/images/files.png", on: "/images/files_selected.png", label: "個案" }
     : { key: "work", off: "/images/train.png", on: "/images/train_selected.png", label: "訓練" };
-  const tabs = [BASE_TABS[0], midTab, BASE_TABS[1], BASE_TABS[2]];
+  const dataTab = isTherapist
+    ? { key: "data", off: "/images/data.png", on: "/images/data_selected.png", label: "計畫" }
+    : BASE_TABS[1];
+  const tabs = [BASE_TABS[0], midTab, dataTab, BASE_TABS[2]];
 
   return `
     <nav class="bottom-nav">
@@ -1807,6 +1853,109 @@ function goPatientAssessmentIntro() {
   render();
 }
 
+// ── ReMotion Phase 7.6 — Unified Self-Rehab entry ────────────────────
+// ONE entry, TWO starting situations, ONE downstream Recommendation Engine
+// (js/data/recommendationEngine.js) + ONE Today's Training page. This does
+// NOT create a second recommendation system — both branches end at the
+// existing 4-step questionnaire -> assessmentService active record ->
+// getTodaysRecommendationForPatient().
+function goSelfRehabEntry() {
+  state.route = "selfRehabEntry";
+  render();
+}
+
+function selfRehabEntryPage() {
+  return `
+    <div class="header">
+      <button class="btn btn-light" onclick="switchTab('home')">返回</button>
+      <b>開始自主復健</b>
+      <span></span>
+    </div>
+    <p class="small" style="margin:12px 2px 14px;">依目前身體狀況與訓練需求，安排適合你的復健內容。</p>
+    <div class="card functional-assessment-problem-card clickable" onclick="startSelfRehabAssessmentPath()">
+      <b>我有活動不適或功能困擾</b>
+      <p class="small">先進行 AI 動態功能評估，了解目前的功能表現。</p>
+    </div>
+    <div class="card functional-assessment-problem-card clickable" style="margin-top:10px;" onclick="startSelfRehabDirectPath()">
+      <b>我想直接開始自主訓練</b>
+      <p class="small">選擇想訓練的部位與目標，安排今日練習。</p>
+    </div>
+  `;
+}
+
+/** Option A — go through the existing AI Functional Assessment first. */
+function startSelfRehabAssessmentPath() {
+  state.recommendationEntrySource = "assessment";
+  state.recommendationFunctionalSessionId = null;
+  state.recommendationAssessmentContext = null; // resolved later, once a session is completed
+  goFunctionalAssessmentBodyRegion();
+}
+
+/** Option B — straight into the existing recommendation questionnaire (full body-region step included). */
+function startSelfRehabDirectPath() {
+  state.recommendationEntrySource = "direct";
+  state.recommendationFunctionalSessionId = null;
+  state.recommendationAssessmentContext = null;
+  state.assessmentDraft = { bodyParts: [], goals: [], abilityLevel: null, preferredSessionMinutes: null };
+  state.assessmentEditMode = null;
+  state.assessmentFormStep = 1;
+  state.route = "patientAssessmentForm";
+  render();
+}
+
+/**
+ * Resolves the lightweight recommendation CONTEXT from a completed
+ * Functional Assessment Session — the assessed body region, the selected
+ * P-SH-* problem, and the protocol movement ids/titles. Deliberately reads
+ * ONLY protocol/problem metadata: no movementResults, no ROM / peak angle /
+ * bilateral difference / lower side / findings / data-quality is copied.
+ */
+function buildAssessmentRecommendationContext(functionalSessionId) {
+  const fa = functionalSessionId ? functionalAssessmentService.getById(functionalSessionId) : null;
+  if (!fa) return null;
+  // problemId is the persisted source of truth (set at completeSession);
+  // protocolMovementIds is its ordered protocol. Both are protocol/problem
+  // METADATA — no movementResults / ROM is read.
+  const problemId = fa.problemId || null;
+  const problem = problemId ? getShoulderProblem(problemId) : null;
+  const orderedIds = (problem && problem.protocolMovementIds)
+    || (Array.isArray(fa.protocolMovementIds) ? fa.protocolMovementIds : [])
+    || [];
+  const movements = orderedIds
+    .map((id) => {
+      const m = getShoulderAssessmentMovement(id);
+      return m && m.implemented !== false ? { assessmentMovementId: id, label: m.label } : null;
+    })
+    .filter(Boolean);
+  return {
+    functionalAssessmentSessionId: functionalSessionId,
+    bodyRegion: fa.bodyRegion || "shoulder",
+    problemId,
+    movements,
+  };
+}
+
+/**
+ * From a completed Functional Assessment Result — enter the SAME
+ * recommendation questionnaire with the body region already supplied
+ * (task section 4). For the Shoulder MVP that is category "上肢肩部".
+ * Only the still-needed engine inputs are asked (goal / ability / time),
+ * so the form starts at step 2. The assessment's MEASUREMENT values are
+ * NOT read here (task section 5) — only its body region, the selected
+ * problem + protocol movement titles, and a session REFERENCE.
+ */
+function startRecommendationFromAssessment(functionalSessionId) {
+  const sessionId = functionalSessionId || state.shoulderResultSessionId || null;
+  state.recommendationEntrySource = "assessment";
+  state.recommendationFunctionalSessionId = sessionId;
+  state.recommendationAssessmentContext = buildAssessmentRecommendationContext(sessionId);
+  state.assessmentDraft = { bodyParts: ["上肢肩部"], goals: [], abilityLevel: null, preferredSessionMinutes: null };
+  state.assessmentEditMode = null;
+  state.assessmentFormStep = 2; // skip body-region selection
+  state.route = "patientAssessmentForm";
+  render();
+}
+
 function skipAssessmentIntro() {
   state.route = "dashboard";
   state.tab = "home";
@@ -1879,8 +2028,13 @@ function goAssessmentNextStep() {
 }
 
 function goAssessmentPrevStep() {
-  if (state.assessmentFormStep <= 1) {
-    state.route = "patientAssessmentIntro";
+  const src = state.recommendationEntrySource;
+  const minStep = src === "assessment" ? 2 : 1; // assessment path has no body-region step
+  if (state.assessmentFormStep <= minStep) {
+    if (src === "assessment") {
+      return goFunctionalAssessmentShoulderResult(state.recommendationFunctionalSessionId || state.shoulderResultSessionId);
+    }
+    state.route = src === "direct" ? "selfRehabEntry" : "patientAssessmentIntro";
   } else {
     state.assessmentFormStep -= 1;
   }
@@ -1897,25 +2051,50 @@ function confirmAssessment() {
   const draft = getOrInitAssessmentDraft();
   const patientId = state.user.id;
 
+  const entrySource = state.recommendationEntrySource; // "assessment" | "direct" | null
   if (state.assessmentEditMode === "update") {
     const result = assessmentService.updateActiveAssessment(patientId, { ...draft }, patientId);
     if (result.error) return alert(result.error);
     state.assessmentSuccessMessage = "復健需求已更新";
   } else {
-    const result = assessmentService.createAssessment({ ...draft, patientId, createdBy: patientId });
+    // Phase 7.6.2 — carry the lightweight assessment context (reference +
+    // problem + protocol movement ids). NEVER movementResults / ROM.
+    const ctx = entrySource === "assessment" ? state.recommendationAssessmentContext : null;
+    const result = assessmentService.createAssessment({
+      ...draft,
+      patientId,
+      createdBy: patientId,
+      source: entrySource || null,
+      functionalAssessmentSessionId: entrySource === "assessment"
+        ? (ctx && ctx.functionalAssessmentSessionId) || state.recommendationFunctionalSessionId || null
+        : null,
+      bodyRegion: ctx ? ctx.bodyRegion || null : null,
+      problemId: ctx ? ctx.problemId || null : null,
+      assessmentMovementIds: ctx ? (ctx.movements || []).map((m) => m.assessmentMovementId) : null,
+    });
     if (result.error) return alert(result.error);
     state.assessmentSuccessMessage = state.assessmentEditMode === "reassess" ? "已建立新的復健需求評估" : "復健需求已建立";
   }
 
   state.assessmentDraft = null;
   state.assessmentEditMode = null;
-  state.route = "dashboard";
-  state.tab = "home";
+  // Phase 7.6 — a self-rehab flow converges straight onto the existing
+  // Today's Training page; the original onboarding still lands on Home.
+  if (entrySource) {
+    state.route = "todaysRecommendation";
+    state.tab = "work";
+  } else {
+    state.route = "dashboard";
+    state.tab = "home";
+  }
   render();
 }
 
 function assessmentStepDots(current) {
-  return `<div class="assessment-step-dots">${[1, 2, 3, 4]
+  // Phase 7.6 — the assessment-sourced path skips body-region (step 1), so
+  // only steps 2-4 are shown.
+  const steps = state.recommendationEntrySource === "assessment" ? [2, 3, 4] : [1, 2, 3, 4];
+  return `<div class="assessment-step-dots">${steps
     .map((n) => `<span class="${n === current ? "active" : ""}"></span>`)
     .join("")}</div>`;
 }
@@ -1977,9 +2156,19 @@ function patientAssessmentFormPage() {
   const step = state.assessmentFormStep || 1;
   const stepRenderers = { 1: renderAssessmentStep1, 2: renderAssessmentStep2, 3: renderAssessmentStep3, 4: renderAssessmentStep4 };
   const nextLabel = step >= 4 ? "下一步：確認" : "下一步";
+  // Phase 7.6 — assessment-sourced path: body region already supplied by
+  // the functional assessment; show it as fixed context, never re-ask it.
+  const fromAssessment = state.recommendationEntrySource === "assessment";
+  const contextHtml = fromAssessment
+    ? `<div class="card recommendation-basis-card" style="margin-bottom:10px;">
+        <div class="small"><b>評估部位：肩部</b></div>
+        <div class="small" style="color:var(--color-text-secondary);">已依本次功能評估帶入，不需再次選擇。</div>
+      </div>`
+    : "";
   return `
-    <div class="header"><button class="btn btn-light detail-back-btn" onclick="goAssessmentPrevStep()">返回</button><b>復健需求評估</b></div>
+    <div class="header"><button class="btn btn-light detail-back-btn" onclick="goAssessmentPrevStep()">返回</button><b>${fromAssessment ? "安排個人化練習" : "復健需求評估"}</b></div>
     ${assessmentStepDots(step)}
+    ${contextHtml}
     ${stepRenderers[step](draft)}
     <button class="btn btn-primary full" onclick="goAssessmentNextStep()">${nextLabel}</button>
   `;
@@ -2217,42 +2406,227 @@ function patientHome() {
 // }
 
 //復健師主畫面
-function therapistHome() {
-  return `
-    <div class="header">
-      <h1 class="page-title">ReMotion</h1>
-      <img class="icon" src="/images/notice.png" alt="通知" />
-    </div>
-    <div class="user-row">
-      <div class="avatar">${state.user.name[0]}</div>
-      <div>
-        <strong>${state.user.name} 復健師</strong><br />
-        <small class="small">專業守護每一步進步</small>
-      </div>
-    </div>
+/**
+ * Therapist Workspace V2 — one real per-case summary, every field derived
+ * from existing services (relationService / scheduleService / analysisService
+ * / assessmentService). No invented clinical status.
+ */
+function buildTherapistCaseSummary(patient, relation) {
+  const schedule = scheduleService.getByPatientAndDate(patient.id, todayStr());
+  const exercises = schedule && Array.isArray(schedule.exercises) ? schedule.exercises : [];
+  const todayTotal = exercises.length;
+  const todayDone = exercises.filter((ex) => ex.status === "completed").length;
 
-    <div class="card dashboard-card">
-      <b>個案列表</b>
-      <div class="small">今日待辦：3，AI風險提醒：2，通知：3</div>
+  const records = analysisService.getByPatientId(patient.id);
+  const sorted = [...records].sort(
+    (a, b) => new Date(resolveRecordTimestamp(b) || 0) - new Date(resolveRecordTimestamp(a) || 0)
+  );
+  const latestRecord = sorted[0] || null;
+  const latestTs = latestRecord ? resolveRecordTimestamp(latestRecord) : null;
+  const latestScore = latestRecord
+    ? typeof latestRecord.score === "number"
+      ? latestRecord.score
+      : typeof latestRecord.overallScore === "number"
+        ? latestRecord.overallScore
+        : null
+    : null;
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const recentCount = records.filter((r) => {
+    const ts = resolveRecordTimestamp(r);
+    return ts && Date.now() - new Date(ts).getTime() <= weekMs;
+  }).length;
+
+  const activeNeeds = assessmentService.getActiveByPatientId(patient.id);
+  const bodyRegion = activeNeeds && activeNeeds.bodyParts && activeNeeds.bodyParts.length
+    ? activeNeeds.bodyParts.join("、")
+    : null;
+
+  // Status chip — purely from schedule completion + recency, never a
+  // clinical judgement (no 高風險 / 恢復良好 / 惡化).
+  let statusLabel;
+  let statusClass;
+  if (todayTotal > 0 && todayDone === todayTotal) {
+    statusLabel = "今日已完成";
+    statusClass = "done-status";
+  } else if (todayTotal > 0 && todayDone > 0) {
+    statusLabel = "部分完成";
+    statusClass = "active-status";
+  } else if (todayTotal > 0) {
+    statusLabel = "今日待訓練";
+    statusClass = "pending";
+  } else if (recentCount > 0) {
+    statusLabel = "近期有訓練";
+    statusClass = "active-status";
+  } else {
+    statusLabel = "近期無訓練";
+    statusClass = "pending";
+  }
+
+  return {
+    patient,
+    relation,
+    schedule,
+    todayTotal,
+    todayDone,
+    todayCompleted: todayTotal > 0 && todayDone === todayTotal,
+    todayInProgress: todayTotal > 0 && todayDone > 0 && todayDone < todayTotal,
+    todayPending: todayTotal > 0 && todayDone === 0,
+    hasTodaySchedule: todayTotal > 0,
+    latestRecord,
+    latestScore,
+    latestDateStr: latestTs ? String(latestTs).slice(0, 10) : null,
+    recentCount,
+    bodyRegion,
+    statusLabel,
+    statusClass,
+  };
+}
+
+/**
+ * Resolves the patient profile for a case relation. A normal relation
+ * resolves the full user (from publicUsers hydration). A seeded SHOWCASE
+ * relation has no publicUsers/{id} doc (that id was never a registered
+ * account), so it carries its display name inline on the relation
+ * (`patientName`); we fall back to that. Never invents a name for a real
+ * relation whose profile simply hasn't loaded yet.
+ */
+function resolveCaseRelationPatient(relation) {
+  const profile = userService.getById(relation.patientId);
+  if (profile) return profile;
+  if (relation.patientName) {
+    return { id: relation.patientId, name: relation.patientName, account: relation.patientAccount || "", isShowcase: true };
+  }
+  return null;
+}
+
+/** Deterministic order: seed `demoOrder` first (Demo 患者 = 0), then cases
+ *  with unfinished work today, then name. No global special-casing of a
+ *  visible name; production relations have no `demoOrder` and sort by the
+ *  attention/name rules only. */
+function therapistManagedCaseSummaries() {
+  return relationService
+    .findActiveByTherapistId(state.user.id)
+    .map((relation) => ({ relation, patient: resolveCaseRelationPatient(relation) }))
+    .filter((x) => x.patient)
+    .map((x) => ({
+      cs: buildTherapistCaseSummary(x.patient, x.relation),
+      demoOrder: typeof x.relation.demoOrder === "number" ? x.relation.demoOrder : Number.POSITIVE_INFINITY,
+    }))
+    .sort((a, b) => {
+      if (a.demoOrder !== b.demoOrder) return a.demoOrder - b.demoOrder;
+      const needs = (cs) => (cs.hasTodaySchedule && !cs.todayCompleted ? 0 : 1);
+      if (needs(a.cs) !== needs(b.cs)) return needs(a.cs) - needs(b.cs);
+      return String(a.cs.patient.name).localeCompare(String(b.cs.patient.name), "zh-Hant");
+    })
+    .map((x) => x.cs);
+}
+
+function renderTherapistCaseRow(cs) {
+  const facts = [
+    cs.bodyRegion ? `復健需求：${cs.bodyRegion}` : null,
+    cs.hasTodaySchedule ? `今日課表 ${cs.todayDone} / ${cs.todayTotal}` : "今日尚無課表",
+    cs.latestDateStr ? `最近訓練 ${cs.latestDateStr}${cs.latestScore != null ? `｜品質 ${cs.latestScore}` : ""}` : "尚無訓練紀錄",
+  ].filter(Boolean);
+  return `<div class="train-item clickable therapist-case-row" onclick="goCaseDetail('${cs.patient.id}')">
+    <div class="avatar therapist-case-avatar">${cs.patient.name[0]}</div>
+    <div class="therapist-case-row-main">
+      <b>${cs.patient.name}</b>
+      ${facts.map((f) => `<div class="small">${f}</div>`).join("")}
     </div>
-    <h3 class="section-title">追蹤中的個案</h3>
-    <div class="coach-list">
-      <div class="train-item clickable" onclick="goCaseDetail('黃小謙')"><img src="/images/image_1.png" alt="" /><div><b>黃小謙</b><div class="small">膝關節術後復健｜AI品質 82分</div></div><span class="pill active-status">進步中</span></div>
-      <div class="train-item clickable" onclick="goCaseDetail('陳小莉')"><img src="/images/image_1.png" alt="" /><div><b>陳小莉</b><div class="small">肩關節活動訓練｜動作偏移</div></div><span class="pill pending">需調整</span></div>
-      <div class="train-item clickable" onclick="goCaseDetail('林阿姨')"><img src="/images/image_1.png" alt="" /><div><b>林阿姨</b><div class="small">下肢肌力訓練｜穩定度 89%</div></div><span class="pill active-status">穩定中</span></div>
+    <span class="pill ${cs.statusClass}">${cs.statusLabel}</span>
+  </div>`;
+}
+
+function therapistHome() {
+  const cases = therapistManagedCaseSummaries();
+  const view = state.therapistHomeView === "todo" ? "todo" : "list";
+  const withToday = cases.filter((c) => c.hasTodaySchedule);
+  const doneToday = withToday.filter((c) => c.todayCompleted);
+  const pendingToday = withToday.filter((c) => !c.todayCompleted);
+
+  const summaryHtml = `<div class="card therapist-summary">
+    <div class="therapist-summary-top">
+      <div class="rehab-eyebrow">今日待處理</div>
+      <span class="small therapist-tracked-count">追蹤個案 ${cases.length}</span>
     </div>
-    <h3 class="section-title">個案分析（黃小謙）</h3>
-    <div class="stats">
-      <div class="stat"><span class="small">動作正確率</span><b>82%</b></div>
-      <div class="stat"><span class="small">本週完成率</span><b>85%</b></div>
-      <div class="stat"><span class="small">風險等級</span><b>低</b></div>
+    <div class="therapist-summary-row">
+      <div><span class="small">今日有課表</span><b>${withToday.length}</b></div>
+      <div><span class="small">已完成</span><b>${doneToday.length}</b></div>
+      <div><span class="small">待完成 / 進行中</span><b>${pendingToday.length}</b></div>
     </div>
-    <div class="card ai-risk clickable" onclick="goCaseDetail('黃小謙')">
-      <b>AI 風險預測</b>
-      <div class="small">膝蓋內夾風險 18%，建議下週增加核心穩定與髖部控制訓練。</div>
+  </div>`;
+
+  // list view previews the first 3 cases (Demo 患者 first, same deterministic
+  // order as 個案管理) with a "查看全部" CTA; the summary counts above still
+  // derive from ALL cases.
+  const LIST_PREVIEW = 3;
+
+  const toggleHtml = `<div class="patient-data-seg-nav therapist-home-seg">
+    <button class="patient-data-seg ${view === "list" ? "active" : ""}" onclick="setTherapistHomeView('list')">個案列表</button>
+    <button class="patient-data-seg ${view === "todo" ? "active" : ""}" onclick="setTherapistHomeView('todo')">今日待辦</button>
+  </div>`;
+
+  let bodyHtml;
+  if (!cases.length) {
+    bodyHtml = `<div class="card muted center">目前尚無個案。請於「個案」分頁提供邀請碼給患者加入。</div>`;
+  } else if (view === "list") {
+    const shown = cases.slice(0, LIST_PREVIEW).map(renderTherapistCaseRow).join("");
+    const moreHtml = cases.length > LIST_PREVIEW
+      ? `<button class="btn btn-light full therapist-home-more" onclick="goCaseList()">查看全部 ${cases.length} 位個案</button>`
+      : "";
+    bodyHtml = shown + moreHtml;
+  } else {
+    const group = (label, list, cls) =>
+      list.length
+        ? `<div class="history-date-group-label small">${label}（${list.length}）</div>${list
+            .map((cs) => {
+              const exNames = (cs.schedule.exercises || []).map((e) => e.exerciseName).join("、");
+              return `<div class="train-item clickable" onclick="goCaseDetail('${cs.patient.id}')">
+                <div class="avatar therapist-case-avatar">${cs.patient.name[0]}</div>
+                <div class="therapist-case-row-main">
+                  <b>${cs.patient.name}</b>
+                  <div class="small">${exNames || "—"}</div>
+                  <div class="small">完成 ${cs.todayDone} / ${cs.todayTotal}</div>
+                </div>
+                <span class="pill ${cls}">${label}</span>
+              </div>`;
+            })
+            .join("")}`
+        : "";
+    const pending = pendingToday.filter((c) => c.todayPending);
+    const inProgress = pendingToday.filter((c) => c.todayInProgress);
+    const todoBody = [
+      group("待完成", pending, "pending"),
+      group("進行中", inProgress, "active-status"),
+      group("今日已完成", doneToday, "done-status"),
+    ].filter(Boolean).join("");
+    bodyHtml = todoBody || `<div class="card muted center">今天沒有任何已派發的課表。</div>`;
+  }
+
+  return `
+    <div class="therapist-workspace">
+      <div class="header therapist-home-header">
+        <h1 class="page-title">ReMotion</h1>
+        <img class="icon" src="/images/notice.png" alt="通知" />
+      </div>
+      <div class="user-row therapist-identity">
+        <div class="avatar">${state.user.name[0]}</div>
+        <div>
+          <strong>${state.user.name}</strong>
+          <div class="small">復健師工作台</div>
+        </div>
+      </div>
+      ${summaryHtml}
+      ${toggleHtml}
+      ${bodyHtml}
+      <button class="btn btn-primary full therapist-home-cta" onclick="goCaseList()">＋ 安排復健計畫</button>
     </div>
-    <button class="btn btn-primary full" onclick="goCaseDetail('黃小謙')">查看個案詳細分析 →</button>
   `;
+}
+
+function setTherapistHomeView(v) {
+  state.therapistHomeView = v;
+  render();
 }
 //訓練頁面
 function trainPage() {
@@ -2635,6 +3009,117 @@ function buildWeeklyComparisonLabel(weekly) {
  * Function/route names are unchanged (goActionRecords()/"records") since
  * they're just internal wiring — only the page's title and content changed.
  */
+/* ── Patient Data dashboard V2 ─────────────────────────────────────────
+   The 數據 tab: segmented 總覽 / 訓練紀錄. 訓練紀錄 reuses the existing
+   actionRecordsPage() list — no second history store. Every number is a
+   live derivation from analysisService records (same source as the list).
+   身體狀況 is intentionally omitted for V1: ReMotion has no persisted
+   patient body-/pain-status data source, and fabricating one is out of
+   scope. */
+function renderDataSegmentedNav(active) {
+  const seg = (key, label, onclick) =>
+    `<button class="patient-data-seg ${active === key ? "active" : ""}" onclick="${onclick}">${label}</button>`;
+  return `<div class="patient-data-seg-nav">
+    ${seg("overview", "總覽", "switchTab('data')")}
+    ${seg("records", "訓練紀錄", "goActionRecords()")}
+  </div>`;
+}
+
+/** Last `limit` completed records that carry a REAL numeric score, oldest→newest. Never invents a point. */
+function collectQualityTrendPoints(records, limit = 7) {
+  return records
+    .map((r) => ({
+      ts: resolveRecordTimestamp(r),
+      score: typeof r.score === "number" ? r.score : typeof r.overallScore === "number" ? r.overallScore : null,
+    }))
+    .filter((p) => p.ts && p.score != null)
+    .sort((a, b) => new Date(a.ts) - new Date(b.ts))
+    .slice(-limit);
+}
+
+/** Lightweight inline-SVG line chart (ReMotion green). <2 points → compact insufficient-data state. */
+function renderQualityTrendChart(points) {
+  if (points.length < 2) {
+    return `<div class="patient-data-trend-empty small">完成 2 次以上 AI 訓練後即可查看趨勢</div>`;
+  }
+  const W = 300, H = 116, PAD = 12;
+  const xs = points.map((_, i) => PAD + (i * (W - 2 * PAD)) / (points.length - 1));
+  const ys = points.map((p) => H - PAD - (Math.max(0, Math.min(100, p.score)) / 100) * (H - 2 * PAD));
+  const d = xs.map((x, i) => `${i ? "L" : "M"} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
+  const dots = xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3" />`).join("");
+  const last = points[points.length - 1].score;
+  return `<svg class="patient-data-trend-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <path class="patient-data-trend-line" d="${d}" />
+      ${dots}
+    </svg>
+    <div class="small patient-data-trend-caption">近 ${points.length} 次 AI 訓練・最新 ${last} 分</div>`;
+}
+
+function patientDataOverviewPage() {
+  const patientId = getCurrentPatientId();
+  const records = analysisService.getByPatientId(patientId);
+  const weekly = buildWeeklyTrainingProgress(records);
+  const streak = gamificationEngine.getCurrentStreak(patientId);
+
+  const scored = records
+    .map((r) => (typeof r.score === "number" ? r.score : typeof r.overallScore === "number" ? r.overallScore : null))
+    .filter((s) => s != null);
+  const avgScore = scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : null;
+  const trendPoints = collectQualityTrendPoints(records, 7);
+
+  const header = `<div class="header"><h1 class="page-title">我的數據</h1><img class="icon" src="/images/data.png" alt="數據" /></div>`;
+  const nav = renderDataSegmentedNav("overview");
+
+  if (records.length === 0) {
+    return `<div class="patient-data-page">
+      ${header}
+      ${nav}
+      <h3 class="section-title">本週總覽</h3>
+      <div class="patient-data-metrics">
+        <div class="card patient-data-metric m1"><span class="small">本週訓練</span><b>0 次</b></div>
+        <div class="card patient-data-metric m2"><span class="small">訓練天數</span><b>0 天</b></div>
+        <div class="card patient-data-metric m3"><span class="small">平均品質</span><b>—</b></div>
+      </div>
+      <h3 class="section-title">訓練品質趨勢</h3>
+      <div class="card patient-data-trend-card">${renderQualityTrendChart([])}</div>
+      <div class="card patient-data-empty">
+        <img src="/images/robot/robot_encourage.png" alt="" />
+        <p class="small">完成第一次練習後，這裡會開始累積你的訓練紀錄。</p>
+      </div>
+      <button class="btn btn-primary full" onclick="goSelfRehabEntry()">開始自主復健</button>
+    </div>`;
+  }
+
+  const deltaHtml =
+    weekly.previousWeekSessionCount > 0 && weekly.sessionDelta !== 0
+      ? `<span class="patient-data-metric-delta ${weekly.sessionDelta > 0 ? "up" : "down"}">較上週 ${weekly.sessionDelta > 0 ? "+" : ""}${weekly.sessionDelta}</span>`
+      : "";
+  const latestScore = trendPoints.length ? trendPoints[trendPoints.length - 1].score : null;
+
+  return `<div class="patient-data-page">
+    ${header}
+    ${nav}
+    <h3 class="section-title">本週總覽</h3>
+    <div class="patient-data-metrics">
+      <div class="card patient-data-metric m1"><span class="small">本週訓練</span><b>${weekly.sessionCount} 次</b>${deltaHtml}</div>
+      <div class="card patient-data-metric m2"><span class="small">訓練天數</span><b>${weekly.activeDays} 天</b></div>
+      <div class="card patient-data-metric m3"><span class="small">平均品質</span><b>${avgScore != null ? avgScore : "—"}</b></div>
+    </div>
+    <h3 class="section-title">訓練品質趨勢</h3>
+    <div class="card patient-data-trend-card">${renderQualityTrendChart(trendPoints)}</div>
+    <h3 class="section-title">本週訓練觀察</h3>
+    <div class="card patient-data-insight">
+      <img src="/images/ai_robot.png" alt="" class="patient-data-insight-icon" />
+      <div class="small patient-data-insight-text">
+        <div>本週完成 ${weekly.sessionCount} 次訓練。</div>
+        ${latestScore != null ? `<div>最近一次動作品質分數為 ${latestScore}。</div>` : ""}
+        ${streak > 0 ? `<div>已連續復健 ${streak} 天。</div>` : ""}
+      </div>
+    </div>
+    <button class="btn btn-light full" onclick="goActionRecords()">查看完整訓練紀錄</button>
+  </div>`;
+}
+
 function actionRecordsPage() {
   const patientId = state.user.id;
   const allRecords = analysisService.getByPatientId(patientId);
@@ -2649,14 +3134,14 @@ function actionRecordsPage() {
   const streak = gamificationEngine.getCurrentStreak(patientId);
 
   const header = `<div class="header">
-      <button class="btn btn-light" onclick="switchTab('work')">返回</button>
-      <b>我的進度</b>
+      <button class="btn btn-light" onclick="switchTab('data')">返回</button>
+      <b>訓練紀錄</b>
       <span></span>
-    </div>`;
+    </div>${renderDataSegmentedNav("records")}`;
 
   if (allRecords.length === 0) {
     // Report section 25 — "完全沒有歷史": one honest empty state, no Hero/Weekly Activity/filters to show yet.
-    return `${header}<div class="empty-state"><img src="/images/robot/robot_encourage.png" alt="" /><div class="small">還沒有訓練紀錄</div><div class="small" style="color:var(--color-text-secondary);">完成第一次練習後，這裡會顯示你的訓練狀況。</div></div>`;
+    return `${header}<div class="card patient-data-empty"><img src="/images/robot/robot_encourage.png" alt="" /><p class="small">完成第一次練習後，這裡會開始累積你的訓練紀錄。</p></div><button class="btn btn-primary full" onclick="goSelfRehabEntry()">開始自主復健</button>`;
   }
 
   // ---- Hero: horizontal story (report section 8/9) — main number + robot
@@ -2758,9 +3243,22 @@ function actionRecordsPage() {
 
 function goTrainingRecordDetail(recordId) {
   state.selectedRecordId = recordId;
+  // Therapist Workspace V2 — remember where we came from so 返回 lands back
+  // on the case detail (訓練紀錄 tab) instead of the therapist's own empty
+  // records page. Patients keep the Data-tab behaviour.
+  state.recordDetailFromCase = state.route === "caseDetail" ? state.selectedPatientId : null;
   state.route = "trainingRecordDetail";
-  state.tab = "work";
+  state.tab = state.user && state.user.role === "therapist" ? "work" : "data";
   render();
+}
+
+function goBackFromTrainingRecordDetail() {
+  if (state.recordDetailFromCase) {
+    const pid = state.recordDetailFromCase;
+    state.recordDetailFromCase = null;
+    return goCaseDetail(pid, "records");
+  }
+  return goActionRecords();
 }
 
 /**
@@ -2953,7 +3451,7 @@ function renderGenericRecordDetail(record, entry) {
 function trainingRecordDetailPage() {
   const record = analysisService.getById(state.selectedRecordId);
   if (!record) {
-    return `<div class="header"><button class="btn btn-light" onclick="goActionRecords()">返回</button><b>單次紀錄</b><span></span></div>
+    return `<div class="header"><button class="btn btn-light" onclick="goBackFromTrainingRecordDetail()">返回</button><b>單次紀錄</b><span></span></div>
       <div class="empty-state"><div class="small">找不到這筆紀錄，可能已被移除。</div></div>`;
   }
   const entry = buildTrainingHistoryEntry(record);
@@ -2986,7 +3484,7 @@ function trainingRecordDetailPage() {
     : renderGenericRecordDetail(record, entry);
   return `
     <div class="header">
-      <button class="btn btn-light" onclick="goActionRecords()">返回</button>
+      <button class="btn btn-light" onclick="goBackFromTrainingRecordDetail()">返回</button>
       <b>單次紀錄</b>
       <span></span>
     </div>
@@ -3475,7 +3973,7 @@ function renderCaseHistoryList(therapistId) {
         <img src="/images/image_1.png" alt="${patient.name}" />
         <div>
           <b>${patient.name}</b>
-          <div class="small">帳號：${patient.account}｜${startDate} ～ ${endDate}</div>
+          <div class="small">${startDate} ～ ${endDate}</div>
           <div class="small">結束原因：${r.endReason || "-"}（唯讀查看歷史）</div>
         </div>
         <span class="pill ${statusClass}">${statusLabel}</span>
@@ -3490,8 +3988,13 @@ function therapistCaseListPage() {
   const view = state.caseListView || "active";
   const relations = relationService.findActiveByTherapistId(state.user.id);
   const patients = relations
-    .map((r) => ({ relation: r, patient: userService.getById(r.patientId) }))
-    .filter((p) => p.patient);
+    .map((r) => ({ relation: r, patient: resolveCaseRelationPatient(r) }))
+    .filter((p) => p.patient)
+    .sort((a, b) => {
+      const ao = typeof a.relation.demoOrder === "number" ? a.relation.demoOrder : Number.POSITIVE_INFINITY;
+      const bo = typeof b.relation.demoOrder === "number" ? b.relation.demoOrder : Number.POSITIVE_INFINITY;
+      return ao - bo || String(a.patient.name).localeCompare(String(b.patient.name), "zh-Hant");
+    });
 
   const emptyMessage = isDev
     ? "開發管理帳號不管理個案，個案已全數移交給其他復健師。"
@@ -3505,7 +4008,7 @@ function therapistCaseListPage() {
             <img src="/images/image_1.png" alt="${patient.name}" />
             <div>
               <b>${patient.name}</b>
-              <div class="small">帳號：${patient.account}｜加入日期：${joinedDate}</div>
+              <div class="small">加入日期：${joinedDate}</div>
               <div class="small">${schedule ? "今日已有課表" : "今日尚無課表"}</div>
             </div>
             <span class="pill ${schedule ? "active-status" : "pending"}">查看個案</span>
@@ -3547,51 +4050,222 @@ function therapistCaseListPage() {
   `;
 }
 
+/** Compact single-movement row for the therapist assessment view — same
+ *  factual normalization the patient sees (shoulderAssessmentFindings). */
+function renderTherapistAssessmentMovement(m) {
+  const side = (label, s) =>
+    `<div class="therapist-assess-side"><span class="small">${label}</span><b>${s && s.peakRomDeg != null ? s.peakRomDeg + "°" : "資料不足"}</b></div>`;
+  const diff = m.bilateralDifferenceDeg != null ? `${m.bilateralDifferenceDeg}°` : "—";
+  return `<div class="card therapist-assess-movement">
+    <b>${m.label}</b>
+    <div class="therapist-assess-sides">${side("左側", m.left)}${side("右側", m.right)}</div>
+    <div class="small">左右差異：${diff}</div>
+    ${m.dataQuality && m.dataQuality !== "usable" ? `<div class="small muted">此動作部分量測資料${m.dataQuality === "insufficient" ? "不足" : "有限"}。</div>` : ""}
+  </div>`;
+}
+
+function renderTherapistAssessmentReport(report) {
+  if (!report) {
+    return `<div class="card muted center">此個案尚無已完成的功能評估。</div>`;
+  }
+  const movementsHtml = report.movements.length
+    ? report.movements.map(renderTherapistAssessmentMovement).join("")
+    : `<div class="card"><div class="small">本次沒有可顯示的動作量測結果。</div></div>`;
+  const findingsHtml = report.findings.length
+    ? report.findings.map((f) => `<div class="functional-assessment-result-finding small">${f.text}</div>`).join("")
+    : `<div class="functional-assessment-result-finding small">本次沒有可歸納的功能觀察。</div>`;
+  return `
+    <div class="card">
+      <b class="detail-section-label">評估摘要</b>
+      <div class="small">主要困擾：${report.problemTitle || "肩部功能評估"}</div>
+      ${report.dataQuality ? `<div class="small">資料品質：${report.dataQuality}</div>` : ""}
+    </div>
+    <b class="detail-section-label" style="margin:14px 2px 8px;">動作量測結果</b>
+    ${movementsHtml}
+    <div class="card functional-assessment-result-findings"><b class="detail-section-label">本次功能觀察</b>${findingsHtml}</div>
+    <div class="card"><b class="detail-section-label">說明</b><p class="small">${report.disclaimer || SHOULDER_FINDINGS_DISCLAIMER}</p></div>`;
+}
+
+function renderTherapistCasePlanBlock(schedule) {
+  const ex = schedule && Array.isArray(schedule.exercises) ? schedule.exercises : [];
+  if (!ex.length) return `<div class="card muted center">目前沒有已派發的課表。</div>`;
+  return ex
+    .map((e) => {
+      const metric = e.repetitions != null ? `${e.sets ?? "-"} 組 × ${e.repetitions} 次` : e.durationSeconds != null ? `${e.sets ?? "-"} 組 × ${e.durationSeconds} 秒` : `${e.sets ?? "-"} 組`;
+      const rec = e.analysisRecordId ? analysisService.getById(e.analysisRecordId) : null;
+      const score = rec ? (typeof rec.score === "number" ? rec.score : rec.overallScore) : null;
+      return `<div class="card therapist-plan-ex">
+        <b>${e.exerciseName}</b>
+        <div class="small">${metric}</div>
+        <div class="small">${e.status === "completed" ? "已完成" : e.status === "in_progress" ? "進行中" : "待完成"}${score != null ? `｜品質 ${score}` : ""}</div>
+      </div>`;
+    })
+    .join("");
+}
+
 function therapistCaseDetailPage() {
   const patientId = state.selectedPatientId;
-  const patient = patientId ? userService.getById(patientId) : null;
-  const relation = patient ? relationService.findAcceptedRelation(state.user.id, patientId) : null;
+  const relation = patientId ? relationService.findAcceptedRelation(state.user.id, patientId) : null;
+  const patient = relation ? resolveCaseRelationPatient(relation) : null;
   if (!patient || !relation) {
     return therapistCaseListPage();
   }
-
-  const schedule = scheduleService.getByPatientAndDate(patientId, todayStr());
-  const exercises = schedule?.exercises || [];
-  const completedCount = exercises.filter((ex) => ex.status === "completed").length;
+  const tab = ["overview", "assessment", "records", "plan"].includes(state.caseDetailTab) ? state.caseDetailTab : "overview";
+  const cs = buildTherapistCaseSummary(patient, relation);
   const records = analysisService.getByPatientId(patientId);
-  const latest = records.length
-    ? [...records].sort((a, b) => new Date(b.capturedAt || b.createdAt) - new Date(a.capturedAt || a.createdAt))[0]
-    : null;
+  const joinedDate = (relation.acceptedAt || relation.createdAt || "").slice(0, 10);
 
-  return `
-    <div class="header">
+  const header = `<div class="header">
       <button class="btn btn-light" onclick="goCaseList()">返回</button>
-      <b>個案分析</b>
-      <button class="btn btn-light" onclick="goAssignPlan()">派課</button>
+      <b>${patient.name}</b>
+      <button class="btn btn-light" onclick="goAssignPlan()">調整計畫</button>
+    </div>`;
+
+  const overviewCard = `<div class="card therapist-case-overview">
+    <div class="therapist-summary-row">
+      <div><span class="small">今日課表</span><b>${cs.todayDone} / ${cs.todayTotal}</b></div>
+      <div><span class="small">本週訓練</span><b>${cs.recentCount} 次</b></div>
+      <div><span class="small">最近品質</span><b>${cs.latestScore != null ? cs.latestScore : "—"}</b></div>
     </div>
-    <div class="user-row case-head">
-      <div class="avatar">${patient.name[0]}</div>
-      <div><strong>${patient.name}</strong><br><small class="small">帳號：${patient.account}</small></div>
-    </div>
-    <div class="stats">
-      <div class="stat"><span class="small">今日任務</span><b>${exercises.length}</b></div>
-      <div class="stat"><span class="small">今日完成</span><b>${completedCount}</b></div>
-      <div class="stat"><span class="small">最近分析分數</span><b>${latest ? (latest.score ?? latest.overallScore ?? "-") : "-"}</b></div>
-    </div>
-    <h3 class="section-title">個案關係</h3>
-    <div class="card">
-      <div>療程狀態：照護中</div>
-      <div class="small">加入日期：${(relation.acceptedAt || relation.createdAt || "").slice(0, 10)}</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="btn btn-light" style="flex:1" onclick="startRelationAction('complete')">完成療程</button>
-        <button class="btn btn-light" style="flex:1" onclick="startRelationAction('revoke')">解除個案關係</button>
+    <div class="small" style="margin-top:8px;">${cs.bodyRegion ? `復健需求：${cs.bodyRegion}` : "尚未建立復健需求"}｜加入日期：${joinedDate}</div>
+  </div>`;
+
+  const segNav = `<div class="patient-data-seg-nav therapist-case-seg">
+    ${[["overview", "總覽"], ["assessment", "功能評估"], ["records", "訓練紀錄"], ["plan", "復健計畫"]]
+      .map(([k, l]) => `<button class="patient-data-seg ${tab === k ? "active" : ""}" onclick="setCaseDetailTab('${k}')">${l}</button>`)
+      .join("")}
+  </div>`;
+
+  let bodyHtml = "";
+  if (tab === "overview") {
+    const weekly = buildWeeklyTrainingProgress(records);
+    const scored = records
+      .map((r) => (typeof r.score === "number" ? r.score : typeof r.overallScore === "number" ? r.overallScore : null))
+      .filter((s) => s != null);
+    const avgScore = scored.length ? Math.round(scored.reduce((a, b) => a + b, 0) / scored.length) : null;
+    const trend = collectQualityTrendPoints(records, 7);
+    const lastCompleted = (cs.schedule && (cs.schedule.exercises || []).filter((e) => e.status === "completed").slice(-1)[0]) || null;
+    const faReport = (() => {
+      const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId);
+      return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
+    })();
+    bodyHtml = `
+      <h3 class="section-title">今日復健狀況</h3>
+      <div class="card"><div class="small">今日課表完成 <b>${cs.todayDone} / ${cs.todayTotal}</b>${lastCompleted ? `｜最近完成：${lastCompleted.exerciseName}` : ""}</div></div>
+      <h3 class="section-title">近期訓練表現</h3>
+      <div class="card therapist-case-overview">
+        <div class="therapist-summary-row">
+          <div><span class="small">本週訓練</span><b>${weekly.sessionCount} 次</b></div>
+          <div><span class="small">訓練天數</span><b>${weekly.activeDays} 天</b></div>
+          <div><span class="small">平均品質</span><b>${avgScore != null ? avgScore : "—"}</b></div>
+        </div>
       </div>
-    </div>
-    ${renderRelationActionCard(relation)}
-    <h3 class="section-title">今日課表</h3>
-    ${renderScheduleTaskCards(schedule)}
-    <button class="btn btn-primary full" onclick="goAssignPlan()">派發或更新課表 →</button>
-  `;
+      <div class="card patient-data-trend-card">${renderQualityTrendChart(trend)}</div>
+      <h3 class="section-title">最近功能評估</h3>
+      ${faReport
+        ? `<div class="card">
+            <b>${faReport.problemTitle || "肩部功能評估"}</b>
+            ${faReport.movements.map((m) => `<div class="small">${m.label}：左 ${m.left && m.left.peakRomDeg != null ? m.left.peakRomDeg + "°" : "—"}／右 ${m.right && m.right.peakRomDeg != null ? m.right.peakRomDeg + "°" : "—"}</div>`).join("")}
+            <button class="btn btn-light full" style="margin-top:10px;" onclick="setCaseDetailTab('assessment')">查看完整評估報告</button>
+          </div>`
+        : `<div class="card muted center">此個案尚無已完成的功能評估。</div>`}
+      <h3 class="section-title">目前復健計畫</h3>
+      ${renderTherapistCasePlanBlock(cs.schedule)}
+      <button class="btn btn-primary full" style="margin-top:10px;" onclick="goAssignPlan()">調整復健計畫 →</button>`;
+  } else if (tab === "assessment") {
+    const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId);
+    const report = fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
+    bodyHtml = `<h3 class="section-title">功能評估結果</h3>
+      ${fa ? `<div class="small" style="margin:0 2px 8px;">完成日期：${(fa.completedAt || fa.startedAt || "").slice(0, 10) || "—"}</div>` : ""}
+      ${renderTherapistAssessmentReport(report)}`;
+  } else if (tab === "records") {
+    const entries = records
+      .map((r) => buildTrainingHistoryEntry(r))
+      .filter((e) => e.completedAt)
+      .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    bodyHtml = `<h3 class="section-title">訓練紀錄（${entries.length} 筆）</h3>
+      ${entries.length
+        ? entries.map(renderTrainingHistoryCard).join("")
+        : `<div class="card muted center">此個案尚無訓練紀錄。</div>`}`;
+  } else {
+    const past = scheduleService
+      .getByPatientId(patientId)
+      .filter((s) => s.date !== todayStr())
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    bodyHtml = `
+      <h3 class="section-title">目前復健計畫</h3>
+      ${renderTherapistCasePlanBlock(cs.schedule)}
+      <button class="btn btn-primary full" style="margin:10px 0;" onclick="goAssignPlan()">調整計畫 →</button>
+      <h3 class="section-title">過去安排</h3>
+      ${past.length
+        ? past.map((s) => {
+            const done = (s.exercises || []).filter((e) => e.status === "completed").length;
+            return `<div class="card"><b>${s.date}</b><div class="small">${s.title || "課表"}｜完成 ${done} / ${(s.exercises || []).length}</div></div>`;
+          }).join("")
+        : `<div class="card muted center">尚無過去課表。</div>`}
+      <h3 class="section-title">個案關係</h3>
+      <div class="card">
+        <div class="small">加入日期：${joinedDate}｜療程狀態：照護中</div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btn-light" style="flex:1" onclick="startRelationAction('complete')">完成療程</button>
+          <button class="btn btn-light" style="flex:1" onclick="startRelationAction('revoke')">解除個案關係</button>
+        </div>
+      </div>
+      ${renderRelationActionCard(relation)}`;
+  }
+
+  return `<div class="therapist-workspace">
+    ${header}
+    ${overviewCard}
+    ${segNav}
+    ${bodyHtml}
+  </div>`;
+}
+
+function setCaseDetailTab(t) {
+  state.caseDetailTab = t;
+  render();
+}
+
+/**
+ * Therapist 計畫 tab — assigned-plan overview across every managed patient,
+ * from the real scheduleService. No parallel plan system.
+ */
+function therapistPlansPage() {
+  const cases = therapistManagedCaseSummaries();
+  const header = `<div class="header"><h1 class="page-title">復健計畫</h1><img class="icon" src="/images/calendar.png" alt="計畫" /></div>`;
+  if (!cases.length) {
+    return `<div class="therapist-workspace">${header}<div class="card muted center">目前尚無個案，無法安排計畫。</div></div>`;
+  }
+  const rows = cases
+    .map((cs) => {
+      const upcoming = scheduleService
+        .getByPatientId(cs.patient.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 1)[0];
+      const line = cs.hasTodaySchedule
+        ? `今日課表 ${cs.todayDone} / ${cs.todayTotal}`
+        : upcoming
+          ? `最近課表 ${upcoming.date}`
+          : "尚未安排任何課表";
+      return `<div class="train-item clickable" onclick="goCaseDetailPlan('${cs.patient.id}')">
+        <div class="avatar therapist-case-avatar">${cs.patient.name[0]}</div>
+        <div class="therapist-case-row-main"><b>${cs.patient.name}</b><div class="small">${line}</div></div>
+        <span class="pill ${cs.hasTodaySchedule ? "active-status" : "pending"}">${cs.hasTodaySchedule ? "已安排" : "待安排"}</span>
+      </div>`;
+    })
+    .join("");
+  return `<div class="therapist-workspace">
+    ${header}
+    <h3 class="section-title">個案計畫狀態</h3>
+    ${rows}
+    <button class="btn btn-primary full" style="margin-top:12px;" onclick="goCaseList()">＋ 安排復健計畫</button>
+  </div>`;
+}
+
+/** Open a case straight on its 復健計畫 tab (from the 計畫 overview). */
+function goCaseDetailPlan(patientId) {
+  goCaseDetail(patientId, "plan");
 }
 
 function switchCaseListView(view) {
@@ -3726,7 +4400,7 @@ function profilePage() {
           </div>`;
         })
         .join("") + renderPatientLeaveCard(myRelations[0])
-    : `<div class="card muted center">尚未加入任何復健師</div>`;
+    : `<div class="card muted patient-profile-empty">尚未加入任何復健師</div>`;
 
   const careHistoryHtml = renderPatientCareHistory(state.user.id);
 
@@ -3745,8 +4419,9 @@ function profilePage() {
   const unlockedAchievements = gamification.achievements.filter((a) => a.unlocked);
 
   return `
-    <div class="center">
-      <div class="avatar" style="margin: 12px auto 8px;">${state.user.name[0]}</div>
+    <div class="patient-profile-page">
+    <div class="center patient-profile-identity">
+      <div class="avatar">${state.user.name[0]}</div>
       <h2>${state.user.name}</h2>
     </div>
     <div class="score-hero">
@@ -3759,7 +4434,7 @@ function profilePage() {
       <div class="stat"><span class="small">平均品質分數</span><b>${avgScore != null ? avgScore : "—"}</b></div>
     </div>
     <h3 class="section-title">我的復健需求</h3>
-    <div class="card clickable row" style="justify-content:space-between; align-items:center;" onclick="goAssessmentSettings()"><b>查看／修改我的復健需求評估</b><span class="more-link">前往 →</span></div>
+    <div class="card clickable patient-profile-nav-row" onclick="goAssessmentSettings()"><b>查看／修改我的復健需求評估</b><span class="more-link">前往 →</span></div>
     <h3 class="section-title">我的復健師</h3>
     ${myTherapistsHtml}
     <h3 class="section-title">照護歷史</h3>
@@ -3775,6 +4450,7 @@ function profilePage() {
     <div class="row" style="margin-top:10px;"><button class="btn btn-light" style="flex:1" onclick="goAchievements()">成就牆</button><button class="btn btn-light" style="flex:1" onclick="goActionRecords()">動作紀錄</button><button class="btn btn-light" style="flex:1" onclick="goMap()">冒險地圖</button></div>
     <div style="height:10px"></div>
     <button class="btn btn-light" style="width:100%" onclick="logout()">登出</button>
+    </div>
   `;
 }
 //主畫面（根據不同角色與選單顯示不同內容）
@@ -3792,9 +4468,13 @@ function renderDashboard() {
   const body = state.tab === "home"
     ? state.user.role === "patient" ? patientHome() : therapistHome()
     : state.tab === "work"
-      ? state.user.role === "patient" ? todaySchedulePage() : therapistFilesPage()
+      // therapist 個案 tab = the real patient-management list (was the
+      // hardcoded-mock therapistFilesPage()).
+      ? state.user.role === "patient" ? todaySchedulePage() : therapistCaseListPage()
       : state.tab === "data"
-        ? dataPage()
+        // patient 數據 = Data V2 dashboard; therapist 計畫 = the real
+        // assigned-plan overview across managed patients.
+        ? state.user.role === "patient" ? patientDataOverviewPage() : therapistPlansPage()
         : profilePage();
   return phone(body, true);
 }
@@ -3967,8 +4647,11 @@ function goHeatmap() {
 }
 
 function goActionRecords() {
+  // Data V2 — 訓練紀錄 lives under the 數據 tab; keep the bottom-nav on 數據
+  // whether the list is shown as the standalone "records" route or reached
+  // from the Data overview.
   state.route = "records";
-  state.tab = "work";
+  state.tab = "data";
   render();
 }
 
@@ -3985,7 +4668,7 @@ function goCaseList() {
   render();
 }
 
-function goCaseDetail(patientId) {
+function goCaseDetail(patientId, tab) {
   const relation = relationService.findAcceptedRelation(state.user.id, patientId);
   if (!relation) {
     alert("您沒有管理此患者的權限。");
@@ -3994,6 +4677,7 @@ function goCaseDetail(patientId) {
   state.selectedPatientId = patientId;
   state.relationActionType = null;
   state.relationActionReason = null;
+  state.caseDetailTab = tab || "overview";
   state.route = "caseDetail";
   state.tab = "work";
   render();
@@ -4140,7 +4824,11 @@ window.formatClockTime = formatClockTime;
 window.getTrainingHistorySourceChips = getTrainingHistorySourceChips;
 window.goCaseList = goCaseList;
 window.goCaseDetail = goCaseDetail;
+window.goCaseDetailPlan = goCaseDetailPlan;
 window.goAssignPlan = goAssignPlan;
+window.setTherapistHomeView = setTherapistHomeView;
+window.setCaseDetailTab = setCaseDetailTab;
+window.goBackFromTrainingRecordDetail = goBackFromTrainingRecordDetail;
 window.logout = logout;
 window.onAssignCategoryChange = onAssignCategoryChange;
 window.onAssignExerciseChange = onAssignExerciseChange;
@@ -4178,16 +4866,22 @@ function todaySchedulePage() {
   const pendingXp = exercises
     .filter((ex) => ex.status !== "completed")
     .reduce((sum, ex) => sum + (ex.rewardXp || 0), 0);
+  const hasSchedule = !!schedule && exercises.length > 0;
 
   const [, mStr, dStr] = viewDate.split("-");
-  const dayNum = dStr;
-  const monthAbbr = MONTH_ABBR[Number(mStr) - 1];
+  const viewDt = new Date(`${viewDate}T00:00:00`);
+  // Single date line — no more repeating the date in a hero + a badge.
+  const dateLine = `${Number(mStr)} 月 ${Number(dStr)} 日・星期${WEEKDAY_LABELS[viewDt.getDay()]}`;
 
-  const heroLabel = schedule ? `${getTherapistDisplayName(schedule.therapistId)}已派發` : "尚無復健師派發課表";
-  const heroTitle = schedule ? schedule.title : `${mStr}/${dStr} 課表`;
-  const heroSummary = schedule
-    ? `完成 ${completedCount} / ${exercises.length} 項｜預計 +${pendingXp} XP`
-    : "這一天尚未安排復健課表。";
+  // Compact today summary — only metrics that already exist on this page
+  // (task count / completion / pending XP). No invented duration.
+  const summaryHtml = hasSchedule
+    ? `<div class="patient-training-summary">
+        <div><span class="small">今日安排</span><b>${exercises.length} 項</b></div>
+        <div><span class="small">已完成</span><b>${completedCount} / ${exercises.length}</b></div>
+        <div><span class="small">預計獎勵</span><b>+${pendingXp} XP</b></div>
+      </div>`
+    : `<div class="patient-training-summary-empty small">今日沒有復健師安排的課表<span class="patient-training-status-pill">無派發任務</span></div>`;
 
   const weekStripHtml = buildWeekStripDates(todayStr())
     .map((date) => {
@@ -4195,33 +4889,56 @@ function todaySchedulePage() {
       const label = WEEKDAY_LABELS[dt.getDay()];
       const num = String(dt.getDate()).padStart(2, "0");
       const activeClass = date === viewDate ? "active" : "";
-      return `<span class="${activeClass}" onclick="selectScheduleDate('${date}')">${label}<br><b>${num}</b></span>`;
+      return `<span class="${activeClass}" onclick="selectScheduleDate('${date}')"><span class="patient-training-week-day">${label}</span><b>${num}</b></span>`;
     })
     .join("");
 
+  const assignedHtml = hasSchedule
+    ? renderScheduleTaskCards(schedule)
+    : `<div class="card patient-training-empty">
+        <img class="patient-training-empty-icon" src="/images/robot/robot_encourage.png" alt="" />
+        <div class="patient-training-empty-text">
+          <b>今天沒有復健師安排的訓練</b>
+          <p class="small">你仍可以進行自主復健，或查看之前的訓練紀錄。</p>
+        </div>
+      </div>`;
+
   return `
-    <div class="header">
-      <h1 class="page-title">我的復健課表</h1>
-      <img class="icon" src="/images/calendar.png" alt="課表" />
-    </div>
-    <div class="schedule-hero">
-      <div>
-        <div class="small">${heroLabel}</div>
-        <h2>${heroTitle}</h2>
-        <p>${heroSummary}</p>
+    <div class="patient-training-page">
+      <div class="header patient-training-header">
+        <h1 class="page-title">我的復健課表</h1>
+        <img class="icon" src="/images/calendar.png" alt="課表" />
       </div>
-      <div class="calendar-badge"><b>${dayNum}</b><span>${monthAbbr}</span></div>
-    </div>
-    <div class="week-strip">
-      ${weekStripHtml}
-    </div>
-    <h3 class="section-title">復健師派發任務</h3>
-    ${renderScheduleTaskCards(schedule)}
-    <h3 class="section-title">AI 課表提醒</h3>
-    <div class="ai-box"><div class="ai-content"><img src="/images/ai_robot.png" class="ai-avatar" alt="AI"><p class="ai-text">${generateScheduleReminder(schedule)}</p></div></div>
-    <div class="schedule-secondary-actions">
-      <button class="btn btn-light" onclick="goSelfPracticeLibrary()">自主練習</button>
-      <button class="btn btn-light" onclick="goActionRecords()">動作紀錄</button>
+
+      <div class="card patient-training-today">
+        <div class="patient-training-eyebrow">今日復健</div>
+        <b class="patient-training-date">${dateLine}</b>
+        ${summaryHtml}
+      </div>
+
+      <div class="week-strip patient-training-week">${weekStripHtml}</div>
+
+      <h3 class="section-title">復健師安排</h3>
+      ${assignedHtml}
+
+      <h3 class="section-title">AI 今日建議</h3>
+      <div class="card patient-training-ai">
+        <img class="patient-training-ai-icon" src="/images/ai_robot.png" alt="AI" />
+        <p class="small">${generateScheduleReminder(schedule)}</p>
+      </div>
+
+      <div class="patient-training-shortcuts">
+        <div class="card clickable patient-training-shortcut" onclick="goSelfPracticeLibrary()">
+          <img class="patient-training-shortcut-icon" src="/images/train.png" alt="" />
+          <b>自主練習</b>
+          <span class="small">開始今天的復健</span>
+        </div>
+        <div class="card clickable patient-training-shortcut" onclick="goActionRecords()">
+          <img class="patient-training-shortcut-icon" src="/images/data.png" alt="" />
+          <b>動作紀錄</b>
+          <span class="small">查看過去訓練</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -4679,7 +5396,11 @@ function selectFunctionalAssessmentBodyRegion(region) {
   const result = functionalAssessmentService.create({ patientId, bodyRegion: region });
   if (result.error) return;
   state.selectedFunctionalAssessmentSessionId = result.session.id;
-  state.route = "functionalAssessmentShoulderPrep";
+  // Phase 7.4 — the next step is the Problem Menu (task section 3), never
+  // straight into the assessment: a new session must not carry over a
+  // previous visit's problem selection.
+  state.shoulderSelectedProblemId = null;
+  state.route = "functionalAssessmentShoulderProblem";
   render();
 }
 
@@ -4754,7 +5475,7 @@ function functionalAssessmentBodyRegionPage() {
 function functionalAssessmentShoulderPrepPage() {
   return `
     <div class="header">
-      <button class="btn btn-light" onclick="goFunctionalAssessmentBodyRegion()">返回</button>
+      <button class="btn btn-light" onclick="goFunctionalAssessmentShoulderProblem()">返回</button>
       <b>肩部功能評估</b>
       <span></span>
     </div>
@@ -4787,7 +5508,14 @@ function functionalAssessmentShoulderPrepPage() {
 const FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS = [
   {
     key: "shoulder_flexion",
-    label: "肩關節前屈",
+    // conceptual Assessment Movement id (js/data/shoulderAssessmentProtocol.js)
+    assessmentMovementId: "A01",
+    // legacy STORAGE movementId — still what gets persisted to
+    // movementResults[].movementId (unchanged for Firebase/history compat)
+    movementId: "A01-1",
+    view: "side",
+    hasAdapter: true,
+    label: "肩關節前舉",
     viewLabel: "側面示範",
     instruction: "從手臂自然垂下開始，慢慢將手臂向前抬起，再依自己舒服的範圍繼續向上。",
     images: [
@@ -4798,6 +5526,10 @@ const FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS = [
   },
   {
     key: "shoulder_abduction",
+    assessmentMovementId: "A02",
+    movementId: "A01-2", // legacy STORAGE movementId (unchanged)
+    view: "front",
+    hasAdapter: true,
     label: "肩關節外展",
     viewLabel: "正面示範",
     instruction: "從手臂自然垂下開始，慢慢將雙手向身體兩側抬起，再依自己舒服的範圍繼續向上。",
@@ -4808,6 +5540,79 @@ const FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS = [
     ],
   },
 ];
+
+/**
+ * ReMotion Phase 7.4 — routing helpers over the Problem/Protocol model
+ * (js/data/shoulderAssessmentProtocol.js). This is the ONLY place a
+ * "problem" resolves to a movement list — every downstream function
+ * (session page, side sequencing, voice, progress dots) reads THIS list,
+ * never `FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS` directly, so the
+ * two-movement A01 protocol is data, not a hardcoded "if flexion / if
+ * abduction" chain.
+ */
+function activeShoulderProtocolMovements() {
+  return resolveProtocolMovements(state.shoulderSelectedProblemId, FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS);
+}
+
+function currentShoulderMovement() {
+  const list = activeShoulderProtocolMovements();
+  return list[state.functionalAssessmentShoulderMovementIndex || 0] || null;
+}
+
+function goFunctionalAssessmentShoulderProblem() {
+  // A fresh visit to the Problem Menu always clears any previous selection —
+  // never resumes a stale protocol from an earlier assessment attempt.
+  state.shoulderSelectedProblemId = null;
+  state.route = "functionalAssessmentShoulderProblem";
+  render();
+}
+
+/** Only ever reachable for a startable problem (renderShoulderProblemCard() never wires an onclick otherwise) — still checked defensively rather than trusting the caller. */
+function selectShoulderProblem(problemId) {
+  if (!isShoulderProblemStartable(problemId, FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS)) return;
+  state.shoulderSelectedProblemId = problemId;
+  state.route = "functionalAssessmentShoulderPrep";
+  render();
+}
+
+function renderShoulderProblemCard(problem) {
+  // Patient-facing: ONLY problem.title (natural language). Internal ids
+  // (P-SH-*, A0x) are never rendered (task section 3).
+  const startable = isShoulderProblemStartable(problem.problemId, FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS);
+  if (startable) {
+    return `<div class="card functional-assessment-problem-card clickable" onclick="selectShoulderProblem('${problem.problemId}')">
+      <b>${problem.title}</b>
+    </div>`;
+  }
+  // Genuinely non-interactive — no onclick at all, aria-disabled, never a
+  // fake/disabled-looking-but-clickable card.
+  return `<div class="card functional-assessment-problem-card disabled" aria-disabled="true">
+    <b>${problem.title}</b>
+    <span class="functional-assessment-problem-soon">${problem.unavailableLabel || "功能建置中"}</span>
+  </div>`;
+}
+
+/**
+ * Patient Problem Selection — the required step between "肩部" and the
+ * measurement flow (task section 3). Never sends every Shoulder patient
+ * into every Shoulder movement; the selected Patient Problem is what
+ * resolves to an Assessment Protocol via activeShoulderProtocolMovements().
+ */
+function functionalAssessmentShoulderProblemPage() {
+  const cardsHtml = SHOULDER_PROBLEMS.map(renderShoulderProblemCard).join("");
+  return `
+    <div class="header">
+      <button class="btn btn-light" onclick="goFunctionalAssessmentBodyRegion()">返回</button>
+      <b>肩部功能評估</b>
+      <span></span>
+    </div>
+    <div class="body-region-intro">
+      <b>目前哪一種肩部活動最困擾你？</b>
+      <div class="small">選擇最符合目前狀況的描述，系統會安排相對應的動作評估。</div>
+    </div>
+    <div class="functional-assessment-problem-list">${cardsHtml}</div>
+  `;
+}
 
 function goFunctionalAssessmentShoulderPrep() {
   state.route = "functionalAssessmentShoulderPrep";
@@ -4875,13 +5680,36 @@ function goFunctionalAssessmentShoulderSessionBack() {
 function advanceFunctionalAssessmentShoulderMovement() {
   stopShoulderCameraSession();
   shoulderCameraPhase = "instruction";
-  if (state.functionalAssessmentShoulderMovementIndex < FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS.length - 1) {
+  if (state.functionalAssessmentShoulderMovementIndex < activeShoulderProtocolMovements().length - 1) {
     state.functionalAssessmentShoulderMovementIndex += 1;
     render();
   } else {
+    // Phase 7.5 — the whole selected protocol is done: persist the session
+    // as completed (status/completedAt/problemId) BEFORE the completion
+    // page renders, so its "查看評估結果" CTA and Home unlock are backed by
+    // persistence, not runtime state.
+    completeShoulderAssessmentSession();
     state.route = "functionalAssessmentShoulderComplete";
     render();
   }
+}
+
+/**
+ * Phase 7.5 — marks the current functionalAssessment session completed.
+ * The selected P-SH-* problem is the SOURCE OF TRUTH (task section 2) — it
+ * is passed straight through, never reconstructed from movementIds.
+ * Idempotent (re-completing just re-patches the same fields).
+ */
+function completeShoulderAssessmentSession() {
+  const sid = state.selectedFunctionalAssessmentSessionId;
+  const problemId = state.shoulderSelectedProblemId;
+  if (!sid) return;
+  const problem = problemId ? getShoulderProblem(problemId) : null;
+  const res = functionalAssessmentService.completeSession(sid, {
+    problemId: problemId || null,
+    protocolMovementIds: problem ? problem.protocolMovementIds : null,
+  });
+  if (res && res.error) console.warn("[Phase 7.5] completeSession failed:", res.error);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -4934,6 +5762,37 @@ let shoulderSelectedVoice = null;
 // started only once shoulderCameraPhase first reaches "measurement-ready"
 // (see beginShoulderCountdown()), discarded in stopShoulderCameraSession().
 let shoulderMeasurementSession = null;
+// ── Phase 7.3B.2 (A01-1 Shoulder Flexion) — real measurement state ──────
+// The landmarks -> observation -> SIGNAL adapter + per-side result
+// accumulator (js/ai/exercises/shoulder/flexionMovement.js) that finally
+// feeds the EXISTING shoulderMeasurementSession FSM a real signal (replacing
+// the Phase 7.3B.1 signal:null placeholder) — for the "shoulder_flexion"
+// movement ONLY. Every other movement (abduction) still passes signal:null,
+// unchanged. Ephemeral, per-camera-run; discarded in
+// stopShoulderCameraSession()/handleShoulderFatalError(). Never persisted
+// here — see functionalAssessmentService.appendMovementResult() for the
+// result boundary. Reuses the already-running shoulderCameraController; no
+// second camera lifecycle is created.
+let shoulderMovementActiveSide = SHOULDER_SIDE.RIGHT;
+let shoulderMovementMeasurement = null; // current active side's accumulator (or null)
+let shoulderMovementSideResults = { LEFT: null, RIGHT: null };
+let shoulderMovementResultComplete = false;
+let shoulderMovementPersistedResult = null; // assembled + saved A01-1 result (debug/verify UI only)
+// Phase 7.4 — Shoulder Developer/Calibration Mode GATE. Patient Assessment
+// mode must never expose movement/side selection, calibration markers, or
+// mirror/calibration toggles (task section 6) — that requires an explicit,
+// non-clickable opt-in rather than a visible always-present text link
+// (which is what every calibration control used to sit behind — see the
+// removed report-section-6 rationale below). `?shoulderDev=1` in the URL is
+// deliberately not something a patient can stumble into by tapping. This
+// gate does not delete or change any calibration functionality — it only
+// decides whether the UI surface that reaches it (the "校正" toggle, the
+// panel, the marker/side/movement buttons) is ever rendered at all.
+const SHOULDER_DEV_MODE_ENABLED =
+  typeof window !== "undefined" &&
+  typeof window.location !== "undefined" &&
+  new URLSearchParams(window.location.search).get("shoulderDev") === "1";
+
 // Phase 7.3B.2C — developer-only real-device calibration state. Entirely
 // separate from shoulderMeasurementSession above: this NEVER produces a
 // SHOULDER_MEASUREMENT_SIGNAL and is never read by the production FSM
@@ -4942,7 +5801,8 @@ let shoulderMeasurementSession = null;
 // squatDebugModeOn's own convention); shoulderCalibrationSession is
 // per-camera-run data, discarded in stopShoulderCameraSession()/
 // handleShoulderFatalError() and recreated in beginShoulderCameraSession()
-// if the toggle is still on.
+// if the toggle is still on. All of it now additionally requires
+// SHOULDER_DEV_MODE_ENABLED to ever be reachable from patient-facing UI.
 let shoulderCalibrationModeOn = false;
 let shoulderCalibrationSession = null;
 // Phase 7.3B.2C.1 — voice/status DEDUP bookkeeping only (mirrors
@@ -4985,6 +5845,111 @@ function speakShoulderMeasurementTransition(phase, timestamp) {
   speakShoulderText(entry.id, entry.text, timestamp);
 }
 
+// ── Phase 7.4 — Shoulder A01 movement voice-guidance lifecycle ─────────
+// Wording lives in the pure module js/data/shoulderAssessmentProtocol.js
+// (SHOULDER_MOVEMENT_VOICE / getShoulderMovementVoiceLine) so it is
+// independently testable; app.js owns only the STATE-TRIGGERING and speech
+// policy. Every line is spoken through speakShoulderText(), which dedups by
+// id (VOICE_DEFAULT_COOLDOWN_MS) and refuses to speak while the TTS engine
+// is mid-utterance — so cues never repeat per frame and never overlap.
+// stateKey values: orientation | ready | begin | movementAck | endpoint |
+// rightComplete | movementDone | stalled.
+const SHOULDER_MOVEMENT_SIDE_LABELS = { [SHOULDER_SIDE.LEFT]: "左側", [SHOULDER_SIDE.RIGHT]: "右側" };
+const SHOULDER_MOVEMENT_HAND_LABELS = { [SHOULDER_SIDE.LEFT]: "左手", [SHOULDER_SIDE.RIGHT]: "右手" };
+
+/** Resolves the current shoulder movement's key ("shoulder_flexion" | "shoulder_abduction" | null) — protocol-aware (reads the active protocol's movement list, not the raw catalog). */
+function currentShoulderMovementKey() {
+  const movement = currentShoulderMovement();
+  return movement ? movement.key : null;
+}
+
+/**
+ * Speaks one lifecycle cue for the current movement. `opts.side` selects the
+ * side-keyed wording (orientation/ready/begin/stalled); `opts.repeatBucket`
+ * makes a deliberately-repeatable cue (the stalled reminder) a fresh id each
+ * time so speakShoulderText()'s cooldown does not suppress a legitimate
+ * re-nudge.
+ */
+function speakShoulderMovementVoice(stateKey, opts = {}) {
+  const key = currentShoulderMovementKey();
+  if (!key) return;
+  const text = getShoulderMovementVoiceLine(key, stateKey, opts.side);
+  if (!text) return;
+  const id = `sh_${key}_${stateKey}${opts.side ? "_" + opts.side : ""}${opts.repeatBucket != null ? "_" + opts.repeatBucket : ""}`;
+  speakShoulderText(id, text, opts.timestamp != null ? opts.timestamp : performance.now());
+}
+
+/** Movement/side-aware voice on a real FSM phase transition. */
+function speakShoulderMovementTransition(phase, timestamp) {
+  if (phase === SHOULDER_MEASUREMENT_PHASE.MOVEMENT_IN_PROGRESS) {
+    // one-shot acknowledgement the instant a genuine movement is detected
+    speakShoulderMovementVoice("movementAck", { timestamp });
+  } else if (phase === SHOULDER_MEASUREMENT_PHASE.ENDPOINT_HOLD) {
+    // "已記錄，請慢慢放下。" — covers both "recorded" and "now lower" in one
+    // line, so RETURNING itself stays voice-silent (no back-to-back cues).
+    speakShoulderMovementVoice("endpoint", { timestamp });
+  }
+  // WAITING_FOR_MOVEMENT (ready/begin) and ATTEMPT_COMPLETE (rightComplete /
+  // movementDone) are driven by the orchestration, not here.
+}
+
+// Engineering UX pacing for the begin cue + stalled reminder — NOT clinical.
+const SHOULDER_BEGIN_CUE_DELAY_MS = 1800; // let the "準備完成…" line finish first
+const SHOULDER_STALL_REMINDER_MS = 9000; // re-nudge cadence while no movement is detected
+const SHOULDER_SIDE_SWITCH_READY_DELAY_MS = 2600; // let the "右側完成…" line finish before the LEFT "ready" line
+// Voice-lifecycle bookkeeping (module-level, ephemeral — reset with the camera).
+let shoulderMovementArmedAt = null;
+let shoulderMovementBeginCueSpokenForSide = null;
+let shoulderMovementStalledVoiceLastAt = null;
+let shoulderMovementReadyCueTimeoutId = null;
+let shoulderFramingLossAnnounced = false;
+
+/**
+ * Per-frame, WAITING_FOR_MOVEMENT only: speaks the per-side "begin" cue once
+ * (shortly after "準備完成…"), then re-nudges every SHOULDER_STALL_REMINDER_MS
+ * while still nothing has been detected. State-triggered, never every frame.
+ */
+function maybeSpeakShoulderMovementWaitingCues(timestamp, fsmPhase) {
+  if (!isShoulderMeasurableMovementActive() || shoulderMovementResultComplete) return;
+  if (fsmPhase !== SHOULDER_MEASUREMENT_PHASE.WAITING_FOR_MOVEMENT) return;
+  if (shoulderMovementArmedAt == null) return;
+  const side = shoulderMovementActiveSide;
+  const elapsed = timestamp - shoulderMovementArmedAt;
+  // Never fire a cue while the TTS engine is still mid-sentence — keeps the
+  // begin cue from being dropped by speakShoulderText()'s own "don't talk
+  // over speech" guard, and never marks it spoken until it actually is.
+  const ttsBusy = shoulderSpeechSupported && typeof window !== "undefined" && window.speechSynthesis && window.speechSynthesis.speaking;
+
+  if (shoulderMovementBeginCueSpokenForSide !== side && elapsed >= SHOULDER_BEGIN_CUE_DELAY_MS && !ttsBusy) {
+    shoulderMovementBeginCueSpokenForSide = side;
+    speakShoulderMovementVoice("begin", { timestamp, side });
+    shoulderMovementStalledVoiceLastAt = timestamp;
+    return;
+  }
+  if (shoulderMovementBeginCueSpokenForSide === side && !ttsBusy) {
+    const lastAt = shoulderMovementStalledVoiceLastAt != null ? shoulderMovementStalledVoiceLastAt : shoulderMovementArmedAt;
+    if (timestamp - lastAt >= SHOULDER_STALL_REMINDER_MS) {
+      shoulderMovementStalledVoiceLastAt = timestamp;
+      speakShoulderMovementVoice("stalled", { timestamp, side, repeatBucket: Math.round(timestamp / 1000) });
+    }
+  }
+}
+
+/** Resets the per-side voice bookkeeping (begin-cue / stall timer / framing-loss latch). Called at every measurement-ready arm — first side AND each side re-arm. Does NOT itself speak. */
+function armShoulderMovementVoiceForSide(timestamp) {
+  shoulderMovementArmedAt = timestamp;
+  shoulderMovementBeginCueSpokenForSide = null;
+  shoulderMovementStalledVoiceLastAt = timestamp;
+  shoulderFramingLossAnnounced = false;
+}
+
+function cancelShoulderSideSwitchReadyCue() {
+  if (shoulderMovementReadyCueTimeoutId) {
+    clearTimeout(shoulderMovementReadyCueTimeoutId);
+    shoulderMovementReadyCueTimeoutId = null;
+  }
+}
+
 /**
  * Must tolerate: controller already null, camera never fully initialized,
  * stop during async model loading, and repeated calls — same contract as
@@ -5019,6 +5984,21 @@ function stopShoulderCameraSession() {
   // brand-new instance, so no attempt state can ever survive into a new
   // camera session, a retry, or the next movement (report section 12).
   shoulderMeasurementSession = null;
+  // Phase 7.3B.2 (A01-1 / A01-2) — same policy for the active-movement
+  // measurement adapter (flexion or abduction) and its per-side results:
+  // nothing survives a camera stop / retry / Back. (A persisted A01 result
+  // already written to functionalAssessmentService is untouched — this only
+  // clears the in-memory measurement + voice-lifecycle state.)
+  shoulderMovementMeasurement = null;
+  shoulderMovementSideResults = { LEFT: null, RIGHT: null };
+  shoulderMovementResultComplete = false;
+  shoulderMovementPersistedResult = null;
+  shoulderMovementActiveSide = SHOULDER_SIDE.RIGHT;
+  shoulderMovementArmedAt = null;
+  shoulderMovementBeginCueSpokenForSide = null;
+  shoulderMovementStalledVoiceLastAt = null;
+  shoulderFramingLossAnnounced = false;
+  cancelShoulderSideSwitchReadyCue();
   // Phase 7.3B.2C — calibration DATA is per-camera-run and discarded here
   // exactly like every other tracker above; the shoulderCalibrationModeOn
   // TOGGLE itself is a developer preference and is deliberately NOT reset
@@ -5139,6 +6119,12 @@ function handleShoulderCameraStatus(status) {
     // comes from handleShoulderFrame() per-frame.
     shoulderCameraPhase = "positioning";
     shoulderPositioningMessageId = "person_not_found";
+    // Phase 7.4 — camera/orientation instruction, once, the moment the camera
+    // is live. Side-specific for flexion ("請以右側身面向鏡頭。"), constant
+    // for abduction. Always the RIGHT side here (camera always starts with
+    // RIGHT active); the LEFT-side orientation is folded into the
+    // "rightComplete" line. speakShoulderText() dedups by id.
+    speakShoulderMovementVoice("orientation", { side: shoulderMovementActiveSide, timestamp: performance.now() });
   }
   updateShoulderCameraStatusUI();
 }
@@ -5173,31 +6159,55 @@ function handleShoulderFrame(landmarks, timestamp) {
   updateShoulderCalibrationFromFrame(landmarks, timestamp);
 
   if (shoulderCameraPhase === "measurement-ready") {
-    // Phase 7.3B.1 — CRITICAL BOUNDARY: `signal` is always null here.
-    // Production landmark frames never derive a semantic measurement
-    // signal (movement-detected/endpoint/return/complete) from anatomical
-    // geometry — that adapter is explicitly Phase 7.3B.2 scope and does
-    // not exist. This only (a) forwards the existing, already-debounced
-    // camera readiness so a genuine tracking loss can invalidate an
-    // in-progress (synthetic-only, in this phase) attempt, and (b) reacts
-    // to whatever the session reports via the same UI/voice patching used
-    // everywhere else in this file. See report section 7.
+    // Phase 7.3B.2 (A01-1 / A01-2) — the `signal:null` boundary is lifted for
+    // BOTH measurable movements. The active-movement adapter
+    // (flexionMovement.js for shoulder_flexion, abductionMovement.js for
+    // shoulder_abduction) turns real per-frame geometry — via the SAME pure
+    // computeShoulderMeasurementObservation() the calibration branch uses —
+    // into one SHOULDER_MEASUREMENT_SIGNAL per frame, fed verbatim to the
+    // EXISTING shoulderMeasurementSession FSM (no second lifecycle FSM, no
+    // new camera). The abduction adapter additionally requires a real
+    // front-view outward-movement direction for a start (see that module).
     if (rawReadiness !== BODY_READINESS.READY) {
       // Sustained camera-level readiness loss: discard the measurement
       // session and fall back to positioning, the same policy already
       // applied to ready-confirmation/countdown below (Phase 7.3B
-      // pre-check section 17).
+      // pre-check section 17). The adapter is told bodyReady:false so it
+      // invalidates any in-progress attempt the same way.
       if (shoulderMeasurementSession) shoulderMeasurementSession.reset();
+      if (shoulderMovementMeasurement) shoulderMovementMeasurement.processFrame({ timestamp, landmarks, bodyReady: false });
+      // Phase 7.4 — framing/landmark loss DURING an active side: one
+      // non-clinical instruction, once per loss episode (re-armed on the
+      // next measurement-ready). The generic positioning guidance below
+      // still updates the visible status every frame as before.
+      if (!shoulderFramingLossAnnounced) {
+        shoulderFramingLossAnnounced = true;
+        speakShoulderText("sh_framing_loss", SHOULDER_FRAMING_LOSS_VOICE, timestamp);
+      }
       shoulderCameraPhase = "positioning";
       shoulderReadySince = null;
       setShoulderPositioningMessage(displayState, framing, timestamp);
       return;
     }
     if (shoulderMeasurementSession) {
-      const result = shoulderMeasurementSession.processFrame({ timestamp, bodyReady: true, signal: null });
+      let signal = null;
+      if (shoulderMovementMeasurement && !shoulderMovementResultComplete) {
+        const step = shoulderMovementMeasurement.processFrame({ timestamp, landmarks, bodyReady: true });
+        signal = step.signal;
+      }
+      const result = shoulderMeasurementSession.processFrame({ timestamp, bodyReady: true, signal });
+      // Voice: per-side "begin" cue + stalled reminder while still waiting.
+      maybeSpeakShoulderMovementWaitingCues(timestamp, result.phase);
       if (result.changed) {
         updateShoulderCameraStatusUI();
-        speakShoulderMeasurementTransition(result.phase, timestamp);
+        speakShoulderMovementTransition(result.phase, timestamp);
+        if (result.phase !== SHOULDER_MEASUREMENT_PHASE.WAITING_FOR_MOVEMENT) {
+          // Movement has begun — stop the begin/stall nagging for this side.
+          shoulderMovementArmedAt = null;
+        }
+        if (result.phase === SHOULDER_MEASUREMENT_PHASE.ATTEMPT_COMPLETE && shoulderMovementMeasurement) {
+          recordShoulderMovementSideAndAdvance(timestamp);
+        }
       }
     }
     return;
@@ -5325,8 +6335,24 @@ function beginShoulderCountdown() {
       // 7/8) — it always lands in WAITING_FOR_MOVEMENT, never further.
       const now = performance.now();
       if (shoulderMeasurementSession) shoulderMeasurementSession.start(now);
+      // Phase 7.3B.2 (A01-1 / A01-2) — arm a fresh per-side measurement
+      // accumulator for the active movement (flexion or abduction adapter)
+      // and side (RIGHT first; switched to LEFT after RIGHT completes — see
+      // recordShoulderMovementSideAndAdvance()). A re-entry after a readiness
+      // loss recreates it for the still-unfinished side, discarding only that
+      // side's in-progress attempt (a side already completed stays in
+      // shoulderMovementSideResults).
+      if (isShoulderMeasurableMovementActive() && !shoulderMovementResultComplete) {
+        shoulderMovementMeasurement = createActiveShoulderMovementMeasurement(shoulderMovementActiveSide);
+        armShoulderMovementVoiceForSide(now);
+        cancelShoulderSideSwitchReadyCue(); // this canonical "ready" supersedes any pending side-switch one
+      }
       updateShoulderCameraStatusUI();
-      speakShoulderMeasurementTransition(SHOULDER_MEASUREMENT_PHASE.WAITING_FOR_MOVEMENT, now);
+      // Voice: "準備完成，現在測量{右/左}側肩膀。" — spoken every time a side
+      // reaches measurement-ready (first side, a re-position after a turn, or
+      // a recovery from tracking loss). speakShoulderText()'s id dedup keeps
+      // a rapid re-fire for the same side from repeating.
+      speakShoulderMovementVoice("ready", { side: shoulderMovementActiveSide, timestamp: now });
     }, 500);
   }, 1000);
 }
@@ -5360,6 +6386,19 @@ function handleShoulderFatalError(message) {
   // never mistake a dead controller for a live one.
   shoulderCameraController = null;
   shoulderDetectionStabilityTracker = null;
+  // Phase 7.3B.2 (A01-1 / A01-2) — active-movement measurement + voice
+  // lifecycle belong to the now-dead camera run (a persisted A01 result is
+  // not touched).
+  shoulderMovementMeasurement = null;
+  shoulderMovementSideResults = { LEFT: null, RIGHT: null };
+  shoulderMovementResultComplete = false;
+  shoulderMovementPersistedResult = null;
+  shoulderMovementActiveSide = SHOULDER_SIDE.RIGHT;
+  shoulderMovementArmedAt = null;
+  shoulderMovementBeginCueSpokenForSide = null;
+  shoulderMovementStalledVoiceLastAt = null;
+  shoulderFramingLossAnnounced = false;
+  cancelShoulderSideSwitchReadyCue();
   // Phase 7.3B.2C — calibration data belongs to the now-dead camera run,
   // same reasoning as stopShoulderCameraSession()'s own cleanup.
   shoulderCalibrationSession = null;
@@ -5432,6 +6471,18 @@ function updateShoulderCameraStatusUI() {
     } else {
       primaryLabel = "請開始動作";
       secondaryLabel = "攝影機持續偵測中";
+    }
+    // Phase 7.4 — surface which side is being measured (large,
+    // distance-readable) and the done state on the remote status line.
+    if (isShoulderMeasurableMovementActive()) {
+      const m = currentShoulderMovement();
+      if (shoulderMovementResultComplete) {
+        primaryLabel = `${m ? m.label : "肩部動作"}測量完成`;
+        secondaryLabel = "左右側皆已記錄";
+      } else {
+        const sideLabel = SHOULDER_MOVEMENT_SIDE_LABELS[shoulderMovementActiveSide] || "";
+        secondaryLabel = `目前測量：${sideLabel}｜${secondaryLabel}`;
+      }
     }
   } else if (shoulderCameraPhase === "camera-error") {
     dotClass = "error";
@@ -5667,13 +6718,13 @@ function refreshShoulderCalibrationReadout(statusKey, guidanceText) {
  * the contralateral shoulder as optional context. Deliberately NOT a full
  * skeleton (report section 4: "not decoration").
  *
- * MIRRORING CONTRACT (report section 5): draws RAW, unmirrored landmark
- * coordinates directly (`p.x * canvas.width`), exactly mirroring
- * drawSquatSkeleton()'s own proven technique — the CSS transform applied
- * to the canvas element (see toggleShoulderCalibrationMode() and
- * .functional-assessment-camera-wrap-mirrored below) is what makes this
- * visually follow a mirrored video, without this function ever knowing or
- * caring whether mirroring is on. GEOMETRY stays raw; only DISPLAY mirrors.
+ * MIRRORING CONTRACT: draws RAW, unmirrored landmark coordinates directly
+ * (`p.x * canvas.width`), exactly mirroring drawSquatSkeleton()'s own
+ * proven technique — the unconditional `transform: scaleX(-1)` CSS rule on
+ * .functional-assessment-camera-video / -overlay-canvas (Phase 7.4, task
+ * section 9) is what makes this visually follow the always-mirrored video,
+ * without this function ever touching a coordinate. GEOMETRY stays raw;
+ * only DISPLAY mirrors.
  *
  * Never calls render(); a canvas 2D context draw is inherently per-frame
  * safe (report section 15), same as drawSquatSkeleton()'s own precedent.
@@ -5773,6 +6824,7 @@ function updateShoulderCalibrationFromFrame(landmarks, timestamp) {
  * flips style.display + the mirror class and creates/discards the session.
  */
 function toggleShoulderCalibrationMode() {
+  if (!SHOULDER_DEV_MODE_ENABLED) return; // patient mode: calibration is unreachable (task section 6)
   shoulderCalibrationModeOn = !shoulderCalibrationModeOn;
   if (shoulderCalibrationModeOn && !shoulderCalibrationSession) {
     shoulderCalibrationSession = createShoulderCalibrationSession();
@@ -5783,21 +6835,17 @@ function toggleShoulderCalibrationMode() {
   shoulderCalibrationLastStatusKey = null;
   const panel = document.getElementById("shoulderCalibrationPanel");
   if (panel) panel.style.display = shoulderCalibrationModeOn ? "block" : "none";
-  // Phase 7.3B.2C.1 report section 5 — mirroring is scoped to calibration
-  // mode only (see Pre-check Findings in the report: the base Shoulder
-  // preview was found NOT actually mirrored, unlike the phase brief's
-  // assumption). Toggling this class is the ONLY mirroring change made;
-  // .functional-assessment-camera-video itself is never touched, so
-  // patient-facing (non-calibration) sessions are visually unaffected.
-  const wrap = document.getElementById("shoulderCameraWrap");
-  if (wrap) wrap.classList.toggle("functional-assessment-camera-wrap-mirrored", shoulderCalibrationModeOn);
+  // Phase 7.4 — the camera preview is now ALWAYS mirrored for everyone (a
+  // familiar-mirror preview, task section 9), via an unconditional CSS rule
+  // on .functional-assessment-camera-video / -overlay-canvas. Calibration
+  // mode no longer owns mirroring, so there is no wrap class to toggle here.
   refreshShoulderCalibrationReadout();
 }
 window.toggleShoulderCalibrationMode = toggleShoulderCalibrationMode;
 
-/** Calibration tooling only — does not resolve the future patient-facing side-selection UX (report section 6). */
+/** Calibration tooling only — DEVELOPER MODE ONLY (task section 6). */
 function setShoulderCalibrationMovement(movement) {
-  if (!shoulderCalibrationSession) return;
+  if (!SHOULDER_DEV_MODE_ENABLED || !shoulderCalibrationSession) return;
   shoulderCalibrationSession.setMovement(movement);
   shoulderCalibrationLastGuidanceKey = null;
   shoulderCalibrationLastStatusKey = null;
@@ -5806,7 +6854,7 @@ function setShoulderCalibrationMovement(movement) {
 window.setShoulderCalibrationMovement = setShoulderCalibrationMovement;
 
 function setShoulderCalibrationSide(side) {
-  if (!shoulderCalibrationSession) return;
+  if (!SHOULDER_DEV_MODE_ENABLED || !shoulderCalibrationSession) return;
   shoulderCalibrationSession.setSide(side);
   shoulderCalibrationLastGuidanceKey = null;
   shoulderCalibrationLastStatusKey = null;
@@ -5815,7 +6863,7 @@ function setShoulderCalibrationSide(side) {
 window.setShoulderCalibrationSide = setShoulderCalibrationSide;
 
 function resetShoulderCalibrationSession() {
-  if (!shoulderCalibrationSession) return;
+  if (!SHOULDER_DEV_MODE_ENABLED || !shoulderCalibrationSession) return;
   shoulderCalibrationSession.reset();
   shoulderCalibrationLastGuidanceKey = null;
   shoulderCalibrationLastStatusKey = null;
@@ -5831,7 +6879,7 @@ window.resetShoulderCalibrationSession = resetShoulderCalibrationSession;
  * announces that separately (report section 11) — never silently.
  */
 function markShoulderCalibrationMoment(markerType) {
-  if (!shoulderCalibrationSession) return;
+  if (!SHOULDER_DEV_MODE_ENABLED || !shoulderCalibrationSession) return;
   const now = performance.now();
   shoulderCalibrationSession.addMarker(markerType, now);
   const label = SHOULDER_CALIBRATION_MARKER_LABELS[markerType] || markerType;
@@ -5882,7 +6930,240 @@ window.injectShoulderMeasurementSignalForTesting = injectShoulderMeasurementSign
  */
 window.pushShoulderCameraFrameForTesting = handleShoulderFrame;
 
+// ─────────────────────────────────────────────────────────────────────
+// Phase 7.3B.2 — Shoulder A01 movement orchestration (app.js side).
+// Wires the pure per-side measurement adapter for the CURRENT movement
+// (flexionMovement.js for A01-1 肩關節前屈, abductionMovement.js for A01-2
+// 肩關節外展) + the EXISTING shoulderMeasurementSession lifecycle FSM,
+// sequences LEFT/RIGHT as two independent measurements (never averaged),
+// assembles the structured result, and hands it to the Functional
+// Assessment session boundary (functionalAssessmentService
+// .appendMovementResult) for the later Shoulder Report. Produces
+// MEASUREMENT DATA only — no ROM verdict, no asymmetry cutoff, no finding.
+// ─────────────────────────────────────────────────────────────────────
+
+/** True while the current protocol movement resolves AND has a real camera adapter wired (A01-1 / A01-2 today; a future catalog entry without an adapter would set hasAdapter:false). */
+function isShoulderMeasurableMovementActive() {
+  const m = currentShoulderMovement();
+  return !!m && m.hasAdapter !== false;
+}
+
+/** Picks the adapter for the current movement — the ONE place flexion vs. abduction is chosen. */
+function createActiveShoulderMovementMeasurement(side) {
+  return currentShoulderMovementKey() === "shoulder_abduction"
+    ? createShoulderAbductionMeasurement({ side })
+    : createShoulderFlexionMeasurement({ side });
+}
+
+/**
+ * Called when the EXISTING FSM reaches ATTEMPT_COMPLETE for the active side,
+ * or from skipShoulderMovementSide(). Captures that side's structured result,
+ * then either re-arms the same FSM + a fresh accumulator for the other side
+ * (camera keeps running — no new lifecycle), or finalizes the movement once
+ * both sides are captured.
+ */
+function recordShoulderMovementSideAndAdvance(timestamp) {
+  if (!shoulderMovementMeasurement) return;
+  const now = timestamp != null ? timestamp : performance.now();
+  const sideResult = shoulderMovementMeasurement.getResult();
+  shoulderMovementSideResults[sideResult.side] = sideResult;
+  shoulderMovementMeasurement = null;
+
+  const otherSide = getNextShoulderSide(shoulderMovementActiveSide);
+  if (otherSide && !shoulderMovementSideResults[otherSide]) {
+    // Automatic side sequencing — the patient never taps to continue.
+    shoulderMovementActiveSide = otherSide;
+    if (shoulderMeasurementSession) {
+      shoulderMeasurementSession.reset();
+      shoulderMeasurementSession.start(now);
+    }
+    shoulderMovementMeasurement = createActiveShoulderMovementMeasurement(otherSide);
+    armShoulderMovementVoiceForSide(now);
+    updateShoulderCameraStatusUI();
+    refreshShoulderMovementResultPanel();
+    // "右側完成。請轉身，讓左側身面向鏡頭。" (flexion, embeds the turn cue) /
+    // "右側完成，接下來測量左側。" (abduction). The LEFT "準備完成…" line
+    // follows: either scheduled below (if the camera stays continuously
+    // ready — typical for abduction), or spoken naturally by
+    // beginShoulderCountdown()'s finish once the patient has turned and
+    // re-stabilised (typical for flexion, where the turn drops readiness).
+    speakShoulderMovementVoice("rightComplete", { timestamp: now });
+    cancelShoulderSideSwitchReadyCue();
+    shoulderMovementReadyCueTimeoutId = setTimeout(() => {
+      shoulderMovementReadyCueTimeoutId = null;
+      if (
+        shoulderCameraPhase === "measurement-ready" &&
+        shoulderMovementActiveSide === otherSide &&
+        !shoulderMovementResultComplete
+      ) {
+        speakShoulderMovementVoice("ready", { side: otherSide, timestamp: performance.now() });
+      }
+    }, SHOULDER_SIDE_SWITCH_READY_DELAY_MS);
+    return;
+  }
+  finalizeShoulderMovement(now);
+}
+
+/** Human-initiated "skip this side" — records the active side as a stopped (not completed) measurement and advances. */
+function skipShoulderMovementSide() {
+  if (!shoulderMovementMeasurement || shoulderMovementResultComplete) return;
+  const now = performance.now();
+  shoulderMovementMeasurement.markStopped("userStopped", now);
+  recordShoulderMovementSideAndAdvance(now);
+}
+window.skipShoulderMovementSide = skipShoulderMovementSide;
+
+/** Structured, Report-ready result for the current movement. LEFT/RIGHT stay independent; `bilateral.romDifferenceDeg` is a RAW absolute difference with NO clinical cutoff. */
+function assembleShoulderMovementResult() {
+  const m = currentShoulderMovement();
+  const key = (m && m.key) || "shoulder_flexion";
+  const left = shoulderMovementSideResults[SHOULDER_SIDE.LEFT] || null;
+  const right = shoulderMovementSideResults[SHOULDER_SIDE.RIGHT] || null;
+  const romDifferenceDeg =
+    left && right && left.peakROM && right.peakROM && left.peakROM.deg != null && right.peakROM.deg != null
+      ? Math.abs(left.peakROM.deg - right.peakROM.deg)
+      : null;
+  return {
+    // legacy STORAGE id — unchanged; still the dedupe/history key
+    movementId: (m && m.movementId) || "A01-1",
+    // NEW additive: the conceptual Assessment Movement identity (A01/A02),
+    // kept separate from the legacy storage id. Non-breaking — old readers
+    // ignore it; the upcoming Result task consumes it.
+    assessmentMovementId: (m && m.assessmentMovementId) || "A01",
+    movementName: key,
+    view: (m && m.view) || "side",
+    schemaVersion: 1,
+    createdAt: nowIso(),
+    left,
+    right,
+    bilateral: {
+      // RAW absolute difference of the two independent peak angles only —
+      // NOT a judgement that any difference is meaningful (an asymmetry
+      // Finding rule is a separate, later, approved step).
+      romDifferenceDeg,
+    },
+  };
+}
+
+/** Both sides captured → assemble, persist at the Functional Assessment session boundary, surface a verify/debug readout, speak the "評估完成" line. Session `status` is deliberately NOT changed (the other movement / abduction may still be pending). */
+function finalizeShoulderMovement(timestamp) {
+  shoulderMovementResultComplete = true;
+  const now = timestamp != null ? timestamp : performance.now();
+  const result = assembleShoulderMovementResult();
+  shoulderMovementPersistedResult = result;
+
+  const sessionId = state.selectedFunctionalAssessmentSessionId;
+  if (sessionId) {
+    const saved = functionalAssessmentService.appendMovementResult(sessionId, result);
+    if (saved && saved.movementResult) {
+      shoulderMovementPersistedResult = saved.movementResult;
+    } else if (saved && saved.error) {
+      console.warn(`[${result.movementId}] appendMovementResult failed:`, saved.error);
+    }
+  }
+
+  shoulderMovementArmedAt = null;
+  cancelShoulderSideSwitchReadyCue();
+  updateShoulderCameraStatusUI();
+  refreshShoulderMovementResultPanel();
+  speakShoulderMovementVoice("movementDone", { timestamp: now });
+}
+
+function formatShoulderMovementDeg(v) {
+  return v == null ? "—" : `${Number(v).toFixed(1)}°`;
+}
+
+/** DEVELOPER-MODE-ONLY raw per-side readout. Never rendered in patient mode (task section 12). */
+function renderShoulderMovementSideResultHtml(sideResult) {
+  if (!sideResult) return `<div class="small">未測量</div>`;
+  const q = sideResult.measurementQuality || {};
+  const label = SHOULDER_MOVEMENT_SIDE_LABELS[sideResult.side] || sideResult.side;
+  const dir = sideResult.observations && sideResult.observations.abductionDirection;
+  const dirHtml =
+    dir && dir.available
+      ? `<div class="small">外展方向比值（原始，非進度值）：峰值 ${dir.atPeakLateralRatio != null ? dir.atPeakLateralRatio.toFixed(2) : "—"}｜基準 ${dir.neutralLateralRatio != null ? dir.neutralLateralRatio.toFixed(2) : "—"}</div>`
+      : "";
+  return `
+    <div class="functional-assessment-flexion-side">
+      <b>${label}</b>
+      <div class="small">狀態：${sideResult.status}${sideResult.statusReason ? `（${sideResult.statusReason}）` : ""}</div>
+      <div class="small">最大抬舉角度（peakROM）：${formatShoulderMovementDeg(sideResult.peakROM && sideResult.peakROM.deg)}</div>
+      <div class="small">相對起始基準：${formatShoulderMovementDeg(sideResult.peakROM && sideResult.peakROM.fromNeutralDeg)}（基準 ${formatShoulderMovementDeg(sideResult.neutralBaselineDeg)}）</div>
+      <div class="small">峰值時手肘角度：${formatShoulderMovementDeg(sideResult.peakROM && sideResult.peakROM.elbowExtensionAngleDeg)}</div>
+      ${dirHtml}
+      <div class="small">資料品質：valid=${q.valid ? "是" : "否"}｜coverage=${q.confidence || "—"}｜可用畫面比例 ${q.coreAvailableFrameRatio != null ? (q.coreAvailableFrameRatio * 100).toFixed(0) + "%" : "—"}｜追蹤中斷 ${q.hadTrackingLoss ? "是" : "否"}</div>
+    </div>
+  `;
+}
+
+/**
+ * Task section 12/13 — PATIENT-facing panel: no raw angles / ratios / sample
+ * counts / quality numbers. Mid-movement: only the "can't complete this
+ * side" escape hatch. Movement complete: a clean ✓ summary + the automatic
+ * "next" CTA. Raw per-side measurement data is appended ONLY in Developer
+ * Mode.
+ */
+function renderShoulderMovementResultPanelHtml() {
+  const m = currentShoulderMovement();
+  if (!m) return "";
+  const title = `${m.movementId} ${m.label}`;
+  if (!shoulderMovementResultComplete) {
+    if (shoulderCameraPhase !== "measurement-ready") return "";
+    return `
+      <div class="functional-assessment-flexion-panel">
+        <button class="btn btn-light" onclick="skipShoulderMovementSide()">此側暫時無法完成，跳到下一步</button>
+      </div>
+    `;
+  }
+  const r = shoulderMovementPersistedResult;
+  const rightDone = !!(r && r.right && r.right.completed);
+  const leftDone = !!(r && r.left && r.left.completed);
+  const isLast = (state.functionalAssessmentShoulderMovementIndex || 0) === activeShoulderProtocolMovements().length - 1;
+  const patientHtml = `
+    <div class="functional-assessment-flexion-panel functional-assessment-flexion-panel-done">
+      <b>${title} — 已完成</b>
+      <div class="functional-assessment-movement-done-sides">右側 ${rightDone ? "✓" : "—"}　左側 ${leftDone ? "✓" : "—"}</div>
+      <button class="btn btn-primary full" style="margin-top:10px;" onclick="advanceFunctionalAssessmentShoulderMovement()">${isLast ? "完成評估" : "開始下一項"}</button>
+    </div>
+  `;
+  if (!SHOULDER_DEV_MODE_ENABLED) return patientHtml;
+  const diff = r && r.bilateral ? r.bilateral.romDifferenceDeg : null;
+  const devHtml = `
+    <div class="functional-assessment-flexion-panel functional-assessment-dev-detail">
+      <b class="small">工程除錯資料（Developer Mode）</b>
+      ${renderShoulderMovementSideResultHtml(r && r.right)}
+      ${renderShoulderMovementSideResultHtml(r && r.left)}
+      <div class="small">左右最大角度差（原始絕對值，未做任何臨床判定）：${formatShoulderMovementDeg(diff)}</div>
+    </div>
+  `;
+  return patientHtml + devHtml;
+}
+
+/** Targeted DOM patch (never render()) — safe from the per-frame handler while the camera is live. */
+function refreshShoulderMovementResultPanel() {
+  const el = document.getElementById("shoulderMovementResultPanel");
+  if (el) el.innerHTML = renderShoulderMovementResultPanelHtml();
+}
+
+/** Verify/debug hook — reads the live + persisted A01 state without a Result page. */
+window.getShoulderMovementMeasurementForTesting = function () {
+  return {
+    movementKey: currentShoulderMovementKey(),
+    movementActive: isShoulderMeasurableMovementActive(),
+    activeSide: shoulderMovementActiveSide,
+    movementComplete: shoulderMovementResultComplete,
+    sideResults: shoulderMovementSideResults,
+    assembled: shoulderMovementResultComplete ? shoulderMovementPersistedResult : null,
+    live: shoulderMovementMeasurement ? shoulderMovementMeasurement.getResult() : null,
+    persistedOnSession: functionalAssessmentService.getMovementResults(state.selectedFunctionalAssessmentSessionId),
+  };
+};
+// Backward-compatible alias (A01-1 report referenced this name).
+window.getShoulderFlexionMeasurementForTesting = window.getShoulderMovementMeasurementForTesting;
+
 function functionalAssessmentShoulderIntroPage() {
+  const problem = getShoulderProblem(state.shoulderSelectedProblemId);
+  const count = activeShoulderProtocolMovements().length;
   return `
     <div class="header">
       <button class="btn btn-light" onclick="goFunctionalAssessmentShoulderPrep()">返回</button>
@@ -5890,10 +7171,10 @@ function functionalAssessmentShoulderIntroPage() {
       <span></span>
     </div>
     <div class="card functional-assessment-intro-card">
-      <b class="detail-section-label">肩部功能評估</b>
-      <p class="small">接下來會完成 2 個簡單動作，請依照畫面示範，在自己舒服的範圍內完成即可。</p>
-      <div class="functional-assessment-intro-point"><span class="small">共 2 個動作</span></div>
-      <div class="functional-assessment-intro-point"><span class="small">每個動作依照示範完成</span></div>
+      <b class="detail-section-label">${problem ? problem.assessmentLabel + "評估" : "肩部功能評估"}</b>
+      <p class="small">接下來會完成 ${count} 個簡單動作，請依照畫面示範，在自己舒服的範圍內完成即可。</p>
+      <div class="functional-assessment-intro-point"><span class="small">共 ${count} 個動作，每個動作系統會自動先測右側、再測左側</span></div>
+      <div class="functional-assessment-intro-point"><span class="small">過程中不需選擇左右或按鈕，依語音與畫面指示即可</span></div>
       <div class="functional-assessment-intro-point"><span class="small">若感到不適，可隨時停止</span></div>
     </div>
     <button class="btn btn-primary full" style="margin-top:12px;" onclick="startFunctionalAssessmentShoulderSession()">開始</button>
@@ -5924,47 +7205,59 @@ function renderFunctionalAssessmentShoulderProgressDots(current, total) {
  * the page (which would tear down the live <video> element mid-stream).
  */
 function functionalAssessmentShoulderSessionPage() {
+  const protocolMovements = activeShoulderProtocolMovements();
   const index = state.functionalAssessmentShoulderMovementIndex || 0;
-  const total = FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS.length;
-  const movement = FUNCTIONAL_ASSESSMENT_SHOULDER_MOVEMENTS[index];
-  const isLast = index === total - 1;
-  const ctaLabel = isLast ? "完成評估" : "完成此動作，下一項";
+  const total = protocolMovements.length;
+  const movement = protocolMovements[index] || currentShoulderMovement();
+  const problem = getShoulderProblem(state.shoulderSelectedProblemId);
+  // Defensive: reached the Session route without a resolved protocol (e.g.
+  // a stale deep link). Send the patient back to the Problem Menu rather
+  // than rendering a broken page.
+  if (!movement) {
+    return `
+      <div class="header">
+        <button class="btn btn-light" onclick="goFunctionalAssessmentShoulderProblem()">返回</button>
+        <b>肩部功能評估</b><span></span>
+      </div>
+      <p class="small" style="margin:16px 2px;">請先選擇要評估的肩部活動狀況。</p>
+      <button class="btn btn-primary full" onclick="goFunctionalAssessmentShoulderProblem()">選擇評估項目</button>
+    `;
+  }
+
+  const isInstruction = shoulderCameraPhase === "instruction";
+  const isTransition = index > 0; // arrived here by automatic progression, not the first movement
+  const backLabel = isInstruction ? "返回" : "← 結束評估";
   const framesHtml = movement.images
     .map((img) => `<div class="functional-assessment-frame"><img src="${img.src}" alt="${movement.label} - ${img.caption}" /><span class="small functional-assessment-frame-caption">${img.caption}</span></div>`)
     .join("");
-  const isInstruction = shoulderCameraPhase === "instruction";
-  const backLabel = isInstruction ? "返回" : "← 結束評估";
-  // Phase 7.3B.2C — developer/test-only calibration toggle. Reuses the
-  // EXACT existing convention already established by Squat's own
-  // .squat-debug-toggle/toggleSquatDebugMode() (squatDetectionPage()) —
-  // a small, unobtrusive, always-present text toggle, not gated behind
-  // any account flag. state.user.isDeveloperAccount was considered but
-  // rejected: it is only ever true on the seeded THERAPIST account
-  // (seedData.js), while selectFunctionalAssessmentBodyRegion() requires
-  // state.user.role === "patient" — no account that can ever reach this
-  // route can carry that flag, so gating on it would make the toggle
-  // permanently unreachable. Visible in both instruction and camera-active
-  // phases (harmless pre-camera); the panel itself only exists once the
-  // camera is active.
-  const calibrationToggleHtml = `<span class="functional-assessment-calibration-toggle" onclick="toggleShoulderCalibrationMode()" title="開發校正模式">校正</span>`;
+
+  // Phase 7.4 — the "校正" toggle only exists in Developer Mode (?shoulderDev=1).
+  const calibrationToggleHtml = SHOULDER_DEV_MODE_ENABLED
+    ? `<span class="functional-assessment-calibration-toggle" onclick="toggleShoulderCalibrationMode()" title="開發校正模式">校正</span>`
+    : `<span></span>`;
+
+  const sideLabelBig = SHOULDER_MOVEMENT_SIDE_LABELS[shoulderMovementActiveSide] || "";
+  // The orientation line doubles as voice text (task section 10): same string.
+  const orientationLine = getShoulderMovementVoiceLine(movement.key, "orientation", shoulderMovementActiveSide) || movement.viewLabel;
 
   const bodyHtml = isInstruction
     ? `
-        <div class="small functional-assessment-progress-label">動作 ${index + 1} / ${total}</div>
+        <div class="small functional-assessment-progress-label">${problem ? problem.assessmentLabel + "評估　" : ""}動作 ${index + 1} / ${total}</div>
         ${renderFunctionalAssessmentShoulderProgressDots(index, total)}
+        ${isTransition ? `<div class="functional-assessment-transition-note">✓ 上一項已完成</div>` : ""}
         <h2 class="functional-assessment-movement-title">${movement.label}</h2>
         <div class="small functional-assessment-view-label">${movement.viewLabel}</div>
         <p class="small functional-assessment-instruction">${movement.instruction}</p>
         <div class="functional-assessment-frame-grid">${framesHtml}</div>
-        <div class="small center functional-assessment-safety-note">若感到不適，可隨時停止。</div>
-        <button class="btn btn-primary full" style="margin-top:12px;" onclick="beginShoulderCameraSession()">開始鏡頭檢測</button>
+        <div class="small center functional-assessment-safety-note">系統會自動先測右側、再測左側，過程中不需選擇。若感到不適，可隨時停止。</div>
+        <button class="btn btn-primary full" style="margin-top:12px;" onclick="beginShoulderCameraSession()">${isTransition ? "開始下一項" : "開始鏡頭檢測"}</button>
       `
     : `
-        <div class="functional-assessment-remote-identity">
-          <b>${movement.label}</b>
-          ${renderFunctionalAssessmentShoulderProgressDots(index, total)}
-        </div>
-        <div class="functional-assessment-camera-wrap${shoulderCalibrationModeOn ? " functional-assessment-camera-wrap-mirrored" : ""}" id="shoulderCameraWrap">
+        <div class="small functional-assessment-progress-label">${problem ? problem.assessmentLabel + "評估　" : ""}動作 ${index + 1} / ${total}</div>
+        ${renderFunctionalAssessmentShoulderProgressDots(index, total)}
+        <h2 class="functional-assessment-remote-title">${sideLabelBig}${movement.label}</h2>
+        <div class="functional-assessment-remote-orientation">${orientationLine}</div>
+        <div class="functional-assessment-camera-wrap" id="shoulderCameraWrap">
           <video id="shoulderCameraVideo" class="functional-assessment-camera-video" playsinline muted autoplay></video>
           <canvas id="shoulderCalibrationOverlayCanvas" class="functional-assessment-calibration-overlay-canvas"></canvas>
         </div>
@@ -5977,11 +7270,8 @@ function functionalAssessmentShoulderSessionPage() {
           <button class="btn btn-primary full" onclick="beginShoulderCameraSession()">重新嘗試</button>
           <button class="btn btn-light full" onclick="goFunctionalAssessmentShoulderSessionBack()">結束評估</button>
         </div>
-        ${
-          shoulderCameraPhase === "measurement-ready"
-            ? `<button class="btn btn-light full functional-assessment-manual-continue" style="margin-top:14px;" onclick="advanceFunctionalAssessmentShoulderMovement()">${ctaLabel}（手動繼續，7.3B 完成後將由系統銜接）</button>`
-            : ""
-        }
+        <div id="shoulderMovementResultPanel">${renderShoulderMovementResultPanelHtml()}</div>
+        <button class="btn btn-light full functional-assessment-stop-btn" style="margin-top:12px;" onclick="goFunctionalAssessmentShoulderSessionBack()">停止評估</button>
         ${functionalAssessmentShoulderCalibrationPanelHtml()}
       `;
 
@@ -6011,6 +7301,10 @@ function functionalAssessmentShoulderSessionPage() {
  * below it).
  */
 function functionalAssessmentShoulderCalibrationPanelHtml() {
+  // Task section 6 — this markup (movement/side selection, natural-drop/
+  // start/top/return markers, reset) must never reach the DOM in normal
+  // Patient Assessment mode, not merely be hidden by CSS.
+  if (!SHOULDER_DEV_MODE_ENABLED) return "";
   return `
     <div class="functional-assessment-calibration-panel" id="shoulderCalibrationPanel" style="display:${shoulderCalibrationModeOn ? "block" : "none"};">
       <div class="functional-assessment-calibration-controls" id="shoulderCalibrationControls">
@@ -6040,12 +7334,16 @@ function functionalAssessmentShoulderCalibrationPanelHtml() {
 }
 
 /**
- * NOT a result page — no score/angle/ROM/symmetry/normal-abnormal
- * anywhere (report section 14). functionalAssessmentService is never
- * written to here, so this truthfully avoids claiming detailed movement
- * data was saved.
+ * Phase 7.5 — completion page. The session is already persisted as
+ * `status:"completed"` by the time this renders (see
+ * advanceFunctionalAssessmentShoulderMovement). Truthfully says so; its
+ * "查看評估結果" CTA opens the REAL result for THIS session — never Home.
  */
 function functionalAssessmentShoulderCompletePage() {
+  const problem = getShoulderProblem(state.shoulderSelectedProblemId);
+  const title = problem ? problem.assessmentLabel + "評估已完成" : "肩部功能評估已完成";
+  const movementCount = activeShoulderProtocolMovements().length;
+  const sid = state.selectedFunctionalAssessmentSessionId;
   return `
     <div class="header">
       <button class="btn btn-light" onclick="switchTab('home')">返回</button>
@@ -6053,12 +7351,115 @@ function functionalAssessmentShoulderCompletePage() {
       <span></span>
     </div>
     <div class="card reward-feedback-panel functional-assessment-complete-card">
-      <b>肩部功能評估完成</b>
-      <div class="small">已完成 2 個動作</div>
-      <p class="small">你已完成本次肩部功能評估流程。</p>
-      <div class="small functional-assessment-complete-note">目前為功能評估流程示範，分析結果將於後續功能提供。</div>
+      <b>${title}</b>
+      <div class="small">已完成 ${movementCount} 個動作，左右側各自量測。</div>
+      <p class="small">本次量測資料已儲存，可查看評估結果。</p>
     </div>
-    <button class="btn btn-primary full" style="margin-top:12px;" onclick="switchTab('home')">完成</button>
+    <button class="btn btn-primary full" style="margin-top:12px;" onclick="goFunctionalAssessmentShoulderResult('${sid || ""}')">查看評估結果</button>
+    <button class="btn btn-light full" style="margin-top:8px;" onclick="switchTab('home')">返回首頁</button>
+  `;
+}
+
+/** Opens the Result Page for a specific completed session (or the current one). */
+function goFunctionalAssessmentShoulderResult(sessionId) {
+  const sid = sessionId || state.selectedFunctionalAssessmentSessionId;
+  if (!sid) return;
+  state.shoulderResultSessionId = sid;
+  state.route = "functionalAssessmentShoulderResult";
+  render();
+}
+
+/** Home "評估結果" -> the latest completed Functional Assessment for this patient (persistence-backed). */
+function goLatestFunctionalAssessmentResult() {
+  const patientId = getCurrentPatientId();
+  if (!patientId) return;
+  const latest = functionalAssessmentService.getLatestCompletedByPatientId(patientId);
+  if (!latest) return;
+  goFunctionalAssessmentShoulderResult(latest.id);
+}
+
+function shoulderResultSideRow(label, side) {
+  const v = side && side.peakRomDeg != null ? side.peakRomDeg + "°" : "資料不足";
+  return `<div class="functional-assessment-result-side"><span class="small">${label}</span><b>${v}</b></div>`;
+}
+
+function renderShoulderResultMovementCard(m) {
+  const diff = m.bilateralDifferenceDeg != null ? m.bilateralDifferenceDeg + "°" : "—";
+  return `
+    <div class="card functional-assessment-result-movement">
+      <b>${m.label}</b>
+      <div class="functional-assessment-result-sides">
+        ${shoulderResultSideRow("左側", m.left)}
+        ${shoulderResultSideRow("右側", m.right)}
+      </div>
+      <div class="small">左右差異：${diff}</div>
+      ${m.dataQuality !== "usable" ? `<div class="small functional-assessment-result-quality">此動作部分量測資料${m.dataQuality === "insufficient" ? "不足" : "有限"}。</div>` : ""}
+    </div>
+  `;
+}
+
+/**
+ * Phase 7.5 — the real patient-facing Result Page. Renders ONLY the
+ * normalized report from js/data/shoulderAssessmentFindings.js — no
+ * interpretation logic here. Never shows P-SH-* / A0x ids.
+ */
+function functionalAssessmentShoulderResultPage() {
+  const session = functionalAssessmentService.getById(state.shoulderResultSessionId);
+  if (!session) {
+    return `
+      <div class="header"><button class="btn btn-light" onclick="switchTab('home')">返回</button><b>AI 動態功能評估報告</b><span></span></div>
+      <p class="small" style="margin:16px 2px;">找不到這份評估結果，可能尚未完成或已被清除。</p>
+      <button class="btn btn-primary full" onclick="switchTab('home')">返回首頁</button>
+    `;
+  }
+  const movementResults = Array.isArray(session.movementResults) ? session.movementResults : [];
+  const report = buildShoulderAssessmentFindings({ problemId: session.problemId, movementResults });
+  const dateStr = (session.completedAt || session.startedAt || "").slice(0, 10);
+  const completedLabels = report.movements.filter((m) => m.bothSidesCompleted).map((m) => m.label);
+  const problemLine = report.problemTitle || "肩部功能評估";
+  const movementsHtml = report.movements.length
+    ? report.movements.map(renderShoulderResultMovementCard).join("")
+    : `<div class="card"><div class="small">本次沒有可顯示的動作量測結果。</div></div>`;
+  const findingsHtml = report.findings.length
+    ? report.findings
+        .map(
+          (f) =>
+            `<div class="functional-assessment-result-finding small"><img class="functional-assessment-result-finding-icon" src="/images/gamification/checkmark_01.png" alt="" /><span>${f.text}</span></div>`
+        )
+        .join("")
+    : `<div class="functional-assessment-result-finding small">本次沒有可歸納的功能觀察。</div>`;
+
+  return `
+    <div class="header">
+      <button class="btn btn-light" onclick="switchTab('home')">返回</button>
+      <b>AI 動態功能評估報告</b>
+      <span></span>
+    </div>
+    <div class="small functional-assessment-result-subtitle">肩部功能評估</div>
+
+    <div class="card functional-assessment-result-summary">
+      <b class="detail-section-label">評估摘要</b>
+      <div class="small">主要困擾：${problemLine}</div>
+      <div class="small">評估日期：${dateStr || "—"}</div>
+      <div class="small">已完成動作：${completedLabels.length ? completedLabels.join("、") : "—"}</div>
+    </div>
+
+    <b class="detail-section-label" style="margin:22px 2px 16px;">動作量測結果</b>
+    ${movementsHtml}
+
+    <div class="card functional-assessment-result-findings">
+      <b class="detail-section-label">本次功能觀察</b>
+      ${findingsHtml}
+    </div>
+
+    <div class="card functional-assessment-result-note">
+      <b class="detail-section-label">說明</b>
+      <p class="small">${report.disclaimer}</p>
+    </div>
+
+    <button class="btn btn-primary full" style="margin-top:22px;" onclick="startRecommendationFromAssessment('${session.id}')">取得個人化復健建議</button>
+    <p class="small" style="margin:8px 2px 0; text-align:center; color:var(--text-secondary);">依本次評估部位與你的訓練需求，安排適合的練習。</p>
+    <button class="btn btn-light full" style="margin-top:10px;" onclick="switchTab('home')">返回首頁</button>
   `;
 }
 
@@ -6157,16 +7558,50 @@ function renderRecommendationSessionItem(item, index, { completed, isNextPending
  * engine reads no history/analysisRecord data at all, so no "最近訓練狀況"
  * row is added (would misrepresent what actually drove the recommendation).
  */
-function renderRecommendationBasisCard(active, abilityLabel) {
+/** The protocol movement titles this assessment-sourced plan came from —
+ *  from the persisted `assessmentMovementIds`, else the persisted problem's
+ *  protocol. Titles only; never ROM / findings. */
+function assessmentContextMovementLabels(active) {
+  let ids = Array.isArray(active.assessmentMovementIds) ? active.assessmentMovementIds : null;
+  if (!ids && active.problemId) {
+    const problem = getShoulderProblem(active.problemId);
+    ids = problem ? problem.protocolMovementIds : null;
+  }
+  if (!ids) return [];
+  return ids
+    .map((id) => {
+      const m = getShoulderAssessmentMovement(id);
+      return m && m.implemented !== false ? m.label : null;
+    })
+    .filter(Boolean);
+}
+
+function renderRecommendationBasisCard(active, abilityLabel, recSource = "direct") {
   const rows = [];
+  const fromAssessment = recSource === "assessment";
   if (active.bodyParts && active.bodyParts.length) {
-    rows.push({ icon: CATEGORY_ICON_MAP[active.bodyParts[0]] || null, text: active.bodyParts.join("＋") });
+    // Phase 7.6 — an assessment-sourced plan names the ASSESSED region;
+    // still just the questionnaire body-region input, never a finding.
+    const bpText = fromAssessment ? `評估部位：肩部` : `訓練部位：${active.bodyParts.join("＋")}`;
+    rows.push({ icon: CATEGORY_ICON_MAP[active.bodyParts[0]] || null, text: bpText });
+  }
+  if (fromAssessment) {
+    // Only the movements this assessment's protocol actually contained
+    // (P-SH-01 → 前舉; P-SH-02 → 外展; P-SH-03 → 前舉、外展). No 受限 /
+    // 異常 / severity / "recommended because ROM = X°".
+    const moveLabels = assessmentContextMovementLabels(active);
+    if (moveLabels.length) {
+      rows.push({ icon: "/images/Medical/body_health/ai_dynamic_assessment_icon.png", text: `本次評估：${moveLabels.join(" / ")}` });
+    }
   }
   if (active.goals && active.goals.length) {
-    rows.push({ icon: GOAL_ICON_MAP[active.goals[0]] || null, text: `提升${active.goals.join("、")}` });
+    rows.push({ icon: GOAL_ICON_MAP[active.goals[0]] || null, text: `訓練目標：${active.goals.join("、")}` });
   }
   if (abilityLabel) {
     rows.push({ icon: "/images/gamification/star_gold.png", text: `目前程度：${abilityLabel}` });
+  }
+  if (active.preferredSessionMinutes) {
+    rows.push({ icon: "/images/stat_time.png", text: `可訓練時間：${active.preferredSessionMinutes} 分鐘` });
   }
   if (!rows.length) return "";
   return `<div class="card recommendation-basis-card">
@@ -6253,6 +7688,16 @@ function todaysRecommendationPage() {
   const summary = summarizeRecommendationItems(items);
   const abilityLabel = ABILITY_LEVEL_OPTIONS.find((o) => o.value === active.abilityLevel)?.label || null;
 
+  // Phase 7.6 — recommendation SOURCE: persisted on the assessment record
+  // ("assessment" | "direct"), with the in-flight value as a fallback.
+  // V1: source only changes the FRAMING copy — it must NOT reference ROM /
+  // findings / 受限程度 (those never enter ranking yet).
+  const recSource = (active && active.source) || state.recommendationEntrySource || "direct";
+  const heroSupportCopy =
+    recSource === "assessment"
+      ? "根據本次功能評估與你的訓練需求，為你安排今日練習。"
+      : "根據你設定的訓練需求，為你安排今日練習。";
+
   // ---- Hero (report section 8/9): headline + robot share one row, tags
   // below, at most one low-opacity decorative sparkle. ----
   const headlineText = buildRecommendationHeadlineText(active, summary.itemCount);
@@ -6267,6 +7712,7 @@ function todaysRecommendationPage() {
       <div>
         <span class="ai-tag-badge">AI 個人化建議</span>
         <h2 class="recommendation-hero-headline">${headlineText}</h2>
+        <div class="small">${heroSupportCopy}</div>
         ${countMinutesSummary ? `<div class="small">${countMinutesSummary}</div>` : ""}
       </div>
       <img class="recommendation-hero-robot" src="${heroRobotSrc}" alt="" />
@@ -6275,7 +7721,7 @@ function todaysRecommendationPage() {
   </div>`;
 
   // ---- Recommendation Basis (report section 10) ----
-  const basisHtml = renderRecommendationBasisCard(active, abilityLabel);
+  const basisHtml = renderRecommendationBasisCard(active, abilityLabel, recSource);
 
   const completedCount = enrichedItems.filter((it) => it.completed).length;
   const firstPendingIndex = enrichedItems.findIndex((it) => !it.completed);
@@ -6316,7 +7762,10 @@ function todaysRecommendationPage() {
     }
 
     bodyHtml = `
-      <h3 class="section-title">今天要做什麼</h3>
+      <div class="row" style="justify-content:space-between; align-items:baseline; margin-top:4px;">
+        <h3 class="section-title" style="margin:0;">今天要做什麼</h3>
+        <span class="small">已完成 ${completedCount} / ${enrichedItems.length}</span>
+      </div>
       ${limitedNoticeHtml}
       ${routeHtml}
       ${listHtml}
@@ -6622,17 +8071,28 @@ function renderRewardFeedbackPanel(feedback) {
   // records) just show the single total, same as before.
   const b = feedback.xpBreakdown;
   const breakdownHtml = b && !feedback.xpIsLegacyFlatRate ? renderXpBreakdownGrid(b) : "";
+  // ReMotion 7.7 — the completed-training result must not dead-end: always
+  // offer a way back to Today's Training (recommendation origin) and into
+  // the persisted 訓練紀錄. navigationOrigin is valid here (this panel only
+  // renders inside exerciseDetailPage()).
+  const backToRecommendationHtml =
+    state.navigationOrigin === "recommendation"
+      ? `<button class="btn btn-primary full" style="margin-top:10px;" onclick="goTodaysRecommendation()">返回今日練習</button>`
+      : "";
+  const viewRecordsHtml = `<button class="btn btn-light full" style="margin-top:${backToRecommendationHtml ? "8px" : "10px"};" onclick="goActionRecords()">查看訓練紀錄</button>`;
   // Phase 5.4.3 anti-exploit (report section 12/16/26 TEST P) — a 0-rep
   // session earns 0 XP; the panel must not visually claim a reward for it.
   if (feedback.xpGained === 0 && !feedback.xpIsLegacyFlatRate) {
     return `<div class="card reward-feedback-panel">
       <div class="reward-feedback-row">${renderRobot("idle", "sm")}<div><b>本次沒有偵測到有效的動作</b><div class="small">因此這次沒有獲得 XP，再試一次吧！</div></div></div>
+      ${backToRecommendationHtml}${viewRecordsHtml}
     </div>`;
   }
   return `<div class="card reward-feedback-panel">
     <div class="reward-feedback-row">${renderRobot(robotState, "sm")}<div><b>✓ 完成一項練習</b><div class="small reward-xp-line"><img class="reward-xp-icon" src="/images/gamification/xp_coin.png" alt="" />本次獲得 +${feedback.xpGained} XP</div></div></div>
     ${breakdownHtml}
     ${milestoneHtml}
+    ${backToRecommendationHtml}${viewRecordsHtml}
   </div>`;
 }
 
@@ -8434,7 +9894,140 @@ function goSquatResultFromCamera() {
 // 6.5 by renderScheduleTaskCards()'s own inline LEFT/CENTER/RIGHT image row
 // (report section 5) — removed since nothing else called it.
 function rewardPage() {return `<div class="reward-screen"><div class="reward-stars">✨⭐✨</div><h1>任務完成！</h1><p>手臂伸展訓練已同步到復健紀錄</p><div class="reward-card"><div class="reward-xp">+50 XP</div><div class="small">Lv.12 復健達人｜XP 3900 / 4200</div><div class="xp-track wide"><span style="width:94%"></span></div></div><div class="badge-unlock">🏅 解鎖：連續訓練 28 天</div><button class="btn btn-primary full" onclick="goActionRecords()">查看動作紀錄</button><button class="btn btn-light full" onclick="goSchedule()">返回今日課表</button></div>`;}
-function rehabMapPage() {return `<div class="header"><button class="btn btn-light" onclick="switchTab('profile')">返回</button><b>復健冒險地圖</b><img class="icon" src="/images/profile_selected.png" alt="地圖" /></div><div class="map-card"><div class="map-path"><div class="map-node done">1</div><div class="map-line done"></div><div class="map-node done">2</div><div class="map-line done"></div><div class="map-node active">3</div><div class="map-line"></div><div class="map-node">4</div></div><h2>第三關：膝蓋穩定挑戰</h2><p class="small">完成 3 次 AI 分析且平均分數達 85，即可解鎖下一關。</p></div><div class="stats"><div class="stat"><span class="small">目前星星</span><b>36</b></div><div class="stat"><span class="small">連續天數</span><b>28</b></div><div class="stat"><span class="small">本關進度</span><b>2/3</b></div></div><div class="card analysis-card"><div>🎁 下一關獎勵：+120 XP</div><div>🌟 徽章：膝蓋穩定王</div><div>🤖 AI建議：本週再完成一次深蹲分析</div></div>`;}
+/**
+ * The compact Level / XP / Streak summary — ONE component, used both on
+ * Home (as the tap target into the Adventure Map) and at the top of the
+ * Adventure Map itself, so both always show the SAME values straight from
+ * gamificationEngine.getGamificationSummary(). `onclick` is optional: Home
+ * passes "goMap()", the Map page passes nothing (already there).
+ */
+function renderLevelXpSummaryCard(gamification, onclick) {
+  const xpToNextLevel = gamification.nextLevelXp - gamification.currentLevelXp;
+  const streakHtml = gamification.streak > 0
+    ? `<img class="level-xp-aux-icon" src="/images/gamification/streak_fire.png" alt="" /><b>${gamification.streak} 天</b>`
+    : `<img class="level-xp-aux-icon" src="/images/gamification/streak_fire.png" alt="" style="opacity:.35" /><b class="muted-value">—</b>`;
+  const cls = onclick ? "level-xp-card clickable" : "level-xp-card";
+  const clickAttr = onclick ? ` onclick="${onclick}"` : "";
+  const ctaHtml = onclick ? `<span class="level-xp-cta"> · 冒險地圖 ›</span>` : "";
+  return `<div class="${cls}"${clickAttr}>
+    <div class="level-xp-badge"><span class="level-xp-badge-num">${gamification.level}</span><span class="level-xp-badge-label">Lv.</span></div>
+    <div class="level-xp-main">
+      <div class="level-xp-title-row"><b>${gamification.title}</b><span class="small level-xp-amount"><img class="xp-icon-inline" src="/images/gamification/xp_coin.png" alt="" />${gamification.currentLevelXp} / ${gamification.nextLevelXp} XP</span></div>
+      <div class="xp-track gamified"><span style="width:${gamification.xpPercent}%"></span><img class="xp-track-marker" src="/images/gamification/star_gold.png" alt="" style="left:${gamification.xpPercent}%" /></div>
+      <div class="level-xp-next-hint">再獲得 ${xpToNextLevel} XP 升級 Lv.${gamification.level + 1}${ctaHtml}</div>
+    </div>
+    <div class="level-xp-aux">
+      <div class="level-xp-aux-row">${streakHtml}</div>
+      <span class="level-xp-aux-label">連續復健</span>
+    </div>
+  </div>`;
+}
+
+function rehabMapPage() {
+  // Gamification IA + data-driven adventure. Level/XP/Streak header, the
+  // stage window, the current-challenge card and the next-reward card all
+  // read the SAME single source of truth Home uses (gamificationEngine),
+  // via js/data/rehabAdventureStages.js — every stage IS an existing
+  // achievement (its unlock boolean + { current, target } progress). No new
+  // threshold, no per-stage XP economy, no hardcoded knee challenge.
+  const gamification = gamificationEngine.getGamificationSummary(getCurrentPatientId());
+  const adventure = resolveRehabAdventure(gamification);
+
+  // The scene always shows a WINDOW of 4 stages around the current one, at
+  // 4 fixed % checkpoint slots (the SVG trail connects the same 4 slots).
+  const SLOTS = [
+    { x: 13, y: 20 },
+    { x: 63, y: 30 },
+    { x: 30, y: 58 },
+    { x: 78, y: 82 },
+  ];
+  const stateClass = { completed: "done", current: "current", locked: "locked" };
+  const mark = { completed: "✓", current: "", locked: "🔒" };
+  const stagesHtml = adventure.visibleStages
+    .map((s, i) => {
+      const slot = SLOTS[i] || SLOTS[SLOTS.length - 1];
+      const isCurrent = s.state === "current";
+      return `
+      <div class="rehab-adventure-stage s${i + 1} ${stateClass[s.state]}" style="left:${slot.x}%; top:${slot.y}%;">
+        ${isCurrent ? `<img class="rehab-adventure-avatar" src="/images/robot/robot_happy.png" alt="" />` : ""}
+        <span class="rehab-adventure-node">${mark[s.state]}</span>
+        <span class="rehab-adventure-stage-label">第${s.n}關${isCurrent ? `<span class="rehab-adventure-stage-chip">進行中</span>` : ""}</span>
+      </div>`;
+    })
+    .join("");
+
+  const cur = adventure.currentStage;
+  const p = cur.progress;
+  const progressPct = p && p.target > 0 ? Math.max(0, Math.min(100, Math.round((p.current / p.target) * 100))) : 0;
+
+  const challengeHtml = adventure.allCompleted
+    ? `<div class="card rehab-challenge-card">
+        <div class="rehab-eyebrow">冒險進度</div>
+        <b class="rehab-challenge-title">全部關卡已完成</b>
+        <p class="small rehab-challenge-req">你已完成目前所有復健冒險關卡，繼續保持！</p>
+      </div>`
+    : `<div class="card rehab-challenge-card">
+        <div class="rehab-eyebrow">目前挑戰</div>
+        <b class="rehab-challenge-title">第 ${cur.n} 關｜${cur.title}</b>
+        <p class="small rehab-challenge-req">${cur.requirement}</p>
+        ${p
+          ? `<div class="rehab-progress">
+              <div class="rehab-progress-bar"><span style="width:${progressPct}%"></span></div>
+              <span class="small">本關進度 ${p.current} / ${p.target}${p.unit || ""}</span>
+            </div>`
+          : ""}
+      </div>`;
+
+  // Next reward = the real achievement badge for the current stage. No fake
+  // "+XP" and no fabricated "膝蓋穩定王" — only what the achievement defines.
+  const rewardHtml = adventure.allCompleted || !cur.rewardBadge
+    ? ""
+    : `<div class="card rehab-reward-card">
+        <div class="rehab-eyebrow">解鎖本關可獲得</div>
+        <div class="rehab-reward-row">
+          <img class="rehab-reward-icon" src="${cur.rewardBadge.icon}" alt="" />
+          <div><b>${cur.rewardBadge.label}</b><span class="small">解鎖成就徽章</span></div>
+        </div>
+      </div>`;
+
+  return `
+    <div class="rehab-adventure-page">
+      <div class="header rehab-adventure-header">
+        <button class="btn btn-light" onclick="switchTab('home')">返回</button>
+        <b>復健冒險地圖</b>
+        <img class="icon" src="/images/profile_selected.png" alt="地圖" />
+      </div>
+
+      ${renderLevelXpSummaryCard(gamification)}
+
+      <div class="rehab-adventure-chapter">
+        <div class="rehab-adventure-chapter-head">
+          <div class="rehab-eyebrow">復健冒險章節</div>
+          <span class="small rehab-adventure-progress-indicator">冒險進度 ${adventure.currentStageNumber} / ${adventure.totalStages}</span>
+        </div>
+        <div class="card rehab-adventure-map-scene">
+          <div class="rehab-adventure-hills"></div>
+          <svg class="rehab-adventure-route" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M 13 20 Q 62 6 63 30 T 30 58 T 78 82" />
+          </svg>
+          ${stagesHtml}
+        </div>
+      </div>
+
+      ${challengeHtml}
+      ${rewardHtml}
+
+      <div class="card clickable rehab-achievement-entry" onclick="goAchievements()">
+        <img class="rehab-achievement-entry-icon" src="/images/gamification/achievement_medal.png" alt="" />
+        <div class="rehab-achievement-entry-text">
+          <b>成就徽章</b>
+          <span class="small">已解鎖 ${gamification.unlockedCount} / ${gamification.totalAchievements}</span>
+        </div>
+        <span class="more-link">查看 ›</span>
+      </div>
+    </div>
+  `;
+}
 // deprecated demo page — still uses hardcoded fake patient names (黃小謙/陳小莉/林阿姨),
 // not wired to relationService. No current UI links to it; keep it unreachable rather
 // than restoring an entry point until it's rebuilt on real per-patient data.
@@ -8515,22 +10108,10 @@ patientHome = function() {
   // achievement count itself isn't gone from the app, just no longer
   // repeated here. Streak now gets the aux column to itself, with a
   // label under it so "2 天" reads clearly rather than being squeezed.
-  const xpToNextLevel = gamification.nextLevelXp - gamification.currentLevelXp;
-  const streakHtml = gamification.streak > 0
-    ? `<img class="level-xp-aux-icon" src="/images/gamification/streak_fire.png" alt="" /><b>${gamification.streak} 天</b>`
-    : `<img class="level-xp-aux-icon" src="/images/gamification/streak_fire.png" alt="" style="opacity:.35" /><b class="muted-value">—</b>`;
-  const levelXpCardHtml = `<div class="level-xp-card">
-    <div class="level-xp-badge"><span class="level-xp-badge-num">${gamification.level}</span><span class="level-xp-badge-label">Lv.</span></div>
-    <div class="level-xp-main">
-      <div class="level-xp-title-row"><b>${gamification.title}</b><span class="small level-xp-amount"><img class="xp-icon-inline" src="/images/gamification/xp_coin.png" alt="" />${gamification.currentLevelXp} / ${gamification.nextLevelXp} XP</span></div>
-      <div class="xp-track gamified"><span style="width:${gamification.xpPercent}%"></span><img class="xp-track-marker" src="/images/gamification/star_gold.png" alt="" style="left:${gamification.xpPercent}%" /></div>
-      <div class="level-xp-next-hint">再獲得 ${xpToNextLevel} XP 升級 Lv.${gamification.level + 1}</div>
-    </div>
-    <div class="level-xp-aux">
-      <div class="level-xp-aux-row">${streakHtml}</div>
-      <span class="level-xp-aux-label">連續復健</span>
-    </div>
-  </div>`;
+  // Gamification IA — this same card is the primary entry into the Rehab
+  // Adventure Map (the patient-facing Gamification Hub). Tapping anywhere on
+  // it routes via the existing goMap()/`map` route.
+  const levelXpCardHtml = renderLevelXpSummaryCard(gamification, "goMap()");
 
   // Recommendation data is computed here (once) because both the 今日復健
   // empty-state (which offers to route into it) and the AI 建議 card below
@@ -8621,29 +10202,36 @@ patientHome = function() {
   // "completed" status yet, and no Result route exists yet either — so
   // this is never rendered as fake-clickable, per this phase's explicit
   // "do not build a fake result page" rule.
-  const hasCompletedFunctionalAssessment = functionalAssessmentService
-    .getByPatientId(patientId)
-    .some((s) => s.status === "completed");
-  const functionalAssessmentResultSub = hasCompletedFunctionalAssessment ? "查看功能評估結果" : "完成首次評估後查看";
+  // Phase 7.5 — persistence-backed (survives reload): a genuinely completed
+  // Functional Assessment session unlocks the "評估結果" action.
+  const hasCompletedFunctionalAssessment = functionalAssessmentService.hasCompletedByPatientId(patientId);
+  const functionalAssessmentResultSub = hasCompletedFunctionalAssessment ? "查看最近一次評估結果" : "完成首次評估後查看";
+  const functionalAssessmentResultActionHtml = hasCompletedFunctionalAssessment
+    ? `<div class="functional-assessment-action secondary clickable" onclick="goLatestFunctionalAssessmentResult()">
+        <img class="functional-assessment-action-icon" src="/images/Medical/body_health/medical_recovery_progress.png" alt="" />
+        <b class="functional-assessment-action-title">評估結果</b>
+        <div class="small functional-assessment-action-sub">${functionalAssessmentResultSub}</div>
+      </div>`
+    : `<div class="functional-assessment-action secondary locked" aria-disabled="true">
+        <img class="functional-assessment-action-icon" src="/images/Medical/body_health/medical_recovery_progress.png" alt="" />
+        <b class="functional-assessment-action-title">評估結果</b>
+        <div class="small functional-assessment-action-sub">${functionalAssessmentResultSub}</div>
+      </div>`;
   const functionalAssessmentSectionHtml = `<div class="card functional-assessment-feature-card">
     <div class="functional-assessment-feature-header">
       <div class="functional-assessment-feature-text">
-        <b class="functional-assessment-feature-title">AI 動態功能評估</b>
-        <div class="small">先了解目前的活動表現，再提供更適合你的復健建議</div>
+        <b class="functional-assessment-feature-title">開始自主復健</b>
+        <div class="small">依目前身體狀況與訓練需求，安排適合你的復健內容。</div>
       </div>
       <img class="functional-assessment-feature-hero-img" src="/images/Medical/body_health/ai_dynamic_assessment_hero.png" alt="" />
     </div>
     <div class="functional-assessment-actions">
-      <div class="functional-assessment-action primary clickable" onclick="goFunctionalAssessmentBodyRegion()">
+      <div class="functional-assessment-action primary clickable" onclick="goSelfRehabEntry()">
         <img class="functional-assessment-action-icon" src="/images/Medical/body_health/ai_dynamic_assessment_icon.png" alt="" />
-        <b class="functional-assessment-action-title">動態功能檢測</b>
-        <div class="small functional-assessment-action-sub">開始進行動作檢測</div>
+        <b class="functional-assessment-action-title">開始自主復健</b>
+        <div class="small functional-assessment-action-sub">評估功能表現或直接安排訓練</div>
       </div>
-      <div class="functional-assessment-action secondary locked" aria-disabled="true">
-        <img class="functional-assessment-action-icon" src="/images/Medical/body_health/medical_recovery_progress.png" alt="" />
-        <b class="functional-assessment-action-title">評估結果</b>
-        <div class="small functional-assessment-action-sub">${functionalAssessmentResultSub}</div>
-      </div>
+      ${functionalAssessmentResultActionHtml}
     </div>
   </div>`;
 
@@ -8757,7 +10345,15 @@ trainPage = function() {
     : "今日課表由復健師派發，完成後將同步數據。";
   return `<div class="header"><div><h1 class="page-title">訓練</h1><div class="small">${subtitle}</div></div><img class="icon" src="/images/calendar.png" alt="課表" /></div><div class="card demo-flow-card clickable" onclick="goSchedule()"><b>我的課表 / 日程表</b><div class="small">查看今日任務、執行時間與完成狀態。</div></div>${renderScheduleTaskCards(schedule)}<div class="card clickable" style="margin-top:12px;" onclick="goSelfPracticeLibrary()"><b>自主練習</b><div class="small">不需要復健師，自行瀏覽並練習復健動作。</div></div><div class="row" style="margin-top:12px;"><button class="btn btn-light" style="flex:1" onclick="goActionRecords()">動作紀錄</button><button class="btn btn-light" style="flex:1" onclick="goMap()">冒險地圖</button></div>`;
 };
-therapistHome = function() {
+// DEPRECATED — Therapist Home V1. Superseded by the V2 `function
+// therapistHome()` above (identity → 今日待處理 → 個案列表/今日待辦 toggle →
+// compact case rows → ＋安排復健計畫). Kept per repo "don't delete, mark
+// deprecated" convention, but renamed so it can NO LONGER override the
+// active V2 renderer (it was previously assigned as `therapistHome =
+// function() {…}`, which won at runtime and derived the tracked-case count
+// from userService.getById() only — dropping showcase cases and showing
+// "帳號：undefined"). Nothing calls this now.
+function therapistHomeLegacyV1() {
   const isDev = state.user.isDeveloperAccount === true;
   const relations = relationService.findAcceptedByTherapistId(state.user.id);
   const patients = relations.map((r) => userService.getById(r.patientId)).filter(Boolean);
@@ -8774,7 +10370,7 @@ therapistHome = function() {
     : `<div class="card dashboard-card clickable" onclick="goCaseList()"><b>個案管理</b><div class="small">查看或複製您的邀請碼，管理已加入的個案。</div></div>`;
 
   return `<div class="header"><h1 class="page-title">ReMotion</h1><img class="icon" src="/images/notice.png" alt="通知" /></div><div class="user-row"><div class="avatar">${state.user.name[0]}</div><div>${nameTagHtml}</div></div><div class="stats"><div class="stat"><span class="small">追蹤個案</span><b>${patients.length}</b></div><div class="stat"><span class="small">邀請碼</span><b style="font-size:14px;">${state.user.inviteCode || ""}</b></div></div>${dashboardCardHtml}<h3 class="section-title">我的個案</h3><div class="coach-list">${caseListHtml}</div><button class="btn btn-primary full" onclick="goCaseList()">查看個案管理 →</button>`;
-};
+}
 assignPlanPage = function() {
   if (!state.assignDraft) {
     const patient = userService.getById(state.selectedPatientId);
@@ -8958,23 +10554,124 @@ function submitAssignPlan() {
   alert(isUpdate ? "課表已成功更新。" : "課表已成功派發。");
   goCaseDetail(draft.patientId);
 }
+const ACHIEVEMENT_CATEGORY_LABEL = {
+  start: "起步", consistency: "持續", milestone: "累積", quality: "品質",
+  daily: "今日", exploration: "探索", growth: "成長",
+};
+
+/**
+ * Structured progress bar for a locked achievement — reads ONLY the
+ * engine's `progress: { current, target, unit }` metadata (7.9). The old
+ * desc/remainingHint string parser is retired. Nothing is rendered for a
+ * binary achievement (progress null, or target <= 1).
+ */
+function achievementProgressHtml(a) {
+  const p = a && a.progress;
+  if (a.unlocked || !p || !(p.target > 1)) return "";
+  const pct = Math.max(0, Math.min(100, Math.round((p.current / p.target) * 100)));
+  return `<div class="achievement-mini-progress"><span style="width:${pct}%"></span></div><span class="small">${p.current} / ${p.target}${p.unit || ""}</span>`;
+}
+
 patientAchievementsPage = function() {
-  // Phase 4: real, deterministic level/XP/achievement data — replaces the
-  // old hardcoded demo numbers (Lv.12, XP 3850, six fake badges) so this
-  // page can never disagree with Patient Home / Profile.
+  // Real, deterministic level/XP/achievement data — this page can never
+  // disagree with Home / Profile (they call getGamificationSummary too).
   const gamification = gamificationEngine.getGamificationSummary(state.user.id);
-  const badgeGridHtml = gamification.achievements
-    .map((a) =>
-      a.unlocked
-        ? badge(`<img class="badge-icon-img" src="${a.icon}" alt="" />`, a.title, a.desc)
-        : `<div class="badge-card locked"><div class="badge-icon"><span class="achievement-badge-lock">?</span></div><b>${a.title}</b><span>${a.desc}</span></div>`
+  const { level, title, currentLevelXp, nextLevelXp, xpPercent } = gamification;
+
+  // ── DEV-ONLY visual preview (?achievementPreview=1). A LOCAL,
+  // non-persistent remap so both badge states + a non-zero hero count can
+  // be reviewed without running dozens of sessions. Makes ZERO writes (no
+  // service calls at all), mutates nothing (fresh objects via spread), and
+  // never touches Home/Profile — those compute their own summary. Vanishes
+  // the moment the query param is gone. ──
+  const previewMode = new URLSearchParams(window.location.search).get("achievementPreview") === "1";
+  const achievements = previewMode
+    ? gamification.achievements.map((a, i) => ({ ...a, unlocked: i < 4 }))
+    : gamification.achievements;
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  const totalAchievements = achievements.length;
+
+  const medallionHtml = (a) => `
+    <div class="achievement-medallion ${a.unlocked ? "unlocked" : "locked"}">
+      <img src="${a.icon}" alt="" />
+      ${a.unlocked
+        ? `<img class="achievement-medallion-check" src="/images/gamification/checkmark_01.png" alt="" />`
+        : `<span class="achievement-medallion-lock">🔒</span>`}
+    </div>`;
+
+  const collectionHtml = achievements
+    .map(
+      (a) => `
+      <div class="achievement-collectible ${a.unlocked ? "unlocked" : "locked"}">
+        ${medallionHtml(a)}
+        <span class="achievement-cat-label">${ACHIEVEMENT_CATEGORY_LABEL[a.category] || ""}</span>
+        <b>${a.title}</b>
+        <span class="small">${a.desc}</span>
+        ${a.unlocked ? `<span class="achievement-state-label">✓ 已解鎖</span>` : ""}
+      </div>`
     )
     .join("");
-  const nextLocked = gamification.achievements.find((a) => !a.unlocked);
-  const nextGoalHtml = nextLocked
-    ? `<h3 class="section-title">下一個目標</h3><div class="card"><b>${nextLocked.title}</b><div class="small">${nextLocked.desc}</div></div>`
-    : `<h3 class="section-title">下一個目標</h3><div class="card muted center">目前的成就已經全部解鎖了！</div>`;
-  return `<div class="header"><button class="btn btn-light" onclick="switchTab('profile')">返回</button><b>成就徽章</b></div><div class="score-hero"><div class="score-ring"><span>${gamification.level}</span><small>Lv.</small></div><div><h2>${gamification.title}</h2><p class="small">XP ${gamification.currentLevelXp} / ${gamification.nextLevelXp}</p><div class="xp-track wide"><span style="width:${gamification.xpPercent}%"></span></div></div></div><h3 class="section-title">已解鎖徽章（${gamification.unlockedCount} / ${gamification.totalAchievements}）</h3><div class="badge-grid">${badgeGridHtml}</div>${nextGoalHtml}`;
+
+  const nextLocked = achievements.find((a) => !a.unlocked);
+  let nextGoalHtml;
+  if (nextLocked) {
+    const bar = achievementProgressHtml(nextLocked);
+    // Legacy string hint kept ONLY for the original five (they still carry
+    // remainingHint); never shown when a structured bar is available.
+    const legacyHint = !bar && nextLocked.remainingHint
+      ? `<span class="achievement-hint-chip">${nextLocked.remainingHint}</span>`
+      : "";
+    nextGoalHtml = `
+      <div class="card achievement-next-goal-card">
+        <div class="achievement-next-goal-label">下一個目標</div>
+        <div class="achievement-next-goal-body">
+          ${medallionHtml(nextLocked)}
+          <div class="achievement-next-goal-text">
+            <b>${nextLocked.title}</b>
+            <span class="small">${nextLocked.desc}</span>
+            ${bar}
+            ${legacyHint}
+          </div>
+        </div>
+      </div>`;
+  } else {
+    nextGoalHtml = `
+      <div class="card achievement-next-goal-card done">
+        <div class="achievement-next-goal-label">下一個目標</div>
+        <div class="small">目前的成就已經全部解鎖了！</div>
+      </div>`;
+  }
+
+  return `
+    <div class="achievement-page">
+      <div class="header achievement-page-header">
+        <button class="btn btn-light" onclick="goMap()">返回</button>
+        <b>成就徽章</b>
+        <span></span>
+      </div>
+      ${previewMode ? `<div class="achievement-dev-note">DEV 預覽模式：徽章狀態僅供介面檢視，不影響任何真實紀錄。</div>` : ""}
+
+      <div class="card achievement-hero">
+        <div class="achievement-hero-top">
+          <div class="achievement-hero-lv">Lv.${level}</div>
+          <div class="achievement-hero-meta">
+            <b>${title}${previewMode ? `<span class="achievement-dev-badge">DEV 預覽</span>` : ""}</b>
+            <span class="small">XP ${currentLevelXp} / ${nextLevelXp}</span>
+            <div class="xp-track"><span style="width:${xpPercent}%"></span></div>
+          </div>
+        </div>
+        <div class="achievement-hero-count">已解鎖 <b>${unlockedCount}</b> / ${totalAchievements}</div>
+      </div>
+
+      ${nextGoalHtml}
+
+      <div class="achievement-collection-head">
+        <h3 class="section-title">徽章收藏</h3>
+        <span class="small">已解鎖 ${unlockedCount} / ${totalAchievements}</span>
+      </div>
+      <div class="achievement-grid">${collectionHtml}</div>
+    </div>
+  `;
 };
 /**
  * ReMotion Phase 5.6.1 — HP02 (站姿髖屈曲) Pose Analysis PROTOTYPE.
@@ -9646,7 +11343,7 @@ function setLe03(id,v){const e=document.getElementById(id);if(e)e.textContent=v;
 function handleLe03Frame(l,time){if(state.route!=="le03Detection"||!le03DetectionStability||!le03SessionTracker||le03TargetReached)return;drawLe03Skeleton(l);const{displayState,framing}=le03DetectionStability.update(l,time);updateLe03Ready(displayState,framing);setLe03("le03Readiness",framing?`${displayState}（${framing}）`:displayState);const m=computeBridgeMetrics(l,LE03_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,LE03_THRESHOLDS,LE03_REQUIRED_LANDMARKS),result=le03SessionTracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=result.summary;setLe03("le03HipAngle",m.averageHipAngle==null?"--":`${Math.round(m.averageHipAngle)}°`);setLe03("le03Asymmetry",m.hipAsymmetryDeg==null?"--":`${Math.round(m.hipAsymmetryDeg)}°`);setLe03("le03TotalReps",String(s.totalReps));setLe03("le03RepCounterValue",String(s.totalReps));setLe03("le03LiveScore",s.totalReps?String(calculateBridgeScore(s).score):"--");setLe03("le03MotionState",{down:"墊面",rising:"抬臀中",top:"頂點",lowering:"放下中"}[s.state]||s.state);updateLe03Ring(s.totalReps,s.targetReps);if(result.repCompleted){const c=document.getElementById("le03RepCounter");if(c){c.classList.toggle("complete",s.completed);c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse");}const issue=result.completedRep.issues[0];setLe03("le03Feedback",issue?LE03_QUALITY_ISSUE_LABELS[issue]:"很好，抬升與放下都很穩定");}else if(!ready)setLe03("le03Feedback","請讓肩膀、髖部與雙膝完整入鏡");else if(m.hipAsymmetryDeg>LE03_THRESHOLDS.HIP_ASYMMETRY_MAX_DEG)setLe03("le03Feedback","雙腳平均出力，保持骨盆水平");else setLe03("le03Feedback",s.state==="top"?"很好，慢慢控制骨盆放下":"收緊臀部並穩定抬起");if(s.completed){le03TargetReached=true;stopLe03Camera();const o=document.getElementById("le03StatusOverlay");if(o)o.textContent="訓練次數已完成！請儲存結果";const b=document.getElementById("le03FinishBtn");if(b)b.textContent="儲存並查看結果";}}
 function stopLe03Camera(){if(le03CameraController)le03CameraController.stop();le03CameraController=null;le03CanvasCtx=null;le03DetectionStability=null;}function persistLe03Session(){if(le03SessionFinalized||!le03SessionMeta||!le03SessionTracker)return false;const m=le03SessionMeta,s=le03SessionTracker.getSummary(),assigned=m.mode==="assigned";let schedule=null,ex=null;if(assigned){schedule=scheduleService.getById(m.scheduleId);ex=schedule?schedule.exercises[m.exerciseIndex]:null;if(!schedule||!ex){alert("找不到課表或動作資訊，本次結果未儲存。");return false;}if(ex.status==="completed")return false;}const{score,quality}=calculateBridgeScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:assigned?schedule.id:null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:LE03_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score,overallScore:score,quality,remark:buildBridgeRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}});if(assigned)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});gameService.addXp(m.patientId,m.rewardXp||DEFAULT_LE03_REWARD_XP);le03SessionFinalized=true;return true;}function finalizeLe03Training(){if(!le03SessionTracker||!le03SessionTracker.getSummary().totalReps){alert("尚未偵測到完整動作，請至少完成一次後再儲存。");return;}stopLe03Camera();const m=le03SessionMeta;if(persistLe03Session()){le03SessionTracker=null;le03SessionMeta=null;navigateAfterSquat(m);}}function exitLe03Detection(){stopLe03Camera();const m=le03SessionMeta;le03SessionTracker=null;le03SessionMeta=null;navigateAfterSquat(m);}
 
-render = function() {if (state.route === "splash") app.innerHTML = renderSplash(); if (state.route === "auth") app.innerHTML = renderAuth(); if (state.route === "dashboard") app.innerHTML = renderDashboard(); if (state.route === "squat") app.innerHTML = renderSquat(); if (state.route === "analysis") app.innerHTML = phone(analysisPage(), true); if (state.route === "history") app.innerHTML = phone(historyPage(), true); if (state.route === "heatmap") app.innerHTML = phone(heatmapPage(), true); if (state.route === "records") app.innerHTML = phone(actionRecordsPage(), true); if (state.route === "achievements") app.innerHTML = phone(patientAchievementsPage(), true); if (state.route === "caseList") app.innerHTML = phone(therapistCaseListPage(), true); if (state.route === "caseDetail") app.innerHTML = phone(therapistCaseDetailPage(), true); if (state.route === "assignPlan") app.innerHTML = phone(assignPlanPage(), true); if (state.route === "schedule") app.innerHTML = phone(todaySchedulePage(), true); if (state.route === "reward") app.innerHTML = phone(rewardPage(), true); if (state.route === "map") app.innerHTML = phone(rehabMapPage(), true); if (state.route === "scheduleTracking") app.innerHTML = phone(therapistScheduleTrackingPage(), true); if (state.route === "exerciseDetail") app.innerHTML = phone(exerciseDetailPage(), true); if (state.route === "detectionPrep") app.innerHTML = phone(detectionPrepPage(), true); if (state.route === "squatDetection") app.innerHTML = phone(squatDetectionPage(), true); if (state.route === "hp02Detection") app.innerHTML = phone(hp02DetectionPage(), true); if (state.route === "cr05Detection") app.innerHTML = phone(cr05DetectionPage(), true); if (state.route === "kn03Detection") app.innerHTML = phone(kn03DetectionPage(), true); if (state.route === "le05Detection") app.innerHTML = phone(le05DetectionPage(), true); if (state.route === "le03Detection") app.innerHTML = phone(le03DetectionPage(), true); if (state.route === "devAccounts") app.innerHTML = phone(devAccountsPage(), true); if (state.route === "patientAssessmentIntro") app.innerHTML = phone(patientAssessmentIntroPage(), true); if (state.route === "patientAssessmentForm") app.innerHTML = phone(patientAssessmentFormPage(), true); if (state.route === "patientAssessmentSummary") app.innerHTML = phone(patientAssessmentSummaryPage(), true); if (state.route === "assessmentSettings") app.innerHTML = phone(assessmentSettingsPage(), true); if (state.route === "selfPracticeLibrary") app.innerHTML = phone(selfPracticeLibraryPage(), true); if (state.route === "todaysRecommendation") app.innerHTML = phone(todaysRecommendationPage(), true); if (state.route === "functionalAssessmentBodyRegion") app.innerHTML = phone(functionalAssessmentBodyRegionPage(), true); if (state.route === "functionalAssessmentShoulderPrep") app.innerHTML = phone(functionalAssessmentShoulderPrepPage(), false); if (state.route === "functionalAssessmentShoulderIntro") app.innerHTML = phone(functionalAssessmentShoulderIntroPage(), false); if (state.route === "functionalAssessmentShoulderSession") app.innerHTML = phone(functionalAssessmentShoulderSessionPage(), false); if (state.route === "functionalAssessmentShoulderComplete") app.innerHTML = phone(functionalAssessmentShoulderCompletePage(), false); if (state.route === "trainingRecordDetail") app.innerHTML = phone(trainingRecordDetailPage(), true); attachImageFallbacks(app);};
+render = function() {if (state.route === "splash") app.innerHTML = renderSplash(); if (state.route === "auth") app.innerHTML = renderAuth(); if (state.route === "dashboard") app.innerHTML = renderDashboard(); if (state.route === "squat") app.innerHTML = renderSquat(); if (state.route === "analysis") app.innerHTML = phone(analysisPage(), true); if (state.route === "history") app.innerHTML = phone(historyPage(), true); if (state.route === "heatmap") app.innerHTML = phone(heatmapPage(), true); if (state.route === "records") app.innerHTML = phone(actionRecordsPage(), true); if (state.route === "achievements") app.innerHTML = phone(patientAchievementsPage(), true); if (state.route === "caseList") app.innerHTML = phone(therapistCaseListPage(), true); if (state.route === "caseDetail") app.innerHTML = phone(therapistCaseDetailPage(), true); if (state.route === "assignPlan") app.innerHTML = phone(assignPlanPage(), true); if (state.route === "schedule") app.innerHTML = phone(todaySchedulePage(), true); if (state.route === "reward") app.innerHTML = phone(rewardPage(), true); if (state.route === "map") app.innerHTML = phone(rehabMapPage(), true); if (state.route === "scheduleTracking") app.innerHTML = phone(therapistScheduleTrackingPage(), true); if (state.route === "exerciseDetail") app.innerHTML = phone(exerciseDetailPage(), true); if (state.route === "detectionPrep") app.innerHTML = phone(detectionPrepPage(), true); if (state.route === "squatDetection") app.innerHTML = phone(squatDetectionPage(), true); if (state.route === "hp02Detection") app.innerHTML = phone(hp02DetectionPage(), true); if (state.route === "cr05Detection") app.innerHTML = phone(cr05DetectionPage(), true); if (state.route === "kn03Detection") app.innerHTML = phone(kn03DetectionPage(), true); if (state.route === "le05Detection") app.innerHTML = phone(le05DetectionPage(), true); if (state.route === "le03Detection") app.innerHTML = phone(le03DetectionPage(), true); if (state.route === "devAccounts") app.innerHTML = phone(devAccountsPage(), true); if (state.route === "patientAssessmentIntro") app.innerHTML = phone(patientAssessmentIntroPage(), true); if (state.route === "selfRehabEntry") app.innerHTML = phone(selfRehabEntryPage(), true); if (state.route === "patientAssessmentForm") app.innerHTML = phone(patientAssessmentFormPage(), true); if (state.route === "patientAssessmentSummary") app.innerHTML = phone(patientAssessmentSummaryPage(), true); if (state.route === "assessmentSettings") app.innerHTML = phone(assessmentSettingsPage(), true); if (state.route === "selfPracticeLibrary") app.innerHTML = phone(selfPracticeLibraryPage(), true); if (state.route === "todaysRecommendation") app.innerHTML = phone(todaysRecommendationPage(), true); if (state.route === "functionalAssessmentBodyRegion") app.innerHTML = phone(functionalAssessmentBodyRegionPage(), true); if (state.route === "functionalAssessmentShoulderProblem") app.innerHTML = phone(functionalAssessmentShoulderProblemPage(), true); if (state.route === "functionalAssessmentShoulderPrep") app.innerHTML = phone(functionalAssessmentShoulderPrepPage(), false); if (state.route === "functionalAssessmentShoulderIntro") app.innerHTML = phone(functionalAssessmentShoulderIntroPage(), false); if (state.route === "functionalAssessmentShoulderSession") app.innerHTML = phone(functionalAssessmentShoulderSessionPage(), false); if (state.route === "functionalAssessmentShoulderComplete") app.innerHTML = phone(functionalAssessmentShoulderCompletePage(), false); if (state.route === "functionalAssessmentShoulderResult") app.innerHTML = phone(functionalAssessmentShoulderResultPage(), true); if (state.route === "trainingRecordDetail") app.innerHTML = phone(trainingRecordDetailPage(), true); attachImageFallbacks(app);};
 function goSchedule(){ state.scheduleViewDate = todayStr(); state.route = "schedule"; state.tab = "work"; render(); }
 function goReward(){ state.route = "reward"; state.tab = "work"; render(); }
 function goMap(){ state.route = "map"; state.tab = "profile"; render(); }
@@ -9838,6 +11535,14 @@ window.goRecommendationExerciseDetail = goRecommendationExerciseDetail;
 window.goTodaysRecommendation = goTodaysRecommendation;
 window.goFunctionalAssessmentBodyRegion = goFunctionalAssessmentBodyRegion;
 window.selectFunctionalAssessmentBodyRegion = selectFunctionalAssessmentBodyRegion;
+window.goSelfRehabEntry = goSelfRehabEntry;
+window.startSelfRehabAssessmentPath = startSelfRehabAssessmentPath;
+window.startSelfRehabDirectPath = startSelfRehabDirectPath;
+window.startRecommendationFromAssessment = startRecommendationFromAssessment;
+window.goFunctionalAssessmentShoulderProblem = goFunctionalAssessmentShoulderProblem;
+window.selectShoulderProblem = selectShoulderProblem;
+window.goFunctionalAssessmentShoulderResult = goFunctionalAssessmentShoulderResult;
+window.goLatestFunctionalAssessmentResult = goLatestFunctionalAssessmentResult;
 window.goFunctionalAssessmentShoulderPrep = goFunctionalAssessmentShoulderPrep;
 window.goFunctionalAssessmentShoulderIntro = goFunctionalAssessmentShoulderIntro;
 window.startFunctionalAssessmentShoulderSession = startFunctionalAssessmentShoulderSession;

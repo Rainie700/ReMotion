@@ -645,6 +645,47 @@ select {
 .badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .badge-row span { background: #f2f7ef; border: 1px solid var(--line); padding: 8px 10px; border-radius: 999px; font-size: 12px; }
 .xp-track.wide { width: 180px; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Patient 「我的」 profile — density & spacing polish (UI ONLY).
+   All rules are scoped under .patient-profile-page so shared primitives
+   (.center / .score-hero / .stats / .section-title / .card) are untouched
+   everywhere else. No data / XP / stats / relationship logic changes. */
+.patient-profile-page .patient-profile-identity { margin-bottom: 20px; }
+.patient-profile-page .patient-profile-identity .avatar { margin: 4px auto 0; }
+.patient-profile-page .patient-profile-identity h2 { margin: 12px 0 0; font-size: 20px; line-height: 1.2; }
+
+/* Level / XP card — compressed vertically, hierarchy preserved, green kept. */
+.patient-profile-page .score-hero { padding: 18px 20px; gap: 16px; }
+.patient-profile-page .score-ring { width: 64px; height: 64px; border-width: 6px; }
+.patient-profile-page .score-ring span { font-size: 22px; }
+.patient-profile-page .score-ring small { margin-top: -12px; font-size: 11px; }
+.patient-profile-page .score-hero > div:not(.score-ring) { flex: 1; min-width: 0; }
+.patient-profile-page .score-hero h3 { margin: 0; font-size: 16px; }
+.patient-profile-page .score-hero p.small { margin: 4px 0 0; }
+.patient-profile-page .score-hero .xp-track.wide { width: 100%; margin-top: 8px; }
+
+/* Stats — visually tied to the level card, values stronger, labels quieter. */
+.patient-profile-page .stats { margin-top: 14px; padding: 18px 12px; }
+.patient-profile-page .stat > .small:first-child { font-size: 11px; }
+.patient-profile-page .stat b { font-size: 20px; font-weight: 800; color: var(--text); margin: 3px 0; }
+
+/* One consistent section rhythm: 30px above a title, 12px below it. */
+.patient-profile-page .section-title { margin: 30px 0 12px; }
+
+/* Rehab-needs row — compact single-line nav row, arrow right-aligned. */
+.patient-profile-page .patient-profile-nav-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; min-height: 72px; padding: 14px 18px;
+}
+.patient-profile-page .patient-profile-nav-row .more-link { flex-shrink: 0; }
+
+/* Empty states — deliberate, consistent presence; centered muted text. */
+.patient-profile-page .patient-profile-empty {
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  min-height: 76px; padding: 18px 20px; color: var(--muted);
+}
+
 .case-head { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; margin-bottom: 10px; }
 .risk-card { background: #fff8ef; border-color: #f0d4ad; margin: 12px 0; }
 .donut-wrap { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; align-items: center; gap: 16px; }
@@ -689,6 +730,176 @@ select {
    Landing page. */
 .schedule-secondary-actions { display: flex; gap: 10px; margin-top: 14px; }
 .schedule-secondary-actions .btn { flex: 1; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Patient 「我的復健課表」 — dashboard visual redesign (UI ONLY).
+   Scoped to .patient-training-page. Data-page visual language: soft-gray
+   page, white cards, muted labels, green accents, compact heights — no
+   oversized solid-green hero. No schedule / date / training / nav logic
+   change (same getPatientScheduleForDate + selectScheduleDate). */
+.patient-training-page { display: flex; flex-direction: column; gap: 16px; }
+.patient-training-header { margin-bottom: 0; }
+.patient-training-page .section-title { margin: 12px 0 -4px; font-size: 16px; }
+
+/* Compact today summary — replaces the full-bleed dark-green hero. */
+.patient-training-today { padding: 16px 18px; display: grid; gap: 10px; }
+.patient-training-eyebrow {
+  font-size: 12px; font-weight: 700; color: var(--primary-dark); letter-spacing: .04em;
+}
+.patient-training-date { font-size: 16px; color: var(--primary-dark); }
+.patient-training-summary { display: flex; }
+.patient-training-summary > div {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+}
+.patient-training-summary > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+.patient-training-summary .small { font-size: 11px; }
+.patient-training-summary b { font-size: 18px; font-weight: 800; color: var(--text); }
+.patient-training-summary-empty { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.patient-training-status-pill {
+  font-size: 11px; font-weight: 700; color: var(--primary-dark);
+  background: var(--color-primary-soft); border-radius: 999px; padding: 2px 9px;
+}
+
+/* Week selector — Data-page segmented tab style, shorter. */
+.patient-training-week { margin: 0; gap: 8px; }
+.patient-training-page .week-strip span {
+  padding: 9px 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer;
+}
+.patient-training-week-day { font-size: 11px; color: var(--muted); }
+.patient-training-page .week-strip span.active { font-weight: 700; }
+.patient-training-page .week-strip span.active .patient-training-week-day { color: #4f7c3b; }
+.patient-training-page .week-strip span b { font-size: 15px; }
+
+/* Therapist-assigned empty state — compact, not a giant blank block. */
+.patient-training-empty { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.patient-training-empty-icon { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.patient-training-empty-text b { font-size: 14px; }
+.patient-training-empty-text p { margin: 4px 0 0; line-height: 1.55; }
+
+/* AI 今日建議 — light primary-soft panel (Data-page AI card language). */
+.patient-training-ai {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  background: var(--color-primary-soft); border-color: #cfe3cf;
+}
+.patient-training-ai-icon { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.patient-training-ai p { margin: 0; line-height: 1.6; color: var(--text); }
+
+/* Quick actions — two equal shortcut cards, not plain pills. */
+.patient-training-shortcuts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.patient-training-shortcut {
+  display: grid; gap: 2px; justify-items: start; padding: 14px 16px; min-height: 76px; align-content: center;
+}
+.patient-training-shortcut-icon { width: 24px; height: 24px; object-fit: contain; margin-bottom: 4px; }
+.patient-training-shortcut b { font-size: 14px; }
+.patient-training-shortcut .small { font-size: 11px; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Patient Data dashboard V2 (UI). Scoped to .patient-data-page + a few
+   shared classes also used by the reused 訓練紀錄 list. Light-gray page,
+   white cards, compact segmented tabs, one green trend line. No giant
+   green blocks, no gradients. Every value is real analysisService data. */
+.patient-data-page { display: flex; flex-direction: column; gap: 14px; }
+.patient-data-page .header { margin-bottom: 4px; }
+.patient-data-page .section-title { margin: 10px 0 -2px; font-size: 15px; }
+
+/* Segmented tabs (also rendered above the reused 訓練紀錄 list). */
+.patient-data-seg-nav {
+  display: flex; gap: 6px; background: #eef0ec; border: 1px solid var(--line);
+  border-radius: 12px; padding: 4px; margin-bottom: 2px;
+}
+.patient-data-seg {
+  flex: 1; border: 0; background: transparent; cursor: pointer;
+  padding: 7px 0; border-radius: 9px; font-size: 13px; font-weight: 600; color: var(--muted);
+}
+.patient-data-seg.active { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+/* 3 compact metric cards. */
+.patient-data-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.patient-data-metric {
+  display: flex; flex-direction: column; gap: 3px; padding: 12px 10px; min-height: 78px;
+}
+.patient-data-metric .small { font-size: 11px; }
+.patient-data-metric b { font-size: 19px; font-weight: 800; color: var(--text); }
+.patient-data-metric.m1 { background: var(--color-primary-soft); }
+.patient-data-metric.m2 { background: #eef4f7; }
+.patient-data-metric.m3 { background: #f6f3ee; }
+.patient-data-metric-delta { font-size: 10px; font-weight: 700; }
+.patient-data-metric-delta.up { color: var(--primary-dark); }
+.patient-data-metric-delta.down { color: #b06a4a; }
+
+/* Trend chart card. */
+.patient-data-trend-card { padding: 14px 16px; }
+.patient-data-trend-svg { width: 100%; height: 116px; display: block; overflow: visible; }
+.patient-data-trend-line { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.patient-data-trend-svg circle { fill: var(--primary); }
+.patient-data-trend-caption { margin-top: 8px; color: var(--muted); }
+.patient-data-trend-empty { padding: 22px 8px; text-align: center; color: var(--muted); }
+
+/* Insight card — primary-soft, factual only. */
+.patient-data-insight {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+  background: var(--color-primary-soft); border-color: #cfe3cf;
+}
+.patient-data-insight-icon { width: 26px; height: 26px; object-fit: contain; flex: none; }
+.patient-data-insight-text { display: grid; gap: 3px; line-height: 1.5; color: var(--text); }
+
+/* Friendly empty card (shared with the 訓練紀錄 zero-records state). */
+.patient-data-empty { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.patient-data-empty img { width: 44px; height: 44px; object-fit: contain; flex: none; }
+.patient-data-empty p { margin: 0; line-height: 1.55; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Therapist Workspace V2 — a compact management dashboard. Same ReMotion
+   visual system (off-white page, white cards, green accents, no dark hero,
+   no gradients). Scoped to .therapist-workspace + a few therapist-* rows. */
+.therapist-workspace { display: flex; flex-direction: column; gap: 14px; }
+.therapist-workspace .header { margin-bottom: 0; }
+.therapist-workspace .section-title { margin: 12px 0 -2px; font-size: 15px; }
+.therapist-workspace .rehab-eyebrow {
+  font-size: 12px; font-weight: 700; color: var(--primary-dark); letter-spacing: .04em; margin-bottom: 8px;
+}
+.therapist-identity { align-items: center; gap: 12px; }
+.therapist-identity strong { font-size: 16px; }
+
+/* today's-work summary + case-overview metric strips */
+.therapist-summary, .therapist-case-overview { padding: 14px 16px; }
+.therapist-summary-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.therapist-summary-top .rehab-eyebrow { margin-bottom: 0; }
+.therapist-tracked-count { color: var(--primary-dark); font-weight: 700; }
+.therapist-home-more { margin-top: 8px; }
+.therapist-summary-row { display: flex; }
+.therapist-summary-row > div {
+  flex: 1; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+}
+.therapist-summary-row > div + div { padding-left: 12px; border-left: 1px solid var(--line); }
+.therapist-summary-row .small { font-size: 11px; }
+.therapist-summary-row b { font-size: 19px; font-weight: 800; color: var(--text); }
+
+.therapist-home-seg, .therapist-case-seg { margin-bottom: 2px; }
+
+/* compact patient rows */
+.therapist-case-row, .therapist-workspace .train-item { border-radius: 14px; }
+.therapist-case-avatar {
+  width: 40px; height: 40px; flex: none; font-size: 15px;
+  background: var(--color-primary-soft); color: var(--primary-dark);
+}
+.therapist-case-row-main { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.therapist-case-row-main b { font-size: 14px; }
+.therapist-case-row-main .small { line-height: 1.4; }
+
+.therapist-home-cta { margin-top: 6px; }
+
+/* case-detail assessment view */
+.therapist-assess-movement { display: grid; gap: 8px; padding: 14px 16px; }
+.therapist-assess-sides { display: flex; gap: 10px; }
+.therapist-assess-side {
+  flex: 1; display: grid; gap: 2px; text-align: center; padding: 8px;
+  background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-medium);
+}
+.therapist-assess-side b { font-size: 18px; }
+.therapist-plan-ex { display: grid; gap: 2px; padding: 12px 14px; }
+.therapist-plan-ex b { font-size: 14px; }
 .reward-screen { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; }
 .reward-stars { font-size: 44px; animation: floaty 1.8s ease-in-out infinite; }
 .reward-card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 18px; width: 100%; }
@@ -702,6 +913,133 @@ select {
 .map-node.active { background: #ffd966; color: #6d5b00; box-shadow: 0 0 0 6px rgba(255,217,102,.25); }
 .map-line { height: 5px; width: 40px; background: #e2e6de; }
 .map-line.done { background: #a8d08d; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Patient 「復健冒險地圖」 — UI composition polish (UI ONLY).
+   Scoped to .rehab-adventure-page. No stage / star / streak / score / XP /
+   badge / persistence logic — same demo values, recomposed layout that
+   uses the lower viewport instead of leaving it empty. */
+.rehab-adventure-page { display: flex; flex-direction: column; gap: 22px; }
+.rehab-adventure-header { margin-bottom: 4px; }
+
+/* Gamification IA — the shared Level/XP/Streak card sits flush at the top
+   of the hub (its Home margin-bottom is not wanted inside the flex gap). */
+.rehab-adventure-page .level-xp-card { margin-bottom: 0; }
+/* Home: the same card is now the tap target into the Adventure Map. */
+.level-xp-card.clickable { cursor: pointer; }
+.level-xp-cta { color: var(--primary-dark); font-weight: 700; }
+
+/* Map section (章節 + scene) is one hub block. */
+.rehab-adventure-chapter { display: flex; flex-direction: column; }
+.rehab-adventure-chapter-head { display: flex; align-items: baseline; justify-content: space-between; }
+.rehab-adventure-progress-indicator { color: var(--primary-dark); font-weight: 700; }
+
+/* Entry into the Achievement collection (a separate detail page). */
+.rehab-adventure-page .rehab-achievement-entry {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer;
+}
+.rehab-adventure-page .rehab-achievement-entry-icon { width: 30px; height: 30px; object-fit: contain; flex: none; }
+.rehab-adventure-page .rehab-achievement-entry-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.rehab-adventure-page .rehab-achievement-entry-text b { font-size: 14px; }
+.rehab-adventure-page .rehab-achievement-entry .more-link { flex-shrink: 0; }
+
+/* V2 — landscape "adventure map" scene: soft layered hills + a curved
+   dotted trail winding between 4 checkpoints, with the patient companion
+   standing on the CURRENT stage. All CSS (+ one inline <path> for the
+   trail curve). completed = green, current = warm gold, locked = neutral.
+   The terrain stays muted so the stage states read first. */
+.rehab-adventure-page .rehab-adventure-map-scene {
+  position: relative; overflow: hidden;
+  height: 244px; padding: 0;
+  background: #eef5f1; border: 1px solid var(--line); border-radius: 20px;
+}
+/* Layered hills — three muted ReMotion greens via the element + 2 pseudos. */
+.rehab-adventure-page .rehab-adventure-hills,
+.rehab-adventure-page .rehab-adventure-hills::before,
+.rehab-adventure-page .rehab-adventure-hills::after {
+  content: ""; position: absolute; left: -12%; right: -12%; border-radius: 100% 100% 0 0 / 70px;
+}
+.rehab-adventure-page .rehab-adventure-hills { bottom: 0; height: 58%; background: #d9e8d1; }
+.rehab-adventure-page .rehab-adventure-hills::before { bottom: 0; height: 78%; left: 30%; right: -20%; background: #c8ddbd; }
+.rehab-adventure-page .rehab-adventure-hills::after { bottom: 0; height: 42%; left: -20%; right: 46%; background: #e4efdd; }
+/* Curved dotted trail — inline SVG stretched to the scene (0–100 viewBox
+   matches the % checkpoint coords), warm off-white segmented stroke. */
+.rehab-adventure-page .rehab-adventure-route { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rehab-adventure-page .rehab-adventure-route path {
+  fill: none; stroke: #fff7e8; stroke-width: 2.4;
+  stroke-linecap: round; stroke-dasharray: 0.1 6; vector-effect: non-scaling-stroke;
+}
+/* Checkpoints — positioned by % (centre point), never plain number circles. */
+.rehab-adventure-page .rehab-adventure-stage {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 5px; width: 72px;
+}
+.rehab-adventure-page .rehab-adventure-node {
+  width: 36px; height: 36px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 15px; font-weight: 800;
+  background: #e4e7e0; color: #7b8371;
+  border: 3px solid #fff; box-shadow: 0 2px 5px rgba(60, 80, 55, .16);
+}
+.rehab-adventure-page .rehab-adventure-stage.done .rehab-adventure-node { background: var(--primary); color: #fff; }
+.rehab-adventure-page .rehab-adventure-stage.current .rehab-adventure-node {
+  background: #ffd15c; color: #6d5b00;
+  box-shadow: 0 0 0 6px rgba(255, 209, 92, .30), 0 2px 6px rgba(60, 80, 55, .2);
+}
+.rehab-adventure-page .rehab-adventure-stage-label {
+  font-size: 11px; font-weight: 700; color: #3f5540; white-space: nowrap;
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(255, 255, 255, .78); border-radius: 999px; padding: 1px 7px;
+}
+.rehab-adventure-page .rehab-adventure-stage.locked .rehab-adventure-stage-label { color: var(--muted); }
+.rehab-adventure-page .rehab-adventure-stage-chip {
+  font-size: 10px; font-weight: 800; color: #6d5b00;
+  background: #fff2cf; border: 1px solid #ffd15c; border-radius: 999px; padding: 0 6px;
+}
+/* Patient companion standing on the current stage. */
+.rehab-adventure-page .rehab-adventure-avatar {
+  position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  width: 38px; height: 38px; object-fit: contain; margin-bottom: 2px;
+  filter: drop-shadow(0 3px 4px rgba(60, 80, 55, .28));
+}
+/* Very narrow: nudge the checkpoints inward (never shrink them). */
+@media (max-width: 360px) {
+  .rehab-adventure-page .rehab-adventure-map-scene { height: 224px; }
+  .rehab-adventure-page .rehab-adventure-stage.s1 { left: 17% !important; }
+  .rehab-adventure-page .rehab-adventure-stage.s2 { left: 58% !important; }
+  .rehab-adventure-page .rehab-adventure-stage.s3 { left: 28% !important; }
+  .rehab-adventure-page .rehab-adventure-stage.s4 { left: 72% !important; }
+}
+
+/* Shared small eyebrow label for the challenge + reward cards. */
+.rehab-adventure-page .rehab-eyebrow {
+  font-size: 12px; font-weight: 700; color: var(--primary-dark);
+  letter-spacing: .04em; margin-bottom: 8px;
+}
+
+/* Current-challenge card — separated from the map, compact. */
+.rehab-adventure-page .rehab-challenge-card { padding: 16px 18px; }
+.rehab-adventure-page .rehab-challenge-title { display: block; font-size: 15px; }
+.rehab-adventure-page .rehab-challenge-req { margin: 6px 0 12px; line-height: 1.55; }
+.rehab-adventure-page .rehab-progress { display: grid; gap: 6px; }
+.rehab-adventure-page .rehab-progress-bar { height: 8px; background: #edf0ea; border-radius: 999px; overflow: hidden; }
+.rehab-adventure-page .rehab-progress-bar span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+
+/* Next reward — "解鎖下一關可獲得": two visually separated rewards + a
+   divided AI-suggestion row. No gradient; white card, green accents. */
+.rehab-adventure-page .rehab-reward-card { padding: 16px 18px; display: grid; gap: 12px; }
+.rehab-adventure-page .rehab-reward-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rehab-adventure-page .rehab-reward-item {
+  display: grid; justify-items: start; gap: 2px;
+  background: var(--color-primary-soft); border: 1px solid #cfe3cf;
+  border-radius: 12px; padding: 12px;
+}
+.rehab-adventure-page .rehab-reward-item b { font-size: 15px; color: var(--primary-dark); }
+.rehab-adventure-page .rehab-reward-item .small { font-size: 11px; }
+.rehab-adventure-page .rehab-reward-row { display: flex; align-items: center; gap: 12px; }
+.rehab-adventure-page .rehab-reward-row b { font-size: 14px; }
+.rehab-adventure-page .rehab-reward-icon { width: 24px; height: 24px; object-fit: contain; flex: none; margin-bottom: 4px; }
+.rehab-adventure-page .rehab-reward-item .rehab-reward-icon { margin-bottom: 2px; }
+.rehab-adventure-page .rehab-reward-divider { height: 1px; background: var(--line); margin: 2px 0; }
 .progress-mini { height: 6px; background: #edf0ea; border-radius: 999px; margin-top: 7px; overflow: hidden; }
 .progress-mini i { display:block; height:100%; background:#7ea866; border-radius:999px; }
 
@@ -2054,6 +2392,131 @@ select {
 .badge-icon-img { width: 26px; height: 26px; object-fit: contain; }
 .badge-card.locked { opacity: 0.55; }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Patient 「成就徽章」 — gentle-gamification redesign (UI ONLY).
+   Every rule is scoped under .achievement-page. No gamificationEngine /
+   unlock-rule / XP / level / streak change — same data, new presentation.
+   healthcare × gentle gamification × progression: off-white page, white
+   cards, muted green, dark text, rounded, soft borders — not an arcade. */
+.achievement-page-header { margin-bottom: 12px; }
+
+/* Compact Achievement Hero (~150px): level + XP + unlock completion in one. */
+.achievement-page .achievement-hero { padding: 16px 18px; display: grid; gap: 12px; }
+.achievement-page .achievement-hero-top { display: flex; align-items: center; gap: 14px; }
+.achievement-page .achievement-hero-lv {
+  flex: none; width: 56px; height: 56px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--color-primary-soft); color: var(--primary-dark);
+  font-weight: 800; font-size: 15px; border: 2px solid var(--primary);
+}
+.achievement-page .achievement-hero-meta { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.achievement-page .achievement-hero-meta b { font-size: 15px; }
+.achievement-page .achievement-hero-meta .xp-track { width: 100%; }
+.achievement-page .achievement-hero-count {
+  border-top: 1px solid var(--line); padding-top: 10px; text-align: center;
+  font-size: 13px; color: var(--muted);
+}
+.achievement-page .achievement-hero-count b { color: var(--primary-dark); font-size: 15px; }
+
+/* Next goal — highlighted, moved ABOVE the collection.
+   7.9 — solid primary-soft fill + 1px green border, no gradient. */
+.achievement-page .achievement-next-goal-card {
+  margin-top: 24px; border: 1px solid var(--primary);
+  background: var(--color-primary-soft);
+}
+.achievement-page .achievement-next-goal-card.done { text-align: center; }
+.achievement-page .achievement-next-goal-label {
+  font-size: 12px; font-weight: 700; color: var(--primary-dark);
+  letter-spacing: .04em; margin-bottom: 10px;
+}
+.achievement-page .achievement-next-goal-body { display: flex; gap: 14px; align-items: flex-start; }
+.achievement-page .achievement-next-goal-text { flex: 1; min-width: 0; display: grid; gap: 6px; justify-items: start; }
+.achievement-page .achievement-next-goal-text b { font-size: 15px; }
+.achievement-page .achievement-mini-progress {
+  width: 100%; height: 8px; background: #e8efe4; border-radius: 999px; overflow: hidden;
+}
+.achievement-page .achievement-mini-progress span { display: block; height: 100%; background: var(--primary); border-radius: 999px; }
+.achievement-page .achievement-hint-chip {
+  font-size: 12px; font-weight: 600; color: var(--primary-dark);
+  background: #fff; border: 1px solid var(--primary);
+  border-radius: 999px; padding: 3px 10px;
+}
+
+/* Collection heading row: 徽章收藏  +  已解鎖 x / y */
+.achievement-page .achievement-collection-head {
+  display: flex; align-items: baseline; justify-content: space-between; margin-top: 30px;
+}
+.achievement-page .achievement-collection-head .section-title { margin: 0; }
+
+/* 2-column collectible grid. */
+.achievement-page .achievement-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  column-gap: 14px; row-gap: 18px; margin-top: 14px;
+}
+.achievement-page .achievement-collectible {
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  padding: 16px 14px; display: grid; gap: 5px;
+  justify-items: center; text-align: center; align-content: start; min-height: 176px;
+}
+.achievement-page .achievement-collectible b { font-size: 14px; }
+.achievement-page .achievement-collectible .small { line-height: 1.45; }
+/* Subtle category label (display grouping only — never affects unlocking). */
+.achievement-page .achievement-cat-label {
+  font-size: 10px; letter-spacing: .06em; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px;
+}
+
+/* Circular medallion holds the existing per-achievement icon
+   (bronze / silver / flame / trophy / medal — already distinct in data). */
+.achievement-page .achievement-medallion {
+  position: relative; width: 64px; height: 64px; border-radius: 50%;
+  display: grid; place-items: center; margin-bottom: 4px;
+  background: #f1f3ee; border: 1px solid var(--line);
+}
+.achievement-page .achievement-medallion img { width: 36px; height: 36px; object-fit: contain; }
+.achievement-page .achievement-medallion.locked img { opacity: .55; }
+.achievement-page .achievement-medallion-lock {
+  position: absolute; right: -2px; bottom: -2px;
+  width: 22px; height: 22px; display: grid; place-items: center; font-size: 12px;
+  background: #fff; border: 1px solid var(--line); border-radius: 50%;
+}
+.achievement-page .achievement-medallion-check {
+  position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; object-fit: contain;
+}
+
+/* Locked card: still readable and desirable, not washed out. */
+.achievement-page .achievement-collectible.locked b { opacity: .78; }
+.achievement-page .achievement-collectible.locked .small { opacity: .9; }
+
+/* Unlocked card: white background, green border + subtle shadow, full-
+   colour icon, green micro-label — clearly more rewarding, not all-green
+   and no gradient (7.9). */
+.achievement-page .achievement-collectible.unlocked {
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 1px 5px rgba(95, 141, 73, 0.14);
+}
+.achievement-page .achievement-collectible.unlocked .achievement-medallion {
+  background: var(--color-primary-soft); border-color: var(--primary);
+}
+.achievement-page .achievement-state-label {
+  font-size: 11px; font-weight: 700; color: var(--primary-dark);
+  background: #fff; border: 1px solid var(--primary); border-radius: 999px;
+  padding: 2px 8px; margin-top: 2px;
+}
+
+/* DEV-only preview indicators (?achievementPreview=1). */
+.achievement-page .achievement-dev-note {
+  margin-bottom: 12px; padding: 8px 12px; border-radius: 10px;
+  background: #fff7e6; border: 1px solid #f0d8a8;
+  color: #8a6d1c; font-size: 12px; line-height: 1.5;
+}
+.achievement-page .achievement-dev-badge {
+  margin-left: 8px; font-size: 10px; font-weight: 800; letter-spacing: .05em;
+  color: #8a6d1c; background: #fff7e6; border: 1px solid #f0d8a8;
+  border-radius: 999px; padding: 1px 7px; vertical-align: middle;
+}
+
 /* Reward / completion feedback — small inline panel, never a blocking modal. */
 .reward-feedback-panel { margin-bottom: 14px; background: var(--color-primary-soft); border-color: #cfe3cf; }
 .reward-feedback-row { display: flex; align-items: center; gap: 10px; }
@@ -2185,6 +2648,67 @@ select {
 .functional-assessment-manual-continue { opacity: 0.8; }
 
 /* ─────────────────────────────────────────────────────────────────────
+   ReMotion Phase 7.4 — Shoulder Problem Menu + patient-facing camera IA.
+   Large, distance-readable movement/side/orientation text; no engineering
+   readouts in patient mode (those are gated under .functional-assessment-
+   dev-detail, only rendered in Developer Mode).
+   ───────────────────────────────────────────────────────────────────── */
+.functional-assessment-problem-list { display: grid; gap: 10px; margin-top: 4px; }
+.functional-assessment-problem-card { display: grid; gap: 4px; }
+.functional-assessment-problem-card.clickable { cursor: pointer; }
+.functional-assessment-problem-card.disabled { opacity: 0.55; }
+.functional-assessment-problem-card b { font-size: 15px; }
+.functional-assessment-problem-soon {
+  justify-self: start; margin-top: 4px; padding: 2px 8px; font-size: 12px;
+  border-radius: 999px; background: var(--line); color: var(--muted);
+}
+.functional-assessment-remote-title { font-size: 24px; line-height: 1.3; margin: 6px 0 2px; text-align: center; }
+.functional-assessment-remote-orientation { font-size: 17px; text-align: center; color: var(--muted); margin-bottom: 8px; }
+.functional-assessment-transition-note { font-size: 15px; color: var(--color-success); text-align: center; margin: 6px 0; }
+.functional-assessment-movement-done-sides { font-size: 20px; text-align: center; margin: 6px 0; }
+.functional-assessment-stop-btn { opacity: 0.85; }
+.functional-assessment-dev-detail {
+  margin-top: 10px; border: 1px dashed var(--line); border-radius: var(--radius-medium);
+  padding: 10px; opacity: 0.85;
+}
+
+/* Phase 7.5 — Result Page (measurement facts only; no clinical verdicts).
+   7.7.1 — spacing & visual-hierarchy polish (UI ONLY, no logic/data change):
+   major blocks are separated by ~22px so the page reads as grouped sections
+   rather than a stack of touching white cards; movement cards get roomier
+   internal rhythm; observation rows get comfortable vertical padding + a
+   subtle neutral check marker (existing checkmark_01 asset). */
+.functional-assessment-result-subtitle { color: var(--muted); margin: 2px 2px 14px; }
+.functional-assessment-result-summary { display: grid; gap: 6px; }
+.functional-assessment-result-movement { display: grid; gap: 15px; padding: 20px; }
+.functional-assessment-result-movement > b { font-size: 15px; }
+/* Flexion card -> Abduction card: clear grouping gap (heading -> first card
+   spacing is set by the heading's own 16px margin-bottom in app.js). */
+.functional-assessment-result-movement + .functional-assessment-result-movement { margin-top: 22px; }
+.functional-assessment-result-sides { display: flex; gap: 12px; }
+.functional-assessment-result-side {
+  flex: 1; display: grid; gap: 2px; text-align: center;
+  padding: 10px; background: var(--color-surface); border: 1px solid var(--line);
+  border-radius: var(--radius-medium);
+}
+.functional-assessment-result-side b { font-size: 20px; }
+.functional-assessment-result-quality { color: var(--muted); }
+.functional-assessment-result-findings { display: grid; gap: 0; margin-top: 22px; }
+.functional-assessment-result-finding {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 13px 0; border-bottom: 1px solid var(--line);
+}
+.functional-assessment-result-findings .detail-section-label + .functional-assessment-result-finding { padding-top: 6px; }
+.functional-assessment-result-finding:last-child { border-bottom: 0; padding-bottom: 2px; }
+.functional-assessment-result-finding-icon {
+  width: 14px; height: 14px; object-fit: contain; flex: none; margin-top: 2px; opacity: 0.85;
+}
+/* Disclaimer reads as secondary: smaller, muted, comfortable padding, but
+   still fully legible. Sits well clear of the recommendation CTA below it. */
+.functional-assessment-result-note { margin-top: 22px; padding: 16px; }
+.functional-assessment-result-note p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 6px 0 0; }
+
+/* ─────────────────────────────────────────────────────────────────────
    ReMotion 2.0 Phase 7.3B.2C — Shoulder Real-device Calibration
    Foundation. Developer/test-only — mirrors Squat's own established
    .squat-debug-toggle/.squat-debug-panel convention, but sized for
@@ -2210,11 +2734,19 @@ select {
 .functional-assessment-calibration-marker-btn { padding: 6px 10px; font-size: 12px; }
 
 /* Tracking overlay: absolutely positioned over the video, same box, drawn
-   with RAW (unmirrored) coordinates — this transform is what makes it
+   with RAW (unmirrored) coordinates — the transform below is what makes it
    visually track a mirrored video, per the mirroring contract. */
 .functional-assessment-calibration-overlay-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.functional-assessment-camera-wrap-mirrored .functional-assessment-camera-video,
-.functional-assessment-camera-wrap-mirrored .functional-assessment-calibration-overlay-canvas {
+
+/* Phase 7.4 — DISPLAY-only mirror (task section 9): the Shoulder camera
+   preview is ALWAYS mirrored so it behaves like a familiar mirror (raise
+   your physical right arm -> the on-screen arm on the right side moves).
+   This is a pure CSS visual flip of the <video>/overlay elements ONLY.
+   MediaPipe landmark coordinates fed to the anatomical measurement engines
+   are NEVER mirrored/mutated (handleShoulderFrame passes raw landmarks
+   straight through) — anatomical LEFT/RIGHT semantics are unchanged. */
+.functional-assessment-camera-video,
+.functional-assessment-calibration-overlay-canvas {
   transform: scaleX(-1);
 }
 

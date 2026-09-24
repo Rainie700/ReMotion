@@ -53,7 +53,30 @@ export const assessmentService = {
    * userId) rather than assumed, since either the patient or their
    * therapist may submit this — Phase 1 does not enforce who's allowed to.
    */
-  createAssessment({ patientId, bodyParts = [], goals = [], abilityLevel = null, preferredSessionMinutes = null, createdBy = null, assessedAt = null }) {
+  createAssessment({
+    patientId,
+    bodyParts = [],
+    goals = [],
+    abilityLevel = null,
+    preferredSessionMinutes = null,
+    createdBy = null,
+    assessedAt = null,
+    // ReMotion Phase 7.6 — additive, optional. Lightweight recommendation
+    // CONTEXT only (task section 9): where this recommendation request came
+    // from ("assessment" | "direct" | null) and, when from a functional
+    // assessment, a REFERENCE to that session. Assessment measurement
+    // values are NEVER copied in here — the engine's scoring inputs stay
+    // exactly bodyParts/goals/abilityLevel/preferredSessionMinutes.
+    source = null,
+    functionalAssessmentSessionId = null,
+    // Phase 7.6.2 — additional traceability context, still reference-only:
+    // the assessed body region ("shoulder"), the selected P-SH-* problem,
+    // and the protocol movement ids ("A01"/"A02"...). NOT movementResults,
+    // NOT ROM/findings/data-quality. Absent on pre-7.6.2 records.
+    bodyRegion = null,
+    problemId = null,
+    assessmentMovementIds = null,
+  }) {
     if (!patientId) return { error: "缺少 patientId，無法建立評估資料。" };
     if (abilityLevel != null && !ABILITY_LEVELS.includes(abilityLevel)) {
       return { error: `abilityLevel 必須是 ${ABILITY_LEVELS.join(" / ")} 其中之一。` };
@@ -83,6 +106,17 @@ export const assessmentService = {
       updatedBy: createdBy,
       version: (previousActive?.version || 0) + 1,
       status: ASSESSMENT_STATUS.ACTIVE,
+      // Phase 7.6 — recommendation context (see param doc above). Absent on
+      // every pre-7.6 record; readers must tolerate undefined.
+      source: source || null,
+      functionalAssessmentSessionId: functionalAssessmentSessionId || null,
+      // Phase 7.6.2 — reference-only assessment context for traceability +
+      // the Today's-Training "本次評估" line. Never measurement data.
+      bodyRegion: bodyRegion || null,
+      problemId: problemId || null,
+      assessmentMovementIds: Array.isArray(assessmentMovementIds) && assessmentMovementIds.length
+        ? [...assessmentMovementIds]
+        : null,
     });
 
     return { assessment: record, supersededId: previousActive ? previousActive.id : null };

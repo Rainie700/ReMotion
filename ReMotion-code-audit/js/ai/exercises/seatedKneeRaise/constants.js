@@ -1,0 +1,50 @@
+import { POSE_LANDMARK_INDEX } from "../../squatConstants.js";
+
+/**
+ * CR05 坐姿抬膝的專案規格。角度來自 ReMotion 復健資料庫，屬於產品內
+ * 的動作辨識規則，不應被解讀為診斷或所有使用者皆適用的臨床標準。
+ */
+export const CR05_REQUIRED_LANDMARKS = [
+  POSE_LANDMARK_INDEX.LEFT_SHOULDER,
+  POSE_LANDMARK_INDEX.RIGHT_SHOULDER,
+  POSE_LANDMARK_INDEX.LEFT_HIP,
+  POSE_LANDMARK_INDEX.RIGHT_HIP,
+  POSE_LANDMARK_INDEX.LEFT_KNEE,
+  POSE_LANDMARK_INDEX.RIGHT_KNEE,
+];
+
+export const CR05_THRESHOLDS = {
+  MIN_VISIBILITY: 0.55,
+  // shoulder-hip-knee 的 2D 幾何角：坐姿約 90°，抬膝後角度變小。
+  NEUTRAL_HIP_ANGLE_MIN_DEG: 82,
+  REP_START_HIP_ANGLE_MAX_DEG: 78,
+  CANDIDATE_TOP_HIP_ANGLE_MAX_DEG: 76,
+  TARGET_TOP_HIP_ANGLE_MAX_DEG: 70,
+  TRUNK_LEAN_MAX_DEG: 10,
+  NEUTRAL_CONFIRM_FRAMES: 3,
+  TOP_CONFIRM_FRAMES: 2,
+  MIN_REP_DURATION_MS: 600,
+  MAX_REP_DURATION_MS: 6000,
+  MAX_FRAME_GAP_MS: 1200,
+  SIMULTANEOUS_RAISE_WINDOW_MS: 350,
+};
+
+export const CR05_SCORE_RULES = {
+  BASE_SCORE: 100,
+  MIN_SCORE: 0,
+  MAX_SCORE: 100,
+  INSUFFICIENT_RAISE_PENALTY: 7,
+  EXCESSIVE_TRUNK_LEAN_PENALTY: 5,
+  RHYTHM_PENALTY: 4,
+  TOO_FAST_PENALTY: 3,
+  MISSING_REP_PENALTY: 2,
+  GRADE_THRESHOLDS: [
+    { min: 90, label: "Excellent" },
+    { min: 75, label: "Good" },
+    { min: 60, label: "Fair" },
+    { min: 0, label: "Needs Practice" },
+  ],
+};
+
+export const CR05_ANALYSIS_MODE = "mediapipe_cr05_seated_knee_raise";
+export const DEFAULT_CR05_REWARD_XP = 30;

@@ -118,6 +118,38 @@ export function computeElbowExtensionAngle(landmarks, side, thresholds = SHOULDE
 }
 
 /**
+ * Phase 7.3B.2 (A01-2) — FRONT-VIEW abduction motion-DIRECTION observation.
+ *
+ * Raw ratio: the horizontal (image-x) distance between the assessed ELBOW
+ * and the assessed SHOULDER, normalized by that side's SHOULDER->HIP
+ * distance (a stable, always-available front-view scale — the exact three
+ * points computeShoulderElevationAngle() already needs). ~0 when the arm
+ * hangs at the side; grows as the arm moves OUTWARD in the frontal plane.
+ *
+ * Deliberately NOT a progress/ROM metric: the ratio peaks near horizontal
+ * abduction and then DECREASES again toward overhead, so it is only useful
+ * as a "did the arm move out to the side, not forward" corroboration of a
+ * genuine abduction start (a forward flexion raise, seen from the front,
+ * barely changes elbow-x because it is foreshadowed toward the camera).
+ * Returns null (never NaN) if the three points are unreliable. No
+ * threshold, no clinical meaning.
+ */
+export function computeShoulderLateralOffsetRatio(landmarks, side, thresholds = SHOULDER_CAMERA_THRESHOLDS) {
+  if (!landmarks) return null;
+  const set = getMeasurementLandmarkSet(side);
+  if (!set) return null;
+  const [hipIdx, shoulderIdx, elbowIdx] = set.core;
+  const minVis = thresholds.MIN_VISIBILITY;
+  const hip = landmarks[hipIdx];
+  const shoulder = landmarks[shoulderIdx];
+  const elbow = landmarks[elbowIdx];
+  if (![hip, shoulder, elbow].every((p) => isReliablePoint(p, minVis))) return null;
+  const torso = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y);
+  if (!(torso > 0)) return null;
+  return Math.abs(elbow.x - shoulder.x) / torso;
+}
+
+/**
  * Visibility-only fact about the contralateral shoulder — named in the
  * domain spec as an auxiliary landmark for a future (7.3C+) compensation
  * signal (left-right shoulder line). Returns a boolean only; computes no

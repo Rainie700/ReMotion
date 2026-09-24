@@ -1,0 +1,18 @@
+import assert from"node:assert/strict";
+import{createTurningWalkSession}from"../js/ai/exercises/turningWalk/session.js";
+import{calculateTurningWalkScore}from"../js/ai/exercises/turningWalk/score.js";
+const session=createTurningWalkSession({targetReps:1});
+const front={bodyReady:true,shoulderWidthRatio:1,hipWidthRatio:1,centerX:.5,trunkLeanDeg:3,pelvisTiltDeg:2,stepWidthRatio:.6,orientationSignal:0};
+const profile={...front,shoulderWidthRatio:.5,hipWidthRatio:.5,centerX:.52,stepWidthRatio:.8,orientationSignal:-.4};
+session.processFrame({timestamp:0,...front});
+session.processFrame({timestamp:100,...profile});
+session.processFrame({timestamp:200,...profile});
+session.processFrame({timestamp:300,...profile});
+session.processFrame({timestamp:700,...profile});
+const result=session.processFrame({timestamp:1700,...front});
+assert.equal(result.summary.totalReps,1);
+assert.equal(result.summary.validReps,1);
+assert.equal(result.summary.completed,true);
+assert.equal(result.completedRep.direction,"left");
+assert.ok(calculateTurningWalkScore(result.summary).score>=90);
+console.log("AD05 turning-walk session tests passed");

@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { createAnkleInversionSession } from "../js/ai/exercises/ankleInversion/session.js";
+import { calculateAnkleInversionScore } from "../js/ai/exercises/ankleInversion/score.js";
+
+const session=createAnkleInversionSession({targetReps:1});
+const ready={bodyReady:true,leftFootAxisRatio:0,rightFootAxisRatio:0,leftFootLengthRatio:.5,rightFootLengthRatio:.5,leftHeelX:.3,rightHeelX:.7,leftKneeX:.3,rightKneeX:.7,leftLegScale:.2,rightLegScale:.2,pelvisCenterX:.5,pelvisScale:.5};
+const inverted={...ready,leftFootAxisRatio:.233};
+session.processFrame({timestamp:0,...ready});
+session.processFrame({timestamp:100,...ready});
+session.processFrame({timestamp:200,...ready});
+session.processFrame({timestamp:300,...ready});
+session.processFrame({timestamp:500,...inverted});
+session.processFrame({timestamp:600,...inverted});
+session.processFrame({timestamp:700,...inverted});
+const result=session.processFrame({timestamp:1300,...ready});
+const summary=session.getSummary();
+assert.equal(summary.totalReps,1,"腳掌向內轉、停留並回正應計為一次");
+assert.equal(summary.leftReps,1,"應辨識主要內翻的左腳");
+assert.equal(summary.validReps,1,"標準內翻幅度且腳跟與膝蓋穩定應列為品質符合");
+assert.equal(summary.completed,true,"達到目標次數後應完成");
+assert.deepEqual(result.completedRep?.issues,[],"標準踝內翻不應產生錯誤標記");
+assert.ok(calculateAnkleInversionScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AK03 ankle-inversion session tests passed");

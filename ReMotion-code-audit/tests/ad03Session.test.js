@@ -1,0 +1,17 @@
+import assert from"node:assert/strict";
+import{createShoeDressingSession}from"../js/ai/exercises/shoeDressing/session.js";
+import{calculateShoeDressingScore}from"../js/ai/exercises/shoeDressing/score.js";
+const session=createShoeDressingSession({targetPerSide:1});
+const base={bodyReady:true,leftFootLiftRatio:0,rightFootLiftRatio:0,leftHipFlexionDeg:10,rightHipFlexionDeg:10,leftHandFootRatio:1,rightHandFootRatio:1,trunkLeanDeg:12,shoulderTiltDeg:2,pelvisTiltDeg:2};
+session.processFrame({timestamp:0,...base});
+for(let t=100;t<=600;t+=100)session.processFrame({timestamp:t,...base,leftFootLiftRatio:.2,leftHipFlexionDeg:75,leftHandFootRatio:.4});
+let result=session.processFrame({timestamp:1200,...base});
+assert.equal(result.completedRep.side,"left");
+assert.equal(result.summary.leftReps,1);
+for(let t=1300;t<=1800;t+=100)session.processFrame({timestamp:t,...base,rightFootLiftRatio:.2,rightHipFlexionDeg:80,rightHandFootRatio:.4});
+result=session.processFrame({timestamp:2400,...base});
+assert.equal(result.completedRep.side,"right");
+assert.equal(result.summary.rightReps,1);
+assert.equal(result.summary.completed,true);
+assert.ok(calculateShoeDressingScore(result.summary).score>=90);
+console.log("AD03 shoe-dressing session tests passed");

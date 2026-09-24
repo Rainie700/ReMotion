@@ -1,0 +1,18 @@
+import assert from"node:assert/strict";
+import{createStairAscentSession}from"../js/ai/exercises/stairAscent/session.js";
+import{calculateStairAscentScore}from"../js/ai/exercises/stairAscent/score.js";
+const session=createStairAscentSession({targetSteps:1});
+const base={bodyReady:true,leftFootY:1,rightFootY:1,hipCenterY:.5,leftHipFlexionDeg:10,rightHipFlexionDeg:10,leftKneeFlexionDeg:5,rightKneeFlexionDeg:5,leftValgusRatio:0,rightValgusRatio:0,trunkLeanDeg:5,bodyScale:1};
+const lead={...base,leftFootY:.75,leftHipFlexionDeg:75,leftKneeFlexionDeg:85};
+const followed={...lead,rightFootY:.8};
+session.processFrame({timestamp:0,...base});
+session.processFrame({timestamp:100,...lead});
+session.processFrame({timestamp:700,...followed});
+session.processFrame({timestamp:800,...followed});
+const result=session.processFrame({timestamp:900,...followed});
+assert.equal(result.summary.totalReps,1);
+assert.equal(result.summary.leftSteps,1);
+assert.equal(result.summary.validReps,1);
+assert.equal(result.summary.completed,true);
+assert.ok(calculateStairAscentScore(result.summary).score>=90);
+console.log("AD06 stair-ascent session tests passed");
