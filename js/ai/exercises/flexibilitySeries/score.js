@@ -1,0 +1,2 @@
+export function calculateFlexibilityScore(s){let score=50+50*Math.min(1,s.totalReps/Math.max(1,s.targetReps));score-=s.tooFastCount*4+s.pelvisTiltCount*2+s.holdBreakCount*3+s.trackingInterruptionCount*2;score=Math.max(0,Math.min(100,Math.round(score)));return{score,quality:score>=85?"excellent":score>=70?"good":score>=55?"fair":"needs_improvement"};}
+export function buildFlexibilityRemark(s){if(s.holdBreakCount)return"伸展姿勢中斷較多，請縮小幅度並穩定維持。";if(s.tooFastCount)return"放慢速度，完整控制進入與回到中立位置。";if(s.pelvisTiltCount)return"保持骨盆穩定，避免用骨盆傾斜代替伸展。";return"伸展姿勢與回位控制良好，請持續在無痛範圍內進行。";}

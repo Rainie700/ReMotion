@@ -68,6 +68,9 @@ export const AK12_EXERCISE_ID = "F03-07";
 export const AK13_EXERCISE_ID = "F02-04";
 export const AK15_EXERCISE_ID = "F02-08";
 export const F02_BALANCE_EXERCISE_IDS = ["F02-01","F02-02","F02-03","F02-05","F02-06","F02-07","F02-09"];
+export const GAIT_SERIES_EXERCISE_IDS = ["F03-04","F04-01","F04-02","F04-03","F04-04","F04-06"];
+export const UPPER_LIMB_SERIES_EXERCISE_IDS = ["F05-01","F05-02","F05-03","F05-04","F05-05","F05-06","F05-09"];
+export const FLEXIBILITY_SERIES_EXERCISE_IDS = ["F06-02","F06-03","F06-09","F06-10","F06-11","F06-12"];
 
 export const POSE_ANALYZER = {
   SQUAT: "f01_01_squat",
@@ -107,6 +110,9 @@ export const POSE_ANALYZER = {
   AK13_SINGLE_LEG_ANKLE_STABILITY: "f02_04_single_leg_stance",
   AK15_SINGLE_LEG_FORWARD_REACH: "f02_08_single_leg_forward_reach",
   F02_BALANCE_SERIES: "f02_balance_series",
+  GAIT_SERIES: "gait_series",
+  UPPER_LIMB_SERIES: "upper_limb_series",
+  FLEXIBILITY_SERIES: "flexibility_series",
 };
 
 const ANALYZER_BY_EXERCISE_ID = new Map([
@@ -151,6 +157,9 @@ const ANALYZER_BY_EXERCISE_ID = new Map([
   [AK13_EXERCISE_ID, POSE_ANALYZER.AK13_SINGLE_LEG_ANKLE_STABILITY],
   [AK15_EXERCISE_ID, POSE_ANALYZER.AK15_SINGLE_LEG_FORWARD_REACH],
   ...F02_BALANCE_EXERCISE_IDS.map((id) => [id, POSE_ANALYZER.F02_BALANCE_SERIES]),
+  ...GAIT_SERIES_EXERCISE_IDS.map((id) => [id, POSE_ANALYZER.GAIT_SERIES]),
+  ...UPPER_LIMB_SERIES_EXERCISE_IDS.map((id) => [id, POSE_ANALYZER.UPPER_LIMB_SERIES]),
+  ...FLEXIBILITY_SERIES_EXERCISE_IDS.map((id) => [id, POSE_ANALYZER.FLEXIBILITY_SERIES]),
 ]);
 
 export function resolvePoseAnalyzer(exercise) {

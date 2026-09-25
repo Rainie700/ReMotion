@@ -21,8 +21,8 @@ const removedLegacyIds = [
   "AK14",
 ];
 
-assert.equal(rehabExercises.length, 47, "the catalog contains retained exercises plus completed F01 and F02 additions");
-assert.equal(new Set(rehabExercises.map((exercise) => exercise.exercise_id)).size, 47, "exercise ids are unique");
+assert.equal(rehabExercises.length, 66, "the catalog contains the completed six-domain exercise set");
+assert.equal(new Set(rehabExercises.map((exercise) => exercise.exercise_id)).size, 66, "exercise ids are unique");
 assert.ok(rehabExercises.every((exercise) => /^F0[1-6]-\d{2}$/.test(exercise.exercise_id)), "every public id uses F01-F06 numbering");
 assert.ok(rehabExercises.every((exercise) => categories.includes(exercise.category)), "every exercise belongs to one of the six functional domains");
 assert.ok(removedLegacyIds.every((id) => exerciseService.getById(id) === null), "red-marked exercises are no longer resolvable");

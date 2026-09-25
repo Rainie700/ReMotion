@@ -822,6 +822,14 @@ export const rehabExercises = [
     "legacy_exercise_id": "AD05"
   },
   {
+    "exercise_id":"F03-04","exercise_name":"階梯踏步","category":"功能性移動","target_muscle":"股四頭肌、臀大肌、小腿肌群與核心穩定肌群","difficulty":"中階",
+    "description":"練習上階所需的單腳承重、下肢推進與重心轉移能力。","steps":"1.站在穩固低階踏板前\n2.一腳完整踏上階面\n3.將重心移至踏板腳並向上推起\n4.另一腳跟上並站穩\n5.控制回到起始位置",
+    "common_errors":"腳掌未完整踏上、用後腳跳推、膝蓋內夾、軀幹過度前傾、未站穩即回位","repetitions":"依個人能力與治療師建議；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘",
+    "precautions":"僅使用穩固且止滑的低階踏板；旁邊需有扶手或照護者保護；疼痛、暈眩或失去平衡時立即停止。","reference_source":"新版復健資料表 F03-04","demo_video_url":"待補",
+    "key_points":"腳掌完整落在階面、重心確實前移、髖膝伸展推起、完成時站穩","correct_angle":"無通用固定角度，以足部放置、重心轉移與穩定完成判定","angle_tolerance":"依個人安全活動範圍","cnn_label":"Correct：踏板腳承重推起並穩定站立\nCompensated：軀幹過度傾斜、膝內夾或借助慣性\nFault：腳掌未踏穩或失去平衡",
+    "defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側前方（全身、踏板與雙腳完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis","legacy_exercise_id":"KN07"
+  },
+  {
     "exercise_id": "F03-05",
     "exercise_name": "側向跨步",
     "category": "功能性移動",
@@ -1032,6 +1040,22 @@ export const rehabExercises = [
     "legacy_exercise_id": "CR06"
   },
   {
+    "exercise_id":"F04-01","exercise_name":"正常步態訓練","category":"步行功能","target_muscle":"臀肌、股四頭肌、腿後肌群、小腿肌群與核心","difficulty":"初階",
+    "description":"練習自然、連續且對稱的步態，包括腳跟著地、腳尖推離與自然擺臂。","steps":"1.穿著合適鞋子並確認路線安全\n2.抬頭看前方、肩膀放鬆\n3.自然擺臂向前行走\n4.腳跟先著地，再由腳尖推離\n5.維持平順左右交替步伐","common_errors":"低頭、拖步、步幅明顯不對稱、軀幹過度傾斜、手臂僵硬","repetitions":"系統預設20步","sets":"依個人能力調整","estimated_minutes":"5分鐘","precautions":"在平坦無障礙空間練習；需要時使用原有輔具或由照護者陪同。","reference_source":"新版復健資料表 F04-01","demo_video_url":"待補","key_points":"抬頭、自然擺臂、左右交替、腳跟著地後腳尖推離","correct_angle":"正常步態站立期約60%、擺盪期約40%；不以單一固定關節角度判定","angle_tolerance":"依個人步態與安全能力","cnn_label":"Correct：步伐連續、左右交替且軀幹穩定\nCompensated：拖步、軀幹傾斜或步幅不對稱\nFault：無法安全持續行走","defaultSets":1,"defaultRepetitions":20,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面或斜前方（全身及行走路線完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"GT01"
+  },
+  {
+    "exercise_id":"F04-02","exercise_name":"直線行走","category":"步行功能","target_muscle":"核心穩定肌群、臀中肌、踝周肌群","difficulty":"中階","description":"沿直線以腳跟接腳尖前進，訓練動態平衡與步伐控制。","steps":"1.靠近牆面站立並向前看固定點\n2.雙臂向側邊抬至肩高\n3.一腳腳跟接在另一腳腳尖前方\n4.抬起後腳並短暫停留約1秒\n5.沿直線完成20步","common_errors":"偏離直線、雙臂下垂、移動過快、未站穩即跨下一步","repetitions":"20步","sets":"1組","estimated_minutes":"3分鐘","precautions":"靠近牆面或穩固支撐物並由他人在旁保護；失去平衡時立即停止。","reference_source":"新版復健資料表 F04-02","demo_video_url":"待補","key_points":"腳跟接腳尖、凝視前方、雙臂肩高、每步站穩","correct_angle":"雙臂約肩高；足部前後排列，以穩定直線步行判定","angle_tolerance":"依個人安全範圍","cnn_label":"Correct：沿直線穩定完成腳跟接腳尖步伐\nCompensated：雙臂下垂、軀幹傾斜或步幅不穩\nFault：跨步偏離或失去平衡","defaultSets":1,"defaultRepetitions":20,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面或斜前方（全身與直線路徑完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis","legacy_exercise_id":"GT07"
+  },
+  {
+    "exercise_id":"F04-03","exercise_name":"後退行走","category":"步行功能","target_muscle":"股四頭肌、臀肌、脛前肌、小腿肌群與核心","difficulty":"中階","description":"以緩慢、可控制的方式向後行走，訓練方向改變時的步態與平衡。","steps":"1.確認後方空間無障礙\n2.抬頭並保持軀幹直立\n3.一腳向後移動，腳尖先接觸地面\n4.再慢慢放下腳跟並轉移重心\n5.左右交替完成10步，休息後重複","common_errors":"未確認後方、步伐過快、拖腳、軀幹過度前傾、交叉步","repetitions":"10步×4次（共40步）","sets":"4次","estimated_minutes":"5分鐘","precautions":"需在空曠無障礙處進行，必要時使用原有輔具並由他人在旁保護。","reference_source":"新版復健資料表 F04-03","demo_video_url":"待補","key_points":"腳尖先接觸、再放腳跟、左右交替、控制速度","correct_angle":"無固定關節角度，以後退步伐連續與穩定控制判定","angle_tolerance":"依個人安全能力","cnn_label":"Correct：後退步伐交替且軀幹穩定\nCompensated：拖腳、過快或軀幹傾斜\nFault：無法安全後退或失去平衡","defaultSets":4,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面或斜前方（全身及後退空間完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis","legacy_exercise_id":"GT02"
+  },
+  {
+    "exercise_id":"F04-04","exercise_name":"側步行走","category":"步行功能","target_muscle":"臀中肌、髖外展肌群、內收肌群與核心","difficulty":"中階","description":"保持身體朝向前方，以側跨與併步方式移動，訓練側向步行控制。","steps":"1.站直並面向前方\n2.向側邊跨出一步\n3.另一腳跟上併步，不交叉雙腳\n4.連續完成10步\n5.換方向後重複","common_errors":"身體轉向、交叉步、拖腳、軀幹過度側傾、步伐過快","repetitions":"每方向10步×2次（共40步）","sets":"4次","estimated_minutes":"5分鐘","precautions":"在平坦寬敞處進行，靠近支撐面或由他人在旁保護。","reference_source":"新版復健資料表 F04-04","demo_video_url":"待補","key_points":"身體維持朝前、側跨後併步、不交叉雙腳、控制速度","correct_angle":"無固定角度，以側向步伐、身體方向與穩定控制判定","angle_tolerance":"依個人安全能力","cnn_label":"Correct：維持正面並穩定側跨併步\nCompensated：轉身、交叉步或軀幹側傾\nFault：無法安全側移或失去平衡","defaultSets":4,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面（全身與左右移動空間完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis","legacy_exercise_id":"GT03"
+  },
+  {
+    "exercise_id":"F04-06","exercise_name":"原地踏步","category":"步行功能","target_muscle":"髖屈肌、股四頭肌、小腿肌群與核心","difficulty":"初階","description":"在原地交替抬腳，作為步行暖身並練習持續的左右步伐節奏。","steps":"1.站在穩固椅背或流理台旁\n2.抬頭並保持身體直立\n3.左右腳交替緩慢抬起\n4.膝蓋抬至無痛且可控制的高度\n5.持續2分鐘","common_errors":"同側連續抬腳、抬腳過快、軀幹後仰、腳落地過重、疼痛仍持續","repetitions":"持續2分鐘","sets":"1組","estimated_minutes":"2分鐘","precautions":"靠近穩固支撐面；若出現疼痛、喘不過氣、頭暈或失去平衡，立即停止。","reference_source":"新版復健資料表 F04-06","demo_video_url":"待補","key_points":"左右交替、緩慢控制、軀幹直立、在無痛範圍抬膝","correct_angle":"無通用固定抬膝角度，以無痛且可控制的交替踏步判定","angle_tolerance":"依個人安全與無痛範圍","cnn_label":"Correct：左右交替踏步且軀幹穩定\nCompensated：同側重複、後仰或速度過快\nFault：無法持續或失去平衡","defaultSets":1,"defaultRepetitions":1,"defaultDurationSeconds":120,"measurementType":"duration","cameraAngle":"正面（全身與雙腳完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"GT10"
+  },
+  {
     "exercise_id": "F04-07",
     "exercise_name": "腳跟行走",
     "category": "步行功能",
@@ -1092,6 +1116,27 @@ export const rehabExercises = [
     "legacy_exercise_id": "AK10"
   },
   {
+    "exercise_id":"F05-01","exercise_name":"肘屈伸","category":"上肢功能","target_muscle":"肱二頭肌、肱肌、肱橈肌、肱三頭肌與肘肌","difficulty":"初階","description":"在上臂固定的情況下，緩慢完成肘關節彎曲與伸直，訓練活動度與控制。","steps":"1.站立或坐穩並放鬆肩膀\n2.上臂貼近身體\n3.前臂緩慢彎向肩膀\n4.在無痛最大範圍停留1～2秒\n5.控制伸直回到起始位置","common_errors":"手肘向前或向外移動、聳肩、軀幹後仰、手腕甩動、未完整伸直","repetitions":"依治療師個別設定；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"全程平緩受控；出現尖銳疼痛時停止，術後者須遵循醫師限制範圍。","reference_source":"新版復健資料表 F05-01","demo_video_url":"待補","key_points":"上臂貼身、肩膀放鬆、彎曲與伸直皆受控","correct_angle":"功能性活動約30°～130°；以個人無痛且無代償範圍判定","angle_tolerance":"不使用單一通用角度門檻","cnn_label":"Correct：上臂固定並完成受控屈伸\nCompensated：手肘移位、聳肩或軀幹借力\nFault：無法完成屈伸或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面或斜前方（上半身與雙手完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL01"
+  },
+  {
+    "exercise_id":"F05-02","exercise_name":"肘伸直","category":"上肢功能","target_muscle":"肱三頭肌、肘肌","difficulty":"初階","description":"由屈肘位置主動伸直手肘，訓練終端伸展活動度與肱三頭肌控制。","steps":"1.坐穩或站直並放鬆肩膀\n2.上臂貼身，手肘約90°\n3.保持上臂不動，緩慢將前臂伸直\n4.末端停留2～3秒\n5.控制彎回起始位置","common_errors":"大臂向後擺、手肘向外、伸展不足、聳肩、軀幹前傾或快速甩直","repetitions":"依治療師個別設定；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"不可快速撞擊關節末端；出現後側或前方銳痛時停止，術後者遵循醫囑。","reference_source":"新版復健資料表 F05-02","demo_video_url":"待補","key_points":"上臂固定、手腕中立、平穩伸直與回位","correct_angle":"完全伸直參考為0°，但以個人無痛且無代償最大伸展判定","angle_tolerance":"不使用單一通用角度門檻","cnn_label":"Correct：上臂固定並受控伸直\nCompensated：肩膀或軀幹借力\nFault：無法伸直或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面（上半身、手肘及手腕完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL02"
+  },
+  {
+    "exercise_id":"F05-03","exercise_name":"手持水瓶彎舉","category":"上肢功能","target_muscle":"肱二頭肌、肱肌、肱橈肌與前臂屈肌群","difficulty":"初階","description":"手持輕量水瓶完成受控彎舉，訓練上肢拉力、握力與肌耐力。","steps":"1.坐穩或雙腳與肩同寬站立\n2.握住輕量水瓶並將上臂貼身\n3.掌心朝前，由伸直位緩慢彎舉\n4.於無痛範圍頂端停留1～2秒\n5.控制下放至伸直","common_errors":"手肘前移或外張、軀幹後仰、甩動水瓶、手腕折彎、下放失去控制","repetitions":"依個人能力；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"先使用輕量水瓶；避免甩動，疼痛或握不穩時停止。","reference_source":"新版復健資料表 F05-03","demo_video_url":"待補","key_points":"上臂固定、掌心朝前、慢舉慢放、手腕中立","correct_angle":"以個人無痛且不代償的完整彎舉範圍判定","angle_tolerance":"不使用單一通用角度門檻","cnn_label":"Correct：上臂固定並完整受控彎舉\nCompensated：後仰、甩動或手肘前移\nFault：失去控制或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面或斜前方（上半身、手臂與水瓶完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL07"
+  },
+  {
+    "exercise_id":"F05-04","exercise_name":"肩關節旋轉能力","category":"上肢功能","target_muscle":"棘下肌、小圓肌、後三角肌","difficulty":"初階","description":"坐姿保持手肘約90°並貼近身體，將前臂向外旋轉後控制回位。","steps":"1.坐在穩固座椅並挺直軀幹\n2.雙肘彎曲約90°並貼身\n3.保持手肘位置，前臂緩慢向外旋轉\n4.到舒適可控制範圍\n5.慢慢回到起始位置","common_errors":"手肘離開身體、軀幹旋轉、肩胛明顯代償、速度過快","repetitions":"依治療師個別設定；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"只在舒適可控制範圍內進行，不強迫增加外旋幅度。","reference_source":"新版復健資料表 F05-04","demo_video_url":"待補","key_points":"坐姿直立、雙肘約90°、上臂貼身、肩胛穩定","correct_angle":"手肘約90°；肩外旋不設定所有人的固定角度門檻","angle_tolerance":"依個人舒適活動範圍","cnn_label":"Correct：手肘貼身且前臂平穩外旋\nCompensated：手肘外移、軀幹旋轉或聳肩\nFault：無法完成或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面坐姿（上半身與雙手完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL12"
+  },
+  {
+    "exercise_id":"F05-05","exercise_name":"肩屈曲／前舉","category":"上肢功能","target_muscle":"三角肌前束、棘上肌與肩胛穩定肌群","difficulty":"初階","description":"手臂由身體側邊沿前方抬高至最大無痛範圍，再受控放下。","steps":"1.坐姿或站姿並保持軀幹直立\n2.手臂伸直、掌心朝內\n3.沿前方緩慢向上抬舉\n4.在最大無痛且可控制位置停留\n5.慢慢放回身側","common_errors":"聳肩、手肘彎曲、軀幹後仰、速度過快或甩臂","repetitions":"依治療師個別設定；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"僅抬至無痛且可控制範圍；疼痛或肩膀夾擠感加劇時停止。","reference_source":"新版復健資料表 F05-05","demo_video_url":"待補","key_points":"沿身體前方抬舉、手肘伸直、軀幹與肩胛穩定","correct_angle":"正常活動度約170°～180°，不作為所有使用者的強制門檻","angle_tolerance":"依個人無痛活動範圍","cnn_label":"Correct：手臂沿前方受控抬舉與回位\nCompensated：聳肩、彎肘或後仰\nFault：無法抬舉或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"側面（上半身與手臂完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
+  },
+  {
+    "exercise_id":"F05-06","exercise_name":"肩外展／側舉","category":"上肢功能","target_muscle":"三角肌中束、棘上肌、斜方肌與前鋸肌","difficulty":"初階","description":"手臂由身體側邊向外畫弧抬高至最大無痛範圍，再受控放下。","steps":"1.坐姿或站姿並保持軀幹直立\n2.手臂伸直、掌心朝外\n3.由身體兩側向上畫弧抬起\n4.在最大無痛且可控制位置停留\n5.慢慢放回體側","common_errors":"聳肩、手肘彎曲、軀幹側傾、速度過快或甩臂","repetitions":"依治療師個別設定；系統預設10次","sets":"依治療師個別設定","estimated_minutes":"5分鐘","precautions":"僅抬至無痛且可控制範圍；疼痛或肩膀夾擠感加劇時停止。","reference_source":"新版復健資料表 F05-06","demo_video_url":"待補","key_points":"沿身體側方抬舉、手肘伸直、軀幹與肩胛穩定","correct_angle":"正常活動度約170°～180°，不作為所有使用者的強制門檻","angle_tolerance":"依個人無痛活動範圍","cnn_label":"Correct：手臂沿側方受控抬舉與回位\nCompensated：聳肩、彎肘或側傾\nFault：無法抬舉或疼痛","defaultSets":1,"defaultRepetitions":10,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面（上半身與雙手完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
+  },
+  {
+    "exercise_id":"F05-09","exercise_name":"側向伸取","category":"上肢功能","target_muscle":"肩部肌群、核心側向穩定肌群","difficulty":"中階","description":"雙腳固定，手臂維持肩高向左右側延伸，訓練側向功能性伸取能力。","steps":"1.雙腳平放並站穩\n2.手臂抬至肩膀高度\n3.不移動雙腳，向左或右側盡量伸取\n4.短暫停留後控制回位\n5.換側重複","common_errors":"移動腳步、手臂低於肩高、軀幹失控或失去平衡","repetitions":"每側2次（共4次）","sets":"1組","estimated_minutes":"3分鐘","precautions":"靠近穩固支撐面並由他人在旁保護；腳步移動時該次不計。","reference_source":"新版復健資料表 F05-09","demo_video_url":"待補","key_points":"手臂維持肩高、雙腳固定、左右側伸取後完整回位","correct_angle":"以肩高及個人安全伸取極限判定，不設定固定距離","angle_tolerance":"依個人穩定極限","cnn_label":"Correct：雙腳固定並完成側向伸取與回位\nCompensated：手臂下降或軀幹失控\nFault：腳步移動或失去平衡","defaultSets":1,"defaultRepetitions":4,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面（全身、雙手與雙腳完整入鏡，左右預留空間）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis"
+  },
+  {
     "exercise_id": "F06-01",
     "exercise_name": "肩關節擺盪運動",
     "category": "柔軟度／活動能力",
@@ -1120,6 +1165,12 @@ export const rehabExercises = [
     "rewardStars": 1,
     "trainingMode": "pose_analysis",
     "legacy_exercise_id": "SH01"
+  },
+  {
+    "exercise_id":"F06-02","exercise_name":"雙手抱胸伸展","category":"柔軟度／活動能力","target_muscle":"斜方肌、菱形肌與上背部肌群","difficulty":"初階","description":"坐姿雙手交叉抱住對側肩膀，使上背部輕微圓屈，伸展肩胛骨間與上背區域。","steps":"1.坐於穩固座椅\n2.雙臂交叉，雙手放在對側肩膀\n3.身體稍向前並使上背部圓屈\n4.下巴微收，感受肩胛骨間伸展\n5.維持20秒後回到直立","common_errors":"肩膀緊繃聳起、身體晃動、過度強迫圓背或憋氣","repetitions":"3次，每次維持20秒","sets":"1組","estimated_minutes":"2分鐘","precautions":"只在舒適且可控制範圍內伸展，不勉強增加幅度。","reference_source":"新版復健資料表 F06-02","demo_video_url":"待補","key_points":"坐姿穩定、雙手抱對側肩膀、上背輕微圓屈、下巴微收","correct_angle":"不設定固定角度，以正確姿勢穩定維持判定","angle_tolerance":"依個人舒適範圍","cnn_label":"Correct：抱胸且上背穩定圓屈維持\nCompensated：聳肩或身體晃動\nFault：無法維持或疼痛","defaultSets":1,"defaultRepetitions":3,"defaultDurationSeconds":20,"measurementType":"duration","cameraAngle":"正面或斜側坐姿（上半身與雙手完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL11"
+  },
+  {
+    "exercise_id":"F06-03","exercise_name":"三頭肌伸展","category":"柔軟度／活動能力","target_muscle":"肱三頭肌","difficulty":"初階","description":"一側手臂抬過頭並屈肘，另一手輕扶手肘，使上臂後側產生伸展。","steps":"1.站立或坐姿保持直立\n2.一側手臂抬至頭上\n3.屈肘使手往上背移動\n4.另一手輕扶彎曲側手肘\n5.維持20秒後換側","common_errors":"拱腰、軀幹側彎、聳肩、用力拉扯手肘或憋氣","repetitions":"每側1次、維持20秒","sets":"1組","estimated_minutes":"2分鐘","precautions":"以舒適方式伸展，不強力拉扯；保持軀幹穩定。","reference_source":"新版復健資料表 F06-03","demo_video_url":"待補","key_points":"手臂抬高、屈肘、手往上背、另一手輕扶、軀幹直立","correct_angle":"不設定固定肩肘角度，以姿勢完成與穩定維持判定","angle_tolerance":"依個人無痛範圍","cnn_label":"Correct：手臂抬高屈肘並穩定維持\nCompensated：拱腰、側彎或聳肩\nFault：無法維持或疼痛","defaultSets":1,"defaultRepetitions":2,"defaultDurationSeconds":20,"measurementType":"duration","cameraAngle":"正面（上半身、手肘與雙手完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis","legacy_exercise_id":"EL08"
   },
   {
     "exercise_id": "F06-04",
@@ -1270,5 +1321,17 @@ export const rehabExercises = [
     "rewardStars": 1,
     "trainingMode": "pose_analysis",
     "legacy_exercise_id": "AK04"
+  },
+  {
+    "exercise_id":"F06-09","exercise_name":"軀幹側彎","category":"柔軟度／活動能力","target_muscle":"腰方肌、豎脊肌與腹斜肌群","difficulty":"初階","description":"站立保持雙腳與骨盆穩定，軀幹向左右側彎並控制回到直立。","steps":"1.雙腳穩定站立\n2.身體面向前方並保持直立\n3.軀幹向一側彎曲\n4.控制回到中立\n5.換另一側並比較左右幅度","common_errors":"骨盆明顯移動、身體旋轉、快速甩動、膝蓋彎曲或失去平衡","repetitions":"左右共6次","sets":"1組","estimated_minutes":"3分鐘","precautions":"只在可控制範圍內進行，不快速或強迫增加側彎幅度。","reference_source":"新版復健資料表 F06-09","demo_video_url":"待補","key_points":"由直立開始、骨盆穩定、左右側彎、完整回中立","correct_angle":"活動範圍受年齡與量測方法影響，不設定通用角度門檻","angle_tolerance":"比較個人左右差異與前後變化","cnn_label":"Correct：骨盆穩定並完成側彎回位\nCompensated：旋轉、骨盆偏移或快速甩動\nFault：失去平衡或疼痛","defaultSets":1,"defaultRepetitions":6,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面（全身與雙腳完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
+  },
+  {
+    "exercise_id":"F06-10","exercise_name":"軀幹旋轉","category":"柔軟度／活動能力","target_muscle":"腹內外斜肌、豎脊肌與多裂肌","difficulty":"初階","description":"由中立姿勢將軀幹向左右旋轉，再控制回到中立，觀察左右活動差異。","steps":"1.站立或坐姿保持直立\n2.由軀幹中立位置開始\n3.向一側旋轉至可控制範圍\n4.控制回到中立\n5.換另一側並比較幅度","common_errors":"骨盆跟著旋轉、身體側彎、快速甩動或未完整回位","repetitions":"左右共6次","sets":"1組","estimated_minutes":"3分鐘","precautions":"保持姿勢與骨盆穩定，不快速或強迫增加旋轉幅度。","reference_source":"新版復健資料表 F06-10","demo_video_url":"待補","key_points":"由中立開始、骨盆穩定、左右旋轉、完整回位","correct_angle":"研究數值受姿勢與測量方法影響，不設定通用單側角度門檻","angle_tolerance":"比較個人左右差異與前後變化","cnn_label":"Correct：骨盆穩定並完成旋轉回位\nCompensated：骨盆轉動、側彎或甩動\nFault：無法完成或疼痛","defaultSets":1,"defaultRepetitions":6,"defaultDurationSeconds":null,"measurementType":"repetition","cameraAngle":"正面或斜前方（上半身與骨盆完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
+  },
+  {
+    "exercise_id":"F06-11","exercise_name":"坐姿腿後肌伸展","category":"柔軟度／活動能力","target_muscle":"股二頭肌、半腱肌與半膜肌","difficulty":"初階","description":"坐在椅子前緣，一腿向前伸直且腳跟著地，由髖部向前傾伸展大腿後側。","steps":"1.坐於椅子前側並保持軀幹直立\n2.一腿向前伸直，腳跟著地\n3.維持伸展側膝蓋伸直\n4.由髖部向前傾\n5.維持20秒後回位並換側","common_errors":"膝蓋彎曲、腳跟離地、圓背代替髖屈、彈震伸展或動作過快","repetitions":"每側1次、維持20秒","sets":"1組","estimated_minutes":"2分鐘","precautions":"緩慢進入伸展，不以彈震增加幅度；以大腿後側伸展感為主。","reference_source":"新版復健資料表 F06-11","demo_video_url":"待補","key_points":"一腿伸直、腳跟著地、膝蓋伸直、由髖部前傾","correct_angle":"不設定通用固定角度，以姿勢完成與穩定維持判定","angle_tolerance":"依個人柔軟度與無痛範圍","cnn_label":"Correct：膝伸直、腳跟著地並由髖前傾\nCompensated：彎膝、圓背或彈震\nFault：無法維持或疼痛","defaultSets":1,"defaultRepetitions":2,"defaultDurationSeconds":20,"measurementType":"duration","cameraAngle":"側面坐姿（全身、椅子與伸展腿完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
+  },
+  {
+    "exercise_id":"F06-12","exercise_name":"小腿伸展","category":"柔軟度／活動能力","target_muscle":"腓腸肌與比目魚肌","difficulty":"初階","description":"採前後站姿，後腿伸直且腳跟貼地，身體向前移動以伸展後側小腿。","steps":"1.採一腳前、一腳後站姿\n2.前膝彎曲、後腿伸直\n3.後腳腳跟維持貼地\n4.身體向前移動至小腿有伸展感\n5.維持20秒後換側","common_errors":"後膝彎曲、後腳跟離地、腳尖偏轉、彈震伸展或軀幹失控","repetitions":"每側1次、維持20秒","sets":"1組","estimated_minutes":"2分鐘","precautions":"後腳跟保持貼地；不可彈震，若造成疼痛應停止。","reference_source":"新版復健資料表 F06-12","demo_video_url":"待補","key_points":"前後站姿、後腿伸直、後腳跟貼地、身體向前移動","correct_angle":"不同研究量測方法差異大，不設定單一踝背屈角度門檻","angle_tolerance":"依個人無痛與可控制範圍","cnn_label":"Correct：後腿伸直且腳跟貼地穩定維持\nCompensated：彎膝、抬跟或彈震\nFault：失去平衡或疼痛","defaultSets":1,"defaultRepetitions":2,"defaultDurationSeconds":20,"measurementType":"duration","cameraAngle":"側面（全身、雙腿與雙腳完整入鏡）","analysisRequired":true,"rewardXp":30,"rewardStars":1,"trainingMode":"pose_analysis"
   }
 ];
