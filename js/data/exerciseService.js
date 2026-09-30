@@ -344,6 +344,10 @@ const DIFFICULTY_TIER_MAP = {
   "易": "beginner",
   "普通": "intermediate",
   "難": "advanced",
+  // PENDING TEAM DECISION (integration Phase 0): the six-domain catalog also
+  // uses 初階 / 中階 / 高階 (45 of 66 items). They are intentionally NOT
+  // mapped yet — mapping them changes recommendation behaviour for those
+  // items, so the team's existing logic is kept until that is agreed.
 };
 
 export function getDifficultyTier(rawDifficulty) {

@@ -82,15 +82,17 @@ const sliceFn = (needle, span = 6000) => {
   }
   const ov = sliceFn("function patientDataOverviewPage()");
   assert.ok(/analysisService\.getByPatientId\(patientId\)/.test(ov), "I: overview reads real analysisService records");
-  assert.ok(/buildWeeklyTrainingProgress\(records\)/.test(ov), "J: weekly count from the shared weekly-progress helper");
-  assert.ok(/gamificationEngine\.getCurrentStreak\(patientId\)/.test(ov), "streak from the single gamification source");
+  // Cross-Module Integration I-1 — the weekly numbers now come from the canonical
+  // training events (completed events only, real local week), not raw records.
+  assert.ok(/gamificationEngine\.getWeeklyTrainingSummary\(patientId, realTodayKey\)/.test(ov), "J: weekly count from canonical training events");
 }
 
 // ── K — average score ignores records without a numeric score ────
 {
   const ov = sliceFn("function patientDataOverviewPage()");
-  assert.ok(/typeof r\.score === "number" \? r\.score : typeof r\.overallScore === "number" \? r\.overallScore : null/.test(ov)
-    && /\.filter\(\(s\) => s != null\)/.test(ov), "K: avg score only averages real numeric scores");
+  // I-1 — the average is this week's completed, numerically scored events only (trainingEventService).
+  const tes = readFileSync(join(root, "js/data/trainingEventService.js"), "utf8");
+  assert.ok(/typeof record\.score === "number"/.test(tes) && /\.filter\(\(s\) => s != null\)/.test(tes) && /week\.averageAiPoseScore != null \? week\.averageAiPoseScore : "—"/.test(ov), "K: avg score only averages real numeric scores of this week");
 }
 
 // ── L/trend — chart points are real scored records only, capped ──
@@ -109,8 +111,8 @@ const sliceFn = (needle, span = 6000) => {
   const ov = sliceFn("function patientDataOverviewPage()");
   assert.ok(/records\.length === 0/.test(ov), "M: explicit zero-records branch");
   assert.ok(/const nav = renderDataSegmentedNav\("overview"\)/.test(ov), "overview builds the segmented nav");
-  const zero = ov.slice(ov.indexOf("records.length === 0"), ov.indexOf("const deltaHtml"));
-  for (const part of ["${nav}", "本週總覽", "訓練品質趨勢", "完成第一次練習後", 'onclick="goSelfRehabEntry()"']) {
+  const zero = ov.slice(ov.indexOf("records.length === 0"));
+  for (const part of ["${nav}", "${weekHtml}", "AI 姿勢分數趨勢", "完成第一次練習後", 'onclick="goSelfRehabEntry()"']) {
     assert.ok(zero.includes(part), `zero-state keeps structure: ${part}`);
   }
 }

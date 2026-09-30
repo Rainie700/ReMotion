@@ -25,6 +25,6 @@ for(let t=0;t<=1200;t+=100)duration.processFrame({timestamp:t,...base,leftFootLi
 assert.equal(duration.getSummary().completed,true);
 
 const appSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
-for(const p of Object.values(GAIT_PROFILES))assert.ok(appSource.includes(`/images/exercise/${p.image}`),`${p.id} image-map entry missing`);
+const {EXERCISE_ASSET_AUDIT}=await import("../js/data/exerciseAssets.js");for(const p of Object.values(GAIT_PROFILES))assert.ok(EXERCISE_ASSET_AUDIT[p.id],`${p.id} asset-audit entry missing (js/data/exerciseAssets.js is the one image mapping)`);
 assert.equal(appSource.includes('<h3 class="section-title">資料來源</h3>'),false,"資料來源 section must be removed from exercise details");
 console.log("F03/F04 gait-series addition tests passed");

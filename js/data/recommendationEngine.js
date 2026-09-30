@@ -118,6 +118,14 @@ export function scoreExerciseForAssessment(exercise, assessment, config = RECOMM
     score += weights.AI_SUPPORTED_BONUS;
   }
 
+  // F01 Video MVP Phase 1 — opt-in, candidate-supplied tie-break (e.g. the
+  // assessed movement itself in a 5xSTS pool). The default catalog pool
+  // never sets it, so every other recommendation path is unaffected.
+  if (Number.isFinite(exercise.priorityBonus) && exercise.priorityBonus > 0) {
+    matchDetails.priorityBonus = exercise.priorityBonus;
+    score += exercise.priorityBonus;
+  }
+
   return { score, matchDetails };
 }
 
@@ -296,6 +304,10 @@ export function buildSession(scoredCandidates, assessment, config = RECOMMENDATI
     score,
     section: "main",
     reason: buildRecommendationReason(exercise, assessment, matchDetails),
+    // F01 Video MVP Phase 1 — exposed (additive) so a caller-supplied
+    // reason builder can explain exactly which rules fired. Not persisted:
+    // recommendationService only stores its own item fields.
+    matchDetails,
   }));
 
   const allMinutesKnown = items.length > 0 && items.every((it) => it.estimatedMinutes != null);

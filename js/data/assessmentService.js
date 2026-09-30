@@ -76,6 +76,18 @@ export const assessmentService = {
     bodyRegion = null,
     problemId = null,
     assessmentMovementIds = null,
+    // Sarcopenia Redesign Phase 1 — additive, optional. Which functional
+    // assessment PROTOCOL produced this routing context, using the exact
+    // same discriminator values as functionalAssessmentService's
+    // FUNCTIONAL_ASSESSMENT_TYPES ("shoulder" | "five_times_sit_to_stand").
+    // Reference/traceability only — like bodyRegion/problemId above, this
+    // is NEVER read by recommendationEngine's ranking (bodyParts/goals/
+    // abilityLevel/preferredSessionMinutes remain the only scoring inputs).
+    // Populated by confirmAssessment() for assessment-sourced plans (F01
+    // Video MVP Phase 1: 5xSTS Result -> 取得訓練建議), where app.js uses it
+    // only to pick the candidate pool / reason text — the engine's scoring
+    // rules are unchanged.
+    assessmentType = null,
   }) {
     if (!patientId) return { error: "缺少 patientId，無法建立評估資料。" };
     if (abilityLevel != null && !ABILITY_LEVELS.includes(abilityLevel)) {
@@ -117,6 +129,9 @@ export const assessmentService = {
       assessmentMovementIds: Array.isArray(assessmentMovementIds) && assessmentMovementIds.length
         ? [...assessmentMovementIds]
         : null,
+      // Sarcopenia Redesign Phase 1 — see param doc above. Absent on every
+      // pre-Phase-1 record; readers must tolerate undefined/null.
+      assessmentType: assessmentType || null,
     });
 
     return { assessment: record, supersededId: previousActive ? previousActive.id : null };

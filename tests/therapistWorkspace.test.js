@@ -68,11 +68,14 @@ const stripComments = (s) => s.replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*
   assert.ok(/\["overview", "總覽"\], \["assessment", "功能評估"\], \["records", "訓練紀錄"\], \["plan", "復健計畫"\]/.test(d),
     "detail has exactly the 4 sections 總覽 / 功能評估 / 訓練紀錄 / 復健計畫");
   assert.ok(/\.includes\(state\.caseDetailTab\)/.test(d), "the active tab is state-driven");
-  assert.ok(/buildWeeklyTrainingProgress\(records\)/.test(d), "近期表現 reuses the patient Data V2 weekly helper (no second calculation)");
+  assert.ok(/canonicalWeeklyProgress\(patientId\)/.test(d), "近期表現 reuses the patient weekly helper (I-2 canonical summary, no second calculation)");
   assert.ok(/collectQualityTrendPoints\(records, 7\)/.test(d) && /renderQualityTrendChart\(/.test(d), "trend reuses the Data V2 chart helper");
-  assert.ok(/functionalAssessmentService\.getLatestCompletedByPatientId\(patientId\)/.test(d)
+  // Sarcopenia Redesign Phase 1 — explicitly SHOULDER-filtered (a patient
+  // may also have a completed five_times_sit_to_stand session, which must
+  // never reach buildShoulderAssessmentFindings).
+  assert.ok(/functionalAssessmentService\.getLatestCompletedByPatientId\(patientId, \{ assessmentType: FUNCTIONAL_ASSESSMENT_TYPES\.SHOULDER \}\)/.test(d)
     && /buildShoulderAssessmentFindings\(\{ problemId: fa\.problemId, movementResults: fa\.movementResults \}\)/.test(d),
-    "功能評估 reuses the SAME shoulderAssessmentFindings normalization the patient sees");
+    "功能評估 reuses the SAME shoulderAssessmentFindings normalization the patient sees, filtered to shoulder sessions only");
   assert.ok(/buildTrainingHistoryEntry\(r\)/.test(d) && /renderTrainingHistoryCard/.test(d), "訓練紀錄 reuses the existing history entry/card");
   assert.ok(/scheduleService\s*[\r\n]*\s*\.getByPatientId\(patientId\)/.test(d), "復健計畫 過去安排 from scheduleService");
   assert.ok(/onclick="goAssignPlan\(\)"/.test(d), "調整計畫 CTA into the existing assign flow");

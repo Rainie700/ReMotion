@@ -49,13 +49,15 @@ const sliceFn = (needle) => {
   const map = sliceFn("function rehabMapPage()");
   assert.ok(/gamificationEngine\.getGamificationSummary\(getCurrentPatientId\(\)\)/.test(map),
     "the map page reads the same single gamification source of truth");
-  assert.ok(/\$\{renderLevelXpSummaryCard\(gamification\)\}/.test(map),
-    "the map page shows the shared Level/XP/Streak card (no onclick — already here)");
+  // Core Value Experience — the journey is primary; Level / XP is one compact line from the same summary.
+  assert.ok(/\$\{renderJourneyLevelRow\(gamification\)\}/.test(map),
+    "the map page shows a compact Level / XP line (same gamificationEngine summary)");
   assert.ok(/onclick="goAchievements\(\)"[\s\S]*?已解鎖 \$\{gamification\.unlockedCount\} \/ \$\{gamification\.totalAchievements\}/.test(map),
     "the hub has an entry into the separate Achievement collection page, showing the real unlocked count");
-  // hierarchy in the RETURN template: summary -> chapter+map -> challenge -> reward -> achievements entry
+  // hierarchy in the RETURN template: summary -> chapter+map -> journey summary -> achievements entry
+  // (I-3: stages are F01 journey milestones, no longer achievement badges, so the per-stage reward card is gone)
   const ret = map.slice(map.indexOf("return `"));
-  const order = ["${renderLevelXpSummaryCard(gamification)}", 'class="rehab-adventure-chapter"', "${challengeHtml}", "${rewardHtml}", "rehab-achievement-entry"];
+  const order = ["${renderJourneyLevelRow(gamification)}", "journey-weeks", 'class="rehab-adventure-chapter"', "${summaryHtml}", "rehab-achievement-entry"];
   let last = -1;
   for (const token of order) {
     const at = ret.indexOf(token);
@@ -68,9 +70,9 @@ const sliceFn = (needle) => {
   assert.ok(!emitted.includes("目前星星"), "fake 目前星星 stat removed");
   assert.ok(!emitted.includes('class="stats rehab-stats"'), "the static 3-col demo stats strip is gone");
   assert.ok(!emitted.includes("膝蓋穩定挑戰") && !emitted.includes("膝蓋穩定王"), "hardcoded knee challenge / fake badge removed");
-  assert.ok(!/本關進度 2 \/ 3/.test(emitted) && /本關進度 \$\{p\.current\} \/ \$\{p\.target\}/.test(emitted),
-    "challenge progress is data-driven (from the current stage config), not the static 2 / 3");
-  assert.ok(/resolveRehabAdventure\(gamification\)/.test(emitted), "map derives stages from the adventure adapter");
+  assert.ok(!/本關進度 2 \/ 3/.test(emitted) && /本週訓練日 \$\{p\.current\} \/ \$\{p\.target\}/.test(emitted),
+    "journey progress is data-driven (from the current F01 cycle), not the static 2 / 3");
+  assert.ok(/f01AdventureService\.getAdventure\(getCurrentPatientId\(\), getTrackingTodayKey\(\)\)/.test(emitted), "map derives stages from the F01 journey (I-3)");
 }
 
 // ── deterministic back navigation (no browser-history dependency) ──

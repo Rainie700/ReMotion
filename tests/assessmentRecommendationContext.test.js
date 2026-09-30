@@ -143,7 +143,9 @@ const stripComments = (s) => s.replace(/^\s*\/\/.*$/gm, "").replace(/\/\*[\s\S]*
 // questionnaire keeps the fixed 肩部 context + the required copy
 {
   const form = sliceFn("function patientAssessmentFormPage()");
-  assert.ok(/評估部位：肩部/.test(form) && /已依本次功能評估帶入/.test(form), "form shows 評估部位：肩部 + 已依本次功能評估帶入");
+  // F01 Video MVP Phase 1 — the region label is type-driven; shoulder still resolves to 評估部位：肩部.
+  assert.ok(/getAssessmentRegionLabel\(/.test(form) && /已依本次功能評估帶入/.test(form), "form shows type-driven region label + 已依本次功能評估帶入");
+  assert.ok(/return "評估部位：肩部";/.test(sliceFn("function getAssessmentRegionLabel(")), "shoulder label unchanged");
 }
 // Today's Training basis card: 本次評估 row, movements only, no clinical language
 {

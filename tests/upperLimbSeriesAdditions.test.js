@@ -19,5 +19,5 @@ run("F05-05",{leftShoulderAngle:110},{leftShoulderAngle:5});
 run("F05-09",{leftWristX:.25},{leftWristX:.4});
 
 const appSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
-for(const p of Object.values(UPPER_LIMB_PROFILES))assert.ok(appSource.includes(`/images/exercise/${p.image}`),`${p.id} image-map entry missing`);
+const {EXERCISE_ASSET_AUDIT}=await import("../js/data/exerciseAssets.js");for(const p of Object.values(UPPER_LIMB_PROFILES))assert.ok(EXERCISE_ASSET_AUDIT[p.id],`${p.id} asset-audit entry missing (js/data/exerciseAssets.js is the one image mapping)`);
 console.log("F05 upper-limb series addition tests passed");

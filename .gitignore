@@ -67,3 +67,16 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# ReMotion local/generated artifacts
+dist/
+graphify-out/
+ReMotion-code-audit/
+ReMotion-code-audit.zip
+
+# Editor / local AI workspace
+.vscode/
+.claude/
+
+# Local documents
+/*.pdf

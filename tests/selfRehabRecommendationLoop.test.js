@@ -223,16 +223,20 @@ assert.ok(
 //    context and never re-asks it; the dots collapse to steps 2-4.
 {
   const dots = sliceFn("function assessmentStepDots(");
+  // F01 Video MVP Phase 1 — steps are now chosen by assessment type
+  // (shoulder: 2-4, 5xSTS: 3-4, direct: 1-4).
   assert.ok(
-    /state\.recommendationEntrySource === "assessment" \? \[2, 3, 4\] : \[1, 2, 3, 4\]/.test(dots),
-    "assessment path renders only steps 2-4"
+    /assessmentType \? \[2, 3, 4\] : \[1, 2, 3, 4\]/.test(dots),
+    "shoulder assessment path renders only steps 2-4"
   );
   const form = sliceFn("function patientAssessmentFormPage()");
   assert.ok(/state\.recommendationEntrySource === "assessment"/.test(form));
-  assert.ok(/評估部位：肩部/.test(form), "fixed body-region context is shown instead of the selector");
+  // The 肩部 label is now type-driven via getAssessmentRegionLabel().
+  assert.ok(/getAssessmentRegionLabel\(getInFlightAssessmentType\(\)\)/.test(form), "fixed body-region context is shown instead of the selector");
+  assert.ok(/return "評估部位：肩部";/.test(sliceFn("function getAssessmentRegionLabel(")), "shoulder still labelled 評估部位：肩部");
 
   const prev = sliceFn("function goAssessmentPrevStep()");
-  assert.ok(/minStep = src === "assessment" \? 2 : 1/.test(prev), "assessment path cannot step back into body-region");
+  assert.ok(/minStep = src === "assessment" \? \(isFa5x \? 3 : 2\) : 1/.test(prev), "assessment path cannot step back into body-region");
 }
 
 // E. confirmAssessment persists the context and BOTH paths converge on the
@@ -282,7 +286,7 @@ assert.ok(
 
   const basis = sliceFn("function renderRecommendationBasisCard(");
   assert.ok(/recSource === "assessment"/.test(basis));
-  assert.ok(/評估部位：肩部/.test(basis), "assessment basis row: 評估部位：肩部");
+  assert.ok(/getAssessmentRegionLabel\(assessmentType\)/.test(basis), "assessment basis row: type-driven (shoulder -> 評估部位：肩部)");
   assert.ok(/訓練部位：/.test(basis), "direct basis row: 訓練部位：…");
   assert.ok(/可訓練時間：/.test(basis), "basis shows 可訓練時間");
 }
@@ -303,12 +307,19 @@ for (const fn of [
 }
 
 // I. Home unified-entry card points at the new entry, keeps the 評估結果 action.
+// Functional Domain IA redesign — Home's primary CTA now opens the six-
+// Functional-Domain grid (goFunctionalDomainHome) instead of jumping
+// straight into goSelfRehabEntry(); the unified self-rehab entry itself is
+// untouched and still reachable (see selectFunctionalAssessmentBodyRegion
+// tests / patientDataOverviewPage call sites), just no longer Home's first
+// hop.
 {
   const home = appJs.slice(appJs.indexOf("const functionalAssessmentSectionHtml ="), appJs.indexOf("const functionalAssessmentSectionHtml =") + 1200);
-  assert.ok(/onclick="goSelfRehabEntry\(\)"/.test(home), "Home primary CTA opens the unified self-rehab entry");
+  assert.ok(/onclick="goFunctionalDomainHome\(\)"/.test(home), "Home primary CTA opens the Functional Domain grid");
   assert.ok(home.includes("依目前身體狀況與訓練需求，安排適合你的復健內容。"), "Home supporting copy matches the entry");
   assert.ok(/functionalAssessmentResultActionHtml/.test(home), "the 評估結果 secondary action is still rendered");
 }
+assert.ok(/onclick="goSelfRehabEntry\(\)"/.test(appJs), "goSelfRehabEntry() is still reachable elsewhere (e.g. patientDataOverviewPage empty state)");
 
 // J. therapist-assigned flow is untouched.
 assert.ok(/function assignPlanPage\(\)/.test(appJs), "assignPlanPage still present");

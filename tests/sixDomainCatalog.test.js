@@ -31,8 +31,9 @@ assert.equal(exerciseService.getById("AK13")?.exercise_id, "F02-04", "AK13 histo
 assert.ok(rehabExercises.every((exercise) => resolvePoseAnalyzer(exercise)), "every retained completed exercise keeps a detector route");
 
 const appSource = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+const { EXERCISE_ASSET_AUDIT } = await import("../js/data/exerciseAssets.js");
 for (const exercise of rehabExercises) {
-  assert.match(appSource, new RegExp('"' + exercise.exercise_id.replace("-", "\\-") + '"\\s*:'), exercise.exercise_id + " has an image-map entry");
+  assert.ok(EXERCISE_ASSET_AUDIT[exercise.exercise_id], exercise.exercise_id + " has an asset-audit entry (the one image mapping)");
 }
 for (const category of categories) {
   assert.ok(appSource.includes('"' + category + '"'), category + " is present in the category UI");

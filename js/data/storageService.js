@@ -14,6 +14,14 @@ const CLOUD_COLLECTIONS = [
   "functionalAssessmentSessions",
 ];
 
+// Phase D1 — collections added after the deployed Firestore rules. They are
+// written through like the others, but loaded defensively: if the cloud read
+// fails (e.g. rules not yet deployed -> permission denied) the local copy is
+// kept and login is never blocked; if it succeeds, cloud and local records
+// are merged by id (cloud wins) instead of the local list being replaced.
+const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles"];
+const isSyncedCollection = (name) => CLOUD_COLLECTIONS.includes(name) || OPTIONAL_CLOUD_COLLECTIONS.includes(name);
+
 function readRaw(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -52,7 +60,7 @@ async function loadCloudCollection(name, user) {
     return mergeById([asPatient, asTherapist]);
   }
 
-  if (["patientAssessments", "recommendationResults", "functionalAssessmentSessions"].includes(name)) {
+  if (["patientAssessments", "recommendationResults", "functionalAssessmentSessions", "trackingCycles"].includes(name)) {
     const ownRecords = await getRecordsForField(name, "patientId", user.id);
     if (user.role !== "therapist") return ownRecords;
     const relations = readRaw(collectionKey("therapistPatientRelations"), []);
@@ -66,18 +74,40 @@ async function loadCloudCollection(name, user) {
   return [];
 }
 
+// Cloud writes stay fire-and-forget for the app; they are only tracked so a
+// caller that must not reload early (the dev demo setup) can wait for them.
+const pendingCloudWrites = new Set();
+let settledCloudWrites = [];
+const noteSettled = (entry) => { settledCloudWrites.push(entry); if (settledCloudWrites.length > 2000) settledCloudWrites.shift(); };
+function trackCloudWrite(promise, meta) {
+  const tracked = promise.then(
+    () => { noteSettled({ ...meta, ok: true }); },
+    (error) => { noteSettled({ ...meta, ok: false, code: error && error.code }); throw error; },
+  ).finally(() => pendingCloudWrites.delete(tracked));
+  pendingCloudWrites.add(tracked);
+  return tracked;
+}
+
 function persistRecord(name, record) {
-  if (!cloudUser || !CLOUD_COLLECTIONS.includes(name) || !record?.id) return;
-  setDoc(doc(firestore, name, record.id), record).catch((error) => {
+  if (!cloudUser || !isSyncedCollection(name) || !record?.id) return;
+  trackCloudWrite(setDoc(doc(firestore, name, record.id), record), { op: "set", name, id: record.id }).catch((error) => {
     console.error(`[storageService] failed to sync ${name}/${record.id}`, error);
   });
 }
 
 function removeCloudRecord(name, id) {
-  if (!cloudUser || !CLOUD_COLLECTIONS.includes(name) || !id) return;
-  deleteDoc(doc(firestore, name, id)).catch((error) => {
+  if (!cloudUser || !isSyncedCollection(name) || !id) return;
+  trackCloudWrite(deleteDoc(doc(firestore, name, id)), { op: "delete", name, id }).catch((error) => {
     console.error(`[storageService] failed to remove ${name}/${id}`, error);
   });
+}
+
+/** Resolves once every cloud write issued so far has settled; returns their outcomes since the last call. */
+export async function waitForCloudWrites() {
+  while (pendingCloudWrites.size) await Promise.allSettled([...pendingCloudWrites]);
+  const results = settledCloudWrites;
+  settledCloudWrites = [];
+  return { total: results.length, failed: results.filter((r) => !r.ok) };
 }
 
 export const storageService = {
@@ -98,6 +128,14 @@ export const storageService = {
     // Relation records must be available before loading linked patients' data.
     for (const name of CLOUD_COLLECTIONS) {
       writeRaw(collectionKey(name), await loadCloudCollection(name, user));
+    }
+    for (const name of OPTIONAL_CLOUD_COLLECTIONS) {
+      try {
+        const cloud = await loadCloudCollection(name, user);
+        writeRaw(collectionKey(name), mergeById([readRaw(collectionKey(name), []), cloud]));
+      } catch (error) {
+        console.warn(`[storageService] optional collection "${name}" not loaded from cloud; keeping the local copy`, error);
+      }
     }
   },
   clearCloudUser() {

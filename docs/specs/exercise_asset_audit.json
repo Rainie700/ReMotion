@@ -1,0 +1,672 @@
+{
+  "generatedFrom": "js/data/exerciseAssets.js",
+  "catalogCount": 66,
+  "summary": {
+    "confirmed": 27,
+    "wrong": 4,
+    "needs_review": 12,
+    "missing": 23
+  },
+  "items": [
+    {
+      "exerciseId": "F01-01",
+      "exerciseName": "深蹲",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_squat.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-02",
+      "exerciseName": "迷你深蹲",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_mini_squat.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-03",
+      "exerciseName": "靠牆半蹲",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_wall_half_squat.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-04",
+      "exerciseName": "坐姿起立",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_sit_to_stand.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-05",
+      "exerciseName": "終末膝伸直",
+      "domain": "下肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-06",
+      "exerciseName": "坐姿膝伸直",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_seated_leg_raise.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-07",
+      "exerciseName": "坐姿膝彎曲",
+      "domain": "下肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-08",
+      "exerciseName": "直腿抬腿",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_high_knees.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": "仰躺、單腿伸直抬起（檔名為舊命名，內容即直腿抬腿）；原 exercise_knee_extension.png 為雙腿上舉，不採用"
+    },
+    {
+      "exerciseId": "F01-09",
+      "exerciseName": "坐姿抬膝",
+      "domain": "下肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-10",
+      "exerciseName": "橋式",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_bridge.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-11",
+      "exerciseName": "站姿髖屈曲",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_knee_raise.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-12",
+      "exerciseName": "站姿髖伸展",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_hip_extension.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-13",
+      "exerciseName": "側躺髖外展",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_side_leg_raise2.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-14",
+      "exerciseName": "側躺髖內收",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_hip_adduction.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-15",
+      "exerciseName": "蚌殼式",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_clamshell.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F01-16",
+      "exerciseName": "消防栓式",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_fire_hydrant.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": "四足跪姿起始姿勢"
+    },
+    {
+      "exerciseId": "F01-17",
+      "exerciseName": "雙腳提踵",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_double_calf_raise.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "圖為雙腳平站，看不出腳跟離地"
+    },
+    {
+      "exerciseId": "F01-18",
+      "exerciseName": "雙腳抬腳尖",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_double_toe_raise.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "圖為雙腳平站、手臂外展，看不出前腳掌抬起"
+    },
+    {
+      "exerciseId": "F01-19",
+      "exerciseName": "單腳提踵",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_single_leg_calf_raise.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": "單腳站立、手前伸扶牆、支撐腳前腳掌著地腳跟離地（2026-09-30 新圖）"
+    },
+    {
+      "exerciseId": "F01-20",
+      "exerciseName": "單腳抬腳尖",
+      "domain": "下肢功能",
+      "currentAsset": "/images/exercise/exercise_single_leg_toe_raise.png",
+      "fileExists": true,
+      "semanticMatch": "no",
+      "status": "wrong",
+      "note": "圖為抬腿前踢，不是單腳站立抬腳尖"
+    },
+    {
+      "exerciseId": "F02-01",
+      "exerciseName": "雙腳站立平衡",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_feet_together_balance.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-02",
+      "exerciseName": "半併步站立",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_semi_tandem_stance.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-03",
+      "exerciseName": "前後腳站立",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_tandem_stance.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-04",
+      "exerciseName": "單腳站立平衡",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_single_leg_ankle_stability.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-05",
+      "exerciseName": "左右重心轉移",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_lateral_weight_shift.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": "雙腳固定、重心側移"
+    },
+    {
+      "exerciseId": "F02-06",
+      "exerciseName": "前後重心轉移",
+      "domain": "平衡",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-07",
+      "exerciseName": "功能性前伸取物",
+      "domain": "平衡",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-08",
+      "exerciseName": "單腳前伸觸地",
+      "domain": "平衡",
+      "currentAsset": "/images/exercise/exercise_single_leg_forward_reach.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F02-09",
+      "exerciseName": "側向伸手",
+      "domain": "平衡",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-01",
+      "exerciseName": "床邊坐起",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_bedside_sit_up.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-02",
+      "exerciseName": "撿拾地面物品",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_floor_object_pickup.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-03",
+      "exerciseName": "轉身行走",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_turning_walk.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "圖為行走，看不出轉身"
+    },
+    {
+      "exerciseId": "F03-04",
+      "exerciseName": "階梯踏步",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_stair_ascent.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "候選圖為上多階樓梯；本動作定義為單一低階踏板上下"
+    },
+    {
+      "exerciseId": "F03-05",
+      "exerciseName": "側向跨步",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_lateral_step.png",
+      "fileExists": true,
+      "semanticMatch": "no",
+      "status": "wrong",
+      "note": "圖為側面向前行走，不是向側方跨步"
+    },
+    {
+      "exerciseId": "F03-06",
+      "exerciseName": "前跨步重心轉移",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_forward_weight_shift.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-07",
+      "exerciseName": "側跨步重心轉移",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_lateral_weight_shift.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "與 F02-05 共用；F02-05 定義為雙腳固定不跨步，本動作為先側跨一步再轉移重心，定義不同"
+    },
+    {
+      "exerciseId": "F03-08",
+      "exerciseName": "怪獸走",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_monster_walk.png",
+      "fileExists": true,
+      "semanticMatch": "no",
+      "status": "wrong",
+      "note": "圖為弓箭步，不是半蹲斜前跨步（怪獸走）"
+    },
+    {
+      "exerciseId": "F03-09",
+      "exerciseName": "棒式",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_plank.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-10",
+      "exerciseName": "捲腹",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_crunch.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F03-11",
+      "exerciseName": "仰躺交替腳跟點地",
+      "domain": "功能性移動",
+      "currentAsset": "/images/exercise/exercise_alternating_heel_tap.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-01",
+      "exerciseName": "正常步態訓練",
+      "domain": "步行功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-02",
+      "exerciseName": "直線行走",
+      "domain": "步行功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-03",
+      "exerciseName": "後退行走",
+      "domain": "步行功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-04",
+      "exerciseName": "側步行走",
+      "domain": "步行功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-06",
+      "exerciseName": "原地踏步",
+      "domain": "步行功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F04-07",
+      "exerciseName": "腳跟行走",
+      "domain": "步行功能",
+      "currentAsset": "/images/exercise/exercise_heel_walk.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "一般行走姿勢，看不出腳尖抬起；與 F04-08 圖幾乎相同"
+    },
+    {
+      "exerciseId": "F04-08",
+      "exerciseName": "腳尖行走",
+      "domain": "步行功能",
+      "currentAsset": "/images/exercise/exercise_toe_walk.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "一般行走姿勢，看不出以腳尖行走；與 F04-07 圖幾乎相同"
+    },
+    {
+      "exerciseId": "F05-01",
+      "exerciseName": "肘屈伸",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F05-02",
+      "exerciseName": "肘伸直",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F05-03",
+      "exerciseName": "手持水瓶彎舉",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F05-04",
+      "exerciseName": "肩關節旋轉能力",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F05-05",
+      "exerciseName": "肩屈曲／前舉",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F05-06",
+      "exerciseName": "肩外展／側舉",
+      "domain": "上肢功能",
+      "currentAsset": "/images/exercise/exercise_arm_abduction.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "候選圖為手持啞鈴側舉；本動作定義未包含負重"
+    },
+    {
+      "exerciseId": "F05-09",
+      "exerciseName": "側向伸取",
+      "domain": "上肢功能",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-01",
+      "exerciseName": "肩關節擺盪運動",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_shoulder_pendulum.png",
+      "fileExists": true,
+      "semanticMatch": "no",
+      "status": "wrong",
+      "note": "圖為直立雙臂擺動；本動作定義為身體前傾、健側手扶桌、患側手下垂擺盪"
+    },
+    {
+      "exerciseId": "F06-02",
+      "exerciseName": "雙手抱胸伸展",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-03",
+      "exerciseName": "三頭肌伸展",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-04",
+      "exerciseName": "仰躺膝蓋左右擺動",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_supine_knee_sway.png",
+      "fileExists": true,
+      "semanticMatch": "yes",
+      "status": "confirmed",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-05",
+      "exerciseName": "踝背屈",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_ankle_dorsiflexion.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "雙腳平站，看不出腳背屈"
+    },
+    {
+      "exerciseId": "F06-06",
+      "exerciseName": "踝蹠屈",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_ankle_plantarflexion.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "側面站姿，蹠屈幅度不明顯"
+    },
+    {
+      "exerciseId": "F06-07",
+      "exerciseName": "踝內翻",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_ankle_inversion.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "坐姿雙腳平放，看不出內翻；與 F06-08 圖相同"
+    },
+    {
+      "exerciseId": "F06-08",
+      "exerciseName": "踝外翻",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": "/images/exercise/exercise_ankle_eversion.png",
+      "fileExists": true,
+      "semanticMatch": "unclear",
+      "status": "needs_review",
+      "note": "坐姿雙腳平放，看不出外翻；與 F06-07 圖相同"
+    },
+    {
+      "exerciseId": "F06-09",
+      "exerciseName": "軀幹側彎",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-10",
+      "exerciseName": "軀幹旋轉",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-11",
+      "exerciseName": "坐姿腿後肌伸展",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    },
+    {
+      "exerciseId": "F06-12",
+      "exerciseName": "小腿伸展",
+      "domain": "柔軟度／活動能力",
+      "currentAsset": null,
+      "fileExists": false,
+      "semanticMatch": "n/a",
+      "status": "missing",
+      "note": null
+    }
+  ]
+}

@@ -1,0 +1,409 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remotion.local/schemas/llm-weekly-summary-1.0.json",
+  "title": "ReMotion Grounded LLM Weekly Summary v1.0",
+  "$comment": "The schema document follows JSON Schema Draft 2020-12. Runtime validation in ReMotion Phase 1A uses a project-specific deterministic subset validator (js/services/llmSummarySchema.js: $ref to $defs, type, const, enum, required, properties, additionalProperties false, items, minLength, maxLength, pattern, minimum, maximum, exclusiveMinimum, maxItems, uniqueItems). It is not a complete JSON Schema implementation; keywords outside this subset are not evaluated.",
+  "$defs": {
+    "VerifiedContextV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "contextType",
+        "cycleId",
+        "weekNumber",
+        "period",
+        "functionalAssessment",
+        "training",
+        "goal",
+        "currentExercises",
+        "decision",
+        "reportedIssues"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0"
+        },
+        "contextType": {
+          "const": "weekly_rehabilitation_summary"
+        },
+        "cycleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "weekNumber": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "period": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "startDate",
+            "endDate"
+          ],
+          "properties": {
+            "startDate": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "endDate": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          }
+        },
+        "functionalAssessment": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "assessmentType",
+            "baselineMs",
+            "baselineDisplay",
+            "reassessmentMs",
+            "reassessmentDisplay",
+            "differenceMs",
+            "differenceDisplay",
+            "valid"
+          ],
+          "properties": {
+            "assessmentType": {
+              "const": "5xSTS"
+            },
+            "baselineMs": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0
+            },
+            "baselineDisplay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "reassessmentMs": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "exclusiveMinimum": 0
+            },
+            "reassessmentDisplay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "differenceMs": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "differenceDisplay": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "valid": {
+              "type": "boolean"
+            }
+          }
+        },
+        "training": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completedDays",
+            "formalRecordCount",
+            "aiPostureAverage",
+            "aiPostureScoreAvailable"
+          ],
+          "properties": {
+            "completedDays": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "formalRecordCount": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "aiPostureAverage": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 100
+            },
+            "aiPostureScoreAvailable": {
+              "type": "boolean"
+            }
+          }
+        },
+        "goal": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "goalId",
+            "label"
+          ],
+          "properties": {
+            "goalId": {
+              "type": "string",
+              "pattern": "^G\\d{2}$"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "currentExercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exerciseId",
+              "name"
+            ],
+            "properties": {
+              "exerciseId": {
+                "type": "string",
+                "pattern": "^F0[1-6]-\\d{2}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "decision": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "ruleOutcome",
+            "confirmationStatus",
+            "confirmedAction",
+            "transitions"
+          ],
+          "properties": {
+            "ruleOutcome": {
+              "enum": [
+                "progress",
+                "maintain",
+                "adjust",
+                "no_auto_decision"
+              ]
+            },
+            "confirmationStatus": {
+              "const": "accepted"
+            },
+            "confirmedAction": {
+              "enum": [
+                "progress",
+                "maintain",
+                "adjust",
+                "no_auto_decision"
+              ]
+            },
+            "transitions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "fromExerciseId",
+                  "fromName",
+                  "toExerciseId",
+                  "toName",
+                  "transitionType"
+                ],
+                "properties": {
+                  "fromExerciseId": {
+                    "type": "string",
+                    "pattern": "^F0[1-6]-\\d{2}$"
+                  },
+                  "fromName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "toExerciseId": {
+                    "type": "string",
+                    "pattern": "^F0[1-6]-\\d{2}$"
+                  },
+                  "toName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "transitionType": {
+                    "enum": [
+                      "progress",
+                      "maintain",
+                      "regression",
+                      "same_goal_replacement"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "reportedIssues": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "newDiscomfort",
+            "newLimitation",
+            "professionalReviewRequired"
+          ],
+          "properties": {
+            "newDiscomfort": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "newLimitation": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "professionalReviewRequired": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "WeeklySummaryOutputV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "cycleId",
+        "userSummary",
+        "professionalSummary",
+        "attentionNotes",
+        "evidenceFactIds"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "1.0"
+        },
+        "cycleId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "userSummary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "headline",
+            "functionSummary",
+            "trainingSummary",
+            "nextPlanSummary"
+          ],
+          "properties": {
+            "headline": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            },
+            "functionSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            },
+            "trainingSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            },
+            "nextPlanSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            }
+          }
+        },
+        "professionalSummary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "functionSummary",
+            "trainingSummary",
+            "planSummary"
+          ],
+          "properties": {
+            "functionSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            },
+            "trainingSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            },
+            "planSummary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 400
+            }
+          }
+        },
+        "attentionNotes": {
+          "type": "array",
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          }
+        },
+        "evidenceFactIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z_]+(\\.[A-Za-z0-9_-]+)+$"
+          }
+        }
+      }
+    }
+  }
+}

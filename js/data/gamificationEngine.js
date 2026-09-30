@@ -1,6 +1,20 @@
-import { analysisService } from "./analysisService.js";
 import { scheduleService } from "./scheduleService.js";
 import { exerciseService } from "./exerciseService.js";
+import { trainingEventService, normalizeTrainingEvent, summarizeTrainingWeek } from "./trainingEventService.js";
+import { toLocalDateKey, addDaysToDateKey, diffDateKeys } from "./trackingCycle.js";
+import { trackingCycleService } from "./trackingCycleService.js";
+import { hasCompletedAllAssignedInADay } from "./todayPlanAggregator.js";
+
+/*
+ * Cross-Module Integration I-2 — every number here is derived from canonical
+ * Training Events (trainingEventService) on LOCAL date keys (D1's rule):
+ *   - only events with countsAsCompleted count (canonical: completed === true;
+ *     legacy history: kept as before, so nothing already earned is re-locked);
+ *   - the consistency bonus uses the streak AS OF THE EVENT'S OWN DATE, so an
+ *     event's XP never changes when "today" changes;
+ *   - XP is recomputed, never stored: re-rendering can never award it twice.
+ * The legacy gameService.addXp() / gameProfiles XP is no longer written.
+ */
 
 /**
  * ReMotion 2.0 Phase 4 — Gamification Foundation.
@@ -101,14 +115,40 @@ function resolveDifficultyTier(exerciseId) {
  *    earns anywhere near the full quality bonus, since it barely
  *    progressed toward the actual goal.
  */
-function computeSessionXp(record) {
+/** Consecutive local days ending ON dateKey that have a counted training (0 when dateKey has none). */
+function streakEndingOn(dateKey, completedDateSet) {
+  let streak = 0;
+  let cursor = dateKey;
+  while (cursor && completedDateSet.has(cursor)) {
+    streak += 1;
+    cursor = addDaysToDateKey(cursor, -1);
+  }
+  return streak;
+}
+
+/**
+ * XP of one training record. `context.completedDateSet` (the user's counted
+ * local training dates) may be passed to avoid re-reading; otherwise it is
+ * built from the record owner's events.
+ *   - canonical record not completed -> 0 XP (a saved record is not a session)
+ *   - completed / legacy -> the existing formula (difficulty base + completion
+ *     bonus capped at the target + AI 姿勢 bonus capped + consistency), capped
+ *     at MAX_XP_PER_SESSION; reps beyond the target never add XP
+ *   - consistency: streak ending on THIS event's local date (deterministic)
+ */
+function computeSessionXp(record, context = null) {
+  const zero = (notCompleted) => ({ xp: 0, breakdown: { base: 0, completion: 0, quality: 0, consistency: 0 }, isLegacyFlatRate: false, difficultyTier: null, notCompleted });
+  const event = (context && context.event) || normalizeTrainingEvent(record);
+  if (!event) return zero(false);
+  if (!event.countsAsCompleted) return zero(true);
+  const completedDateSet = (context && context.completedDateSet) || getCompletionDateSet(record.patientId);
+  const consistencyFor = () => (event.localDateKey && streakEndingOn(event.localDateKey, completedDateSet) >= SESSION_XP_RULES.CONSISTENCY_MIN_STREAK ? SESSION_XP_RULES.CONSISTENCY_BONUS_XP : 0);
+
   const s = record && record.summary;
   if (!s || typeof s.totalReps !== "number" || typeof s.targetReps !== "number") {
-    return { xp: XP_PER_EXERCISE, breakdown: { base: XP_PER_EXERCISE, completion: 0, quality: 0, consistency: 0 }, isLegacyFlatRate: true, difficultyTier: null };
+    return { xp: XP_PER_EXERCISE, breakdown: { base: XP_PER_EXERCISE, completion: 0, quality: 0, consistency: 0 }, isLegacyFlatRate: true, difficultyTier: null, notCompleted: false };
   }
-  if (!s.totalReps || s.totalReps <= 0) {
-    return { xp: 0, breakdown: { base: 0, completion: 0, quality: 0, consistency: 0 }, isLegacyFlatRate: false, difficultyTier: null };
-  }
+  if (!s.totalReps || s.totalReps <= 0) return zero(false);
 
   const difficultyTier = resolveDifficultyTier(record.exerciseId);
   const base = (difficultyTier && DIFFICULTY_TIER_BASE_XP[difficultyTier]) || SESSION_XP_RULES.NEUTRAL_BASE_XP;
@@ -121,19 +161,12 @@ function computeSessionXp(record) {
 
   const qualityValidReps = s.qualityValidReps ?? s.validReps ?? 0;
   const qualityRatio = Math.min(1, qualityValidReps / s.totalReps);
-  // Phase 5.4.3 — deliberately multiplied by completionRatio, not used
-  // alone, so a tiny number of "perfect" reps against a much larger target
-  // can't earn a near-full quality bonus (report section 12/16).
   const quality = Math.round(qualityRatio * completionRatio * SESSION_XP_RULES.MAX_QUALITY_BONUS_XP);
 
-  let consistency = 0;
-  if (record.patientId) {
-    const streak = getCurrentStreak(record.patientId);
-    if (streak >= SESSION_XP_RULES.CONSISTENCY_MIN_STREAK) consistency = SESSION_XP_RULES.CONSISTENCY_BONUS_XP;
-  }
+  const consistency = record.patientId ? consistencyFor() : 0;
 
   const xp = Math.min(base + completion + quality + consistency, SESSION_XP_RULES.MAX_XP_PER_SESSION);
-  return { xp, breakdown: { base, completion, quality, consistency }, isLegacyFlatRate: false, difficultyTier };
+  return { xp, breakdown: { base, completion, quality, consistency }, isLegacyFlatRate: false, difficultyTier, notCompleted: false };
 }
 
 const LEVEL_TITLES = [
@@ -152,44 +185,31 @@ function getLevelTitle(level) {
   return title;
 }
 
-function toDateStr(record) {
-  return (record.completedAt || record.createdAt || "").slice(0, 10);
+function realTodayKey() {
+  return toLocalDateKey(new Date()); // the REAL local date — never ?trackingToday=
 }
 
-/**
- * Every analysisRecord is one legitimate completed rehabilitation activity
- * (assigned or self_practice — recommendation completions are tagged
- * self_practice per Phase 3.1). Each record is created exactly once per
- * completion (the existing duplicate-finalize guard in app.js already
- * prevents a second record for the same session), so counting records is
- * naturally free of double-counting — no extra bookkeeping needed.
- */
-function getCompletionRecords(patientId) {
-  return analysisService.getByPatientId(patientId);
+/** All canonical training events of a user (newest first). */
+function getEvents(patientId) {
+  return patientId ? trainingEventService.listTrainingEvents(patientId) : [];
+}
+
+/** Events that count as completed trainings (see trainingEventService). */
+function getCompletionEvents(patientId) {
+  return getEvents(patientId).filter((e) => e.countsAsCompleted);
 }
 
 function getCompletionDateSet(patientId) {
-  return new Set(getCompletionRecords(patientId).map(toDateStr).filter(Boolean));
+  return new Set(getCompletionEvents(patientId).map((e) => e.localDateKey).filter(Boolean));
 }
 
-function localTodayStr() {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-/**
- * XP = the sum of each completed record's session XP (computeSessionXp
- * above). Records without rep/quality data fall back to the original flat
- * XP_PER_EXERCISE, so this is a strict extension of the old rule, not a
- * retroactive rewrite of anyone's history.
- */
+/** Sum of every event's deterministic XP (incomplete canonical events contribute 0). */
 function getPatientXP(patientId) {
-  return getCompletionRecords(patientId).reduce((sum, r) => sum + computeSessionXp(r).xp, 0);
+  const events = getEvents(patientId);
+  const completedDateSet = new Set(events.filter((e) => e.countsAsCompleted).map((e) => e.localDateKey).filter(Boolean));
+  return events.reduce((sum, e) => sum + computeSessionXp(e.record, { event: e, completedDateSet }).xp, 0);
 }
 
-/** Level = every 100 XP is one level, constant threshold. */
 function getLevelInfo(xp) {
   const level = Math.floor(xp / LEVEL_XP_STEP) + 1;
   const currentLevelXp = xp % LEVEL_XP_STEP;
@@ -212,36 +232,21 @@ function getPatientLevel(patientId) {
  * isn't over) — checking starts from yesterday instead. Any calendar gap
  * stops the count. Never fabricates days that aren't backed by a record.
  */
-function getCurrentStreak(patientId) {
+/** Consecutive local days with a counted training, ending today (or yesterday if today has none yet). */
+function getCurrentStreak(patientId, todayKey = realTodayKey()) {
   const dates = getCompletionDateSet(patientId);
   if (!dates.size) return 0;
-  const cursor = new Date(`${localTodayStr()}T00:00:00`);
-  const cursorStr = () => {
-    const mm = String(cursor.getMonth() + 1).padStart(2, "0");
-    const dd = String(cursor.getDate()).padStart(2, "0");
-    return `${cursor.getFullYear()}-${mm}-${dd}`;
-  };
-  if (!dates.has(cursorStr())) {
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  let streak = 0;
-  while (dates.has(cursorStr())) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+  const end = dates.has(todayKey) ? todayKey : addDaysToDateKey(todayKey, -1);
+  return streakEndingOn(end, dates);
 }
 
-/** Longest streak ever achieved (used for the streak achievement so it doesn't re-lock after today's streak later breaks). */
 function getLongestStreak(patientId) {
   const dates = [...getCompletionDateSet(patientId)].sort();
   if (!dates.length) return 0;
   let longest = 1;
   let current = 1;
   for (let i = 1; i < dates.length; i++) {
-    const prev = new Date(`${dates[i - 1]}T00:00:00`);
-    const curr = new Date(`${dates[i]}T00:00:00`);
-    const diffDays = Math.round((curr - prev) / 86400000);
+    const diffDays = diffDateKeys(dates[i - 1], dates[i]);
     if (diffDays === 1) {
       current += 1;
       longest = Math.max(longest, current);
@@ -252,9 +257,12 @@ function getLongestStreak(patientId) {
   return longest;
 }
 
-/** Reuses the schedule's own already-computed status ("completed" only once every exercise in it is completed) — no new derivation logic. */
+/** I-4 — every assigned task (therapist + F01 cycle) of some day done; see todayPlanAggregator. */
 function hasCompletedAllStructuredInADay(patientId) {
-  return scheduleService.getByPatientId(patientId).some((s) => s.status === "completed" && (s.exercises || []).length > 0);
+  return hasCompletedAllAssignedInADay({
+    schedules: scheduleService.getByPatientId(patientId),
+    cycles: trackingCycleService.listTrackingCycles(patientId),
+  });
 }
 
 /**
@@ -266,16 +274,15 @@ function hasCompletedAllStructuredInADay(patientId) {
  */
 function getBestSessionScore(patientId) {
   let best = 0;
-  for (const r of getCompletionRecords(patientId)) {
-    const s = typeof r.score === "number" ? r.score : typeof r.overallScore === "number" ? r.overallScore : null;
-    if (s != null && s > best) best = s;
+  for (const e of getCompletionEvents(patientId)) {
+    if (e.poseScore != null && e.poseScore > best) best = e.poseScore;
   }
   return best;
 }
 
 /** Count of distinct persisted exerciseId values — the movement-variety signal (spec §1.F: id, not name string). */
 function getDistinctExerciseCount(patientId) {
-  return new Set(getCompletionRecords(patientId).map((r) => r.exerciseId).filter(Boolean)).size;
+  return new Set(getCompletionEvents(patientId).map((e) => e.exerciseId).filter(Boolean)).size;
 }
 
 /**
@@ -299,7 +306,7 @@ function getDistinctExerciseCount(patientId) {
  *    achievements — it is legacy.
  */
 function getAchievements(patientId) {
-  const totalCount = getCompletionRecords(patientId).length;
+  const totalCount = getCompletionEvents(patientId).length;
   const distinctDates = getCompletionDateSet(patientId).size;
   const longestStreak = getLongestStreak(patientId);
   const allStructuredDone = hasCompletedAllStructuredInADay(patientId);
@@ -349,17 +356,17 @@ function getAchievements(patientId) {
       progress: { ...at(longestStreak, 7), unit: "天" } },
 
     // ── D. 品質 (numeric score field only, never the label) ──
-    { id: "quality_70", category: "quality", title: "動作漸穩", desc: "單次 AI 訓練分數達 70",
+    { id: "quality_70", category: "quality", title: "動作漸穩", desc: "單次 AI 姿勢分數達 70",
       icon: "/images/gamification/star_gold.png",
       unlocked: bestScore >= 70, remainingHint: null,
       progress: { ...at(bestScore, 70), unit: "分" } },
-    { id: "quality_85", category: "quality", title: "精準動作", desc: "單次 AI 訓練分數達 85",
+    { id: "quality_85", category: "quality", title: "精準動作", desc: "單次 AI 姿勢分數達 85",
       icon: "/images/gamification/star_sparkle.png",
       unlocked: bestScore >= 85, remainingHint: null,
       progress: { ...at(bestScore, 85), unit: "分" } },
 
     // ── E. 今日 (unchanged rule) ────────────────────────────
-    { id: "daily_complete", category: "daily", title: "今日達成", desc: "某一天完成當天全部課表項目",
+    { id: "daily_complete", category: "daily", title: "今日達成", desc: "某一天完成當天全部安排的訓練（復健師安排＋ReMotion 建議）",
       icon: "/images/gamification/achievement_medal.png",
       unlocked: allStructuredDone, remainingHint: null, progress: null },
 
@@ -386,6 +393,34 @@ function getGamificationSummary(patientId) {
   return { xp, ...levelInfo, streak, achievements, unlockedCount, totalAchievements: achievements.length };
 }
 
+/**
+ * I-2 — THE weekly summary (7 local days ending on the real local today) shared
+ * by the Data page, the Training Records header and Home's 我的進度 card:
+ * counted trainings, days, this week's earned XP, source counts, this week's
+ * average AI 姿勢分數 ("—" when none) and the latest one (labelled as such).
+ */
+function getWeeklyTrainingSummary(patientId, todayKey = realTodayKey()) {
+  const events = getEvents(patientId);
+  const week = summarizeTrainingWeek(events, todayKey);
+  const completedDateSet = new Set(events.filter((e) => e.countsAsCompleted).map((e) => e.localDateKey).filter(Boolean));
+  const weeklyXp = week.inWeekEvents.reduce((sum, e) => sum + computeSessionXp(e.record, { event: e, completedDateSet }).xp, 0);
+  return {
+    startKey: week.startKey,
+    endKey: week.endKey,
+    completedSessionCount: week.completedCount,
+    incompleteCount: week.incompleteCount,
+    activeDays: week.trainingDays,
+    weeklyXp,
+    sourceCounts: week.bySource,
+    averageAiPoseScore: week.averagePoseScore,
+    latestAiPoseScore: week.latestPoseScore,
+    completedByDay: week.completedByDay,
+    previousWeekCompletedCount: week.previousWeekCompletedCount,
+    totalCompletedReps: week.inWeekEvents.reduce((sum, e) => sum + (e.actualReps || 0), 0),
+    latestCompletedEvent: week.latestCompletedEvent,
+  };
+}
+
 export const gamificationEngine = {
   XP_PER_EXERCISE,
   LEVEL_XP_STEP,
@@ -398,4 +433,5 @@ export const gamificationEngine = {
   getLongestStreak,
   getAchievements,
   getGamificationSummary,
+  getWeeklyTrainingSummary,
 };

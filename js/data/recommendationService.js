@@ -1,6 +1,7 @@
 import { createCollection } from "./storageService.js";
 import { generateId, nowIso } from "../utils/id.js";
 import { generateRecommendationForAssessment } from "./recommendationEngine.js";
+import { toLocalDateKey } from "./trackingCycle.js";
 
 /**
  * ReMotion 2.0 Phase 1 — Recommendation Result schema only. This is
@@ -114,7 +115,7 @@ export const recommendationService = {
    * now-edited assessment) are never deleted — this only ever adds new
    * records.
    */
-  getTodaysRecommendation({ patientId, assessment, dateStr, candidates }) {
+  getTodaysRecommendation({ patientId, assessment, dateStr, candidates, buildReason = null }) {
     if (!patientId) return { error: "缺少 patientId，無法產生今日建議。" };
     if (!assessment || !assessment.id) return { error: "缺少 assessment，無法產生今日建議。" };
     if (!dateStr) return { error: "缺少 dateStr，無法產生今日建議。" };
@@ -126,7 +127,7 @@ export const recommendationService = {
           r.assessmentId === assessment.id &&
           r.recommendationType === "self_practice" &&
           r.assessmentUpdatedAt === assessment.updatedAt &&
-          (r.createdAt || "").slice(0, 10) === dateStr
+          toLocalDateKey(r.createdAt) === dateStr // local day (I-4): a UTC slice missed the same-day cache before 08:00 (UTC+8)
       )
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
     if (existing) return { recommendation: existing, generated: false };
@@ -137,9 +138,13 @@ export const recommendationService = {
       dateStr,
     });
 
+    // F01 Video MVP Phase 1 — optional, additive: an assessment-type-specific
+    // reason builder (e.g. 5xSTS) may replace the engine's generic reason
+    // text. Ranking is untouched; a builder returning null keeps the default.
+    const candidateById = new Map((candidates || []).map((c) => [c.id || c.exerciseId, c]));
     const items = engineResult.items.map((it) => ({
       exerciseId: it.exerciseId,
-      reason: it.reason,
+      reason: (buildReason && buildReason(it, candidateById.get(it.exerciseId))) || it.reason,
       suggestedSets: it.sets,
       suggestedReps: it.reps,
       suggestedDuration: it.duration,
@@ -159,4 +164,99 @@ export const recommendationService = {
     if (created.error) return created;
     return { recommendation: created.recommendation, generated: true };
   },
+  /**
+   * F01 Recommendation Phase C — stores one explainable F01 goal
+   * recommendation (js/data/f01GoalRecommendation.js output) as-is: items keep
+   * matchLevel / matchedConditions / reason / sourceAssessmentId / selectedGoalId,
+   * plus basis, excluded and missingExerciseIds for traceability. Additive:
+   * same collection, marked kind "f01_goal"; assessmentId stays null, so the
+   * legacy getTodaysRecommendation() cache never picks these records up.
+   */
+  createF01GoalRecommendation({ patientId, result, createdBy = null }) {
+    if (!patientId) return { error: "缺少 patientId，無法建立推薦結果。" };
+    if (!result || result.status !== "ok" || !Array.isArray(result.items) || !result.items.length) {
+      return { error: "沒有可保存的推薦結果。" };
+    }
+    const record = recommendationsCollection.create({
+      id: generateId("recommendation"),
+      kind: "f01_goal",
+      patientId,
+      assessmentId: null,
+      recommendationType: "self_practice",
+      functionalDomain: result.functionalDomain,
+      sourceAssessmentId: result.sourceAssessmentId,
+      selectedGoalId: result.selectedGoalId,
+      selectedGoalLabel: result.selectedGoalLabel,
+      availableMinutes: result.availableMinutes,
+      limitationIds: [...result.limitationIds],
+      items: result.items.map((it) => ({ ...it, matchedConditions: it.matchedConditions.map((c) => ({ ...c })) })),
+      basis: result.basis.map((b) => ({ ...b })),
+      excluded: result.excluded.map((e) => ({ ...e })),
+      missingExerciseIds: [...result.missingExerciseIds],
+      recommendationRuleVersion: result.ruleVersion,
+      status: "draft",
+      createdAt: nowIso(),
+      createdBy,
+    });
+    return { recommendation: record };
+  },
+  /**
+   * Latest stored F01 goal recommendation for a patient (optionally for one
+   * assessment session), or null. A Phase D5 proposal counts only once it is
+   * accepted — an unconfirmed proposal is never "the current recommendation".
+   */
+  getLatestF01GoalRecommendation(patientId, { sourceAssessmentId = null } = {}) {
+    return recommendationsCollection
+      .query((r) => r.kind === "f01_goal" && r.patientId === patientId && (!sourceAssessmentId || r.sourceAssessmentId === sourceAssessmentId)
+        && (r.origin !== D5_PROPOSAL_ORIGIN || r.status === "accepted"))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null;
+  },
+
+  // ── Phase D5 — next-cycle proposal ──────────────────────────────────────
+  // Stored as an F01 goal recommendation (same collection / item shape, so the
+  // next tracking cycle trains from it unchanged) marked origin
+  // "d5_next_cycle", with the D5 decision trace in `d5`. One record per
+  // patient + source cycle; "draft" until confirmed, then "accepted" (frozen).
+
+  /** The D5 proposal of a source cycle (oldest first if a cloud merge ever produced two), or null. */
+  getF01D5ProposalForCycle(patientId, sourceCycleId) {
+    if (!patientId || !sourceCycleId) return null;
+    return recommendationsCollection
+      .query((r) => r.origin === D5_PROPOSAL_ORIGIN && r.patientId === patientId && r.d5 && r.d5.sourceCycleId === sourceCycleId)
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)) || String(a.id).localeCompare(String(b.id)))[0] || null;
+  },
+
+  /** Creates the draft proposal record. Callers (trackingCycleService) own uniqueness per source cycle. */
+  createF01D5Proposal({ patientId, fields }) {
+    if (!patientId) return { error: "缺少 patientId，無法建立下一階段建議。" };
+    const now = nowIso();
+    const record = recommendationsCollection.create({
+      id: generateId("recommendation"),
+      kind: "f01_goal",
+      origin: D5_PROPOSAL_ORIGIN,
+      patientId,
+      assessmentId: null,
+      recommendationType: "self_practice",
+      functionalDomain: "F01",
+      sourceAssessmentId: null,
+      availableMinutes: null,
+      excluded: [],
+      missingExerciseIds: [],
+      status: "draft",
+      createdBy: patientId,
+      createdAt: now,
+      updatedAt: now,
+      ...fields,
+    });
+    return { recommendation: record };
+  },
+
+  /** Updates a D5 proposal record in place (draft re-evaluation, confirmation, next-cycle link). */
+  updateF01D5Proposal(id, patch) {
+    const current = recommendationsCollection.getById(id);
+    if (!current || current.origin !== D5_PROPOSAL_ORIGIN) return null;
+    return recommendationsCollection.update(id, { ...patch, updatedAt: nowIso() });
+  },
 };
+
+export const D5_PROPOSAL_ORIGIN = "d5_next_cycle";

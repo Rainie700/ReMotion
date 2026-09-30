@@ -24,7 +24,8 @@ service cloud.firestore {
           'analysisRecords',
           'patientAssessments',
           'recommendationResults',
-          'functionalAssessmentSessions'
+          'functionalAssessmentSessions',
+          'trackingCycles'
         ];
     }
   }

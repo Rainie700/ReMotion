@@ -112,13 +112,15 @@ const mkSummary = (unlockedIds, over = {}) => ({
   const appJs = readFileSync(join(root, "app.js"), "utf8");
   const at = appJs.indexOf("function rehabMapPage()");
   const map = appJs.slice(at, appJs.indexOf("\n}\n", at) === -1 ? at + 5000 : appJs.indexOf("\n}", at) + 2);
-  assert.ok(/resolveRehabAdventure\(gamification\)/.test(map), "map page uses the adventure adapter");
-  assert.ok(/adventure\.visibleStages/.test(map), "map renders only the visible stage window");
-  assert.ok(/冒險進度 \$\{adventure\.currentStageNumber\} \/ \$\{adventure\.totalStages\}/.test(map), "chapter indicator N / total");
-  assert.ok(/第 \$\{cur\.n\} 關｜\$\{cur\.title\}/.test(map), "current challenge title from the current stage");
-  assert.ok(/cur\.rewardBadge/.test(map), "next-reward card reads the current stage's badge");
+  // I-3 — the map now renders the F01 cycle journey (f01AdventureProgress.js); this
+  // achievement-based resolver stays as a legacy module (its pure tests above still run).
+  assert.ok(/f01AdventureService\.getAdventure\(/.test(map), "map page uses the F01 journey");
+  assert.ok(!/resolveRehabAdventure\(/.test(map), "achievements no longer drive the map");
+  assert.ok(/journeyStageWindow\(adventure\.stages\)/.test(map), "map renders only a 4-stage window (復健旅程 presentation window)");
+  assert.ok(/旅程進度 \$\{adventure\.completedCount\} \/ \$\{adventure\.totalStages\}/.test(map), "chapter indicator N / total");
+  assert.ok(/第 \$\{cur\.n\} 關｜\$\{cur\.title\}/.test(map), "current stage title from the current stage");
   assert.ok(!/膝蓋穩定挑戰|膝蓋穩定王|\+120 XP/.test(map.replace(/^\s*\/\/.*$/gm, "")), "no hardcoded knee challenge / fake badge in the page");
-  assert.ok(/import \{ resolveRehabAdventure \} from ".\/js\/data\/rehabAdventureStages\.js"/.test(appJs), "adapter imported");
+  assert.ok(/import \{ f01AdventureService \} from ".\/js\/data\/f01AdventureProgress\.js"/.test(appJs), "F01 journey imported");
 }
 
 // ── 11 — gamificationEngine stays the source of truth (adapter is read-only) ──

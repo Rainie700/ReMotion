@@ -2820,3 +2820,762 @@ select {
 .home-schedule-row.clickable { cursor: pointer; }
 .home-schedule-text { min-width: 0; flex: 1; }
 .home-schedule-bar .home-progress-bar { margin-top: 10px; }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Sarcopenia Redesign — Phase 1/1.5 IA (UI ONLY, no new logic here).
+   .sarcopenia-primary-card: Home's PRIMARY 功能健康追蹤 area (Phase 1.5
+   task section A) — plain .card, no gradient (task section G: reuse the
+   existing cream/white/rounded-card visual system, no new decoration).
+   .sarcopenia-loop-steps: the static 篩->測->練->追 product-flow row
+   (task section B) — every step uses the SAME neutral styling; there is
+   no "active"/"completed" variant because no real progress state exists
+   yet. .sarcopenia-skeleton-card: the shared "功能建置中" placeholder body
+   used by every Phase-1 skeleton page. */
+.sarcopenia-primary-card { padding: 18px 16px; margin-bottom: 14px; display: grid; gap: 14px; }
+.sarcopenia-primary-text { display: grid; gap: 4px; }
+.sarcopenia-primary-title { font-size: 16px; }
+.sarcopenia-loop-steps { display: flex; align-items: flex-start; justify-content: space-between; gap: 2px; }
+.sarcopenia-loop-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+.sarcopenia-loop-step-num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--card); }
+.sarcopenia-loop-step-label { font-size: 11px; color: var(--muted); text-align: center; }
+.sarcopenia-loop-arrow { font-size: 12px; color: var(--line); flex-shrink: 0; margin-top: 5px; }
+.sarcopenia-primary-cta { margin-top: 2px; }
+.sarcopenia-skeleton-card { padding: 16px 18px; display: grid; gap: 8px; }
+.sarcopenia-skeleton-card p { margin: 0; line-height: 1.6; }
+
+
+/* F01 5xSTS Assessment Mode — explanation page, two-step camera set-up,
+   timed test panel, per-rep confirmation, result summary. */
+.fa5x-intro { margin: 10px 2px 14px; font-size: 15px; line-height: 1.6; color: var(--color-text-secondary, #555); }
+.fa5x-section-title { display: block; font-size: 16px; margin-bottom: 8px; }
+.fa5x-steps-card { padding: 14px 16px; margin-bottom: 10px; }
+.fa5x-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; font-size: 15px; line-height: 1.5; }
+.fa5x-callout { margin-top: 4px; padding: 12px 14px; border-radius: 14px; background: #eef6e8; border: 1px solid #cfe3c2; color: #3f6a2c; font-size: 15px; line-height: 1.55; }
+.fa5x-safety { margin: 14px 4px 0; color: var(--color-text-secondary, #777); text-align: center; }
+.fa5x-muted { color: var(--color-text-secondary, #777); }
+
+/* camera screen panel (content switches by step) */
+.fa5x-panel { padding: 14px 16px; margin-bottom: 10px; display: grid; gap: 6px; }
+.fa5x-step-tag { font-size: 12px; font-weight: 700; color: #6b8f57; letter-spacing: 0.04em; }
+.fa5x-done-tag { justify-self: start; padding: 4px 10px; border-radius: 999px; background: #e3f1da; color: #3f6a2c; font-weight: 800; font-size: 14px; }
+.fa5x-prompt { font-size: 21px; line-height: 1.35; }
+.fa5x-prompt-sub { font-size: 14px; line-height: 1.55; color: var(--color-text-secondary, #555); }
+.fa5x-tips { margin: 2px 0 0; padding-left: 20px; display: grid; gap: 3px; font-size: 15px; }
+.fa5x-flow { font-size: 14px; color: #3f6a2c; font-weight: 700; }
+.fa5x-status { font-size: 15px; font-weight: 700; min-height: 0; }
+.fa5x-status.warn { padding: 8px 10px; border-radius: 10px; background: #fff4e0; color: #8a5a00; }
+.fa5x-status.info { color: #3f6a2c; }
+.fa5x-progress { height: 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.08); overflow: hidden; }
+.fa5x-progress span { display: block; height: 100%; width: 0; background: #7ea866; transition: width 0.15s linear; }
+.fa5x-running-title { font-size: 13px; font-weight: 700; color: var(--color-text-secondary, #666); }
+.fa5x-clock { font-size: 44px; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.fa5x-count { display: flex; align-items: baseline; gap: 8px; }
+.fa5x-count b { font-size: 26px; color: #3f6a2c; font-variant-numeric: tabular-nums; }
+.fa5x-count span { font-size: 14px; color: var(--color-text-secondary, #666); }
+.fa5x-state { font-size: 12px; color: var(--color-text-secondary, #888); }
+
+.fa5x-countdown-text { display: inline-block; font-size: 96px; color: #fff; }
+#fa5xCountdown[data-kind="go"] .fa5x-countdown-text { font-size: 64px; color: #f4c542; }
+.fa5x-countdown-text.pulse-in { animation: squatCountdownPulseIn 420ms ease-out; }
+.fa5x-rep-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  padding: 14px 22px;
+  border-radius: 20px;
+  background: rgba(63, 106, 44, 0.88);
+  color: #fff;
+  text-align: center;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+.fa5x-rep-flash-count { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fa5x-rep-flash-done { font-size: 20px; font-weight: 700; }
+.fa5x-rep-flash.pulse-in { animation: squatCountdownPulseIn 420ms ease-out; }
+.fa5x-debug { margin-top: 10px; font-family: monospace; font-size: 11px; line-height: 1.5; word-break: break-all; }
+
+/* result summary: big result -> record -> note -> next step */
+.fa5x-result-hero { padding: 20px 18px 16px; text-align: center; display: grid; gap: 6px; justify-items: center; }
+.fa5x-result-hero.completed { background: linear-gradient(180deg, #eef6e8 0%, #ffffff 70%); }
+.fa5x-status-chip { padding: 4px 12px; border-radius: 999px; font-size: 14px; font-weight: 800; }
+.fa5x-status-chip.completed { background: #e3f1da; color: #3f6a2c; }
+.fa5x-status-chip.incomplete { background: #fff1d6; color: #8a5a00; }
+.fa5x-status-chip.invalid { background: #fde3df; color: #9b2c1f; }
+.fa5x-status-chip.neutral { background: #f0f0f0; color: #555; }
+.fa5x-hero-value { font-size: 64px; font-weight: 800; line-height: 1; margin-top: 6px; color: #2f4f22; font-variant-numeric: tabular-nums; }
+.fa5x-hero-value span { font-size: 22px; font-weight: 700; margin-left: 4px; }
+.fa5x-hero-label { font-size: 15px; font-weight: 700; color: #3f6a2c; }
+.fa5x-date { color: var(--color-text-secondary, #888); }
+.fa5x-reason { margin: 4px 0 0; font-size: 15px; line-height: 1.6; }
+.fa5x-partial { font-size: 16px; }
+.fa5x-record-card { padding: 14px 16px; margin-top: 12px; }
+.fa5x-rep-list { display: grid; gap: 8px; }
+.fa5x-rep-row { display: grid; grid-template-columns: 52px 1fr 56px; align-items: center; gap: 8px; }
+.fa5x-rep-label { font-size: 14px; }
+.fa5x-rep-bar { height: 10px; border-radius: 5px; background: #eef1ec; overflow: hidden; }
+.fa5x-rep-bar span { display: block; height: 100%; border-radius: 5px; background: #9cc38a; }
+.fa5x-rep-value { font-size: 14px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.fa5x-note-card { padding: 14px 16px; margin-top: 12px; background: #fafaf7; box-shadow: none; }
+.fa5x-note-card p { margin: 0; line-height: 1.6; }
+.fa5x-next-card { padding: 16px; margin-top: 12px; border: 2px solid #9cc38a; display: grid; gap: 8px; }
+.fa5x-next-card p { margin: 0; line-height: 1.6; }
+.fa5x-next-cta { margin-top: 4px; font-size: 17px; padding: 14px; }
+.fa5x-secondary-row { display: flex; gap: 10px; margin-top: 12px; }
+.fa5x-secondary-row .fa5x-secondary { flex: 1; }
+.fa5x-secondary { font-size: 14px; }
+
+/* F01 Recommendation Phase C — setup (G01-G05) and results. */
+.f01-setup-card { padding: 14px 16px; margin-bottom: 10px; }
+.f01-optional { font-size: 13px; font-weight: 400; color: var(--color-text-secondary, #888); margin-left: 4px; }
+.f01-goal-list { display: grid; gap: 8px; }
+.f01-goal-card {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid #e3e8df;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.f01-goal-card .small { color: var(--color-text-secondary, #777); }
+.f01-goal-card.selected { border-color: #7ea866; background: #eef6e8; }
+.f01-limit-list { display: grid; gap: 8px; }
+.f01-limit-row { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; line-height: 1.45; }
+.f01-limit-row input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
+.f01-rec-hero { padding: 16px 18px; background: linear-gradient(180deg, #eef6e8 0%, #ffffff 80%); margin-bottom: 10px; }
+.f01-rec-hero-title { display: block; font-size: 20px; margin-bottom: 4px; }
+.f01-rec-hero p { margin: 0; line-height: 1.55; }
+.f01-basis-card { padding: 14px 16px; margin-bottom: 12px; display: grid; gap: 6px; }
+.f01-basis-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.f01-basis-row span { color: var(--color-text-secondary, #777); flex-shrink: 0; }
+.f01-basis-row b { text-align: right; }
+.f01-rec-card { padding: 14px 16px; margin-bottom: 10px; display: grid; gap: 8px; }
+.f01-rec-top { display: flex; gap: 12px; align-items: center; }
+.f01-rec-image { width: 72px; flex-shrink: 0; }
+.f01-rec-main { display: grid; gap: 6px; }
+.f01-rec-name { display: flex; align-items: baseline; gap: 8px; font-size: 17px; }
+.f01-rec-rank { font-size: 12px; color: var(--color-text-secondary, #999); font-weight: 700; }
+.f01-rec-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.f01-match-badge { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.f01-match-badge.direct { background: #e3f1da; color: #3f6a2c; }
+.f01-match-badge.supporting { background: #eef0f5; color: #4a5470; }
+.f01-rec-reason { margin: 0; font-size: 14px; line-height: 1.6; }
+.f01-rec-actions { display: flex; gap: 10px; }
+.f01-rec-actions .btn { flex: 1; }
+.f01-excluded-card { padding: 12px 16px; margin-bottom: 10px; font-size: 14px; }
+.f01-excluded-card summary { cursor: pointer; font-weight: 700; }
+.f01-excluded-row { display: grid; gap: 2px; margin-top: 8px; }
+.f01-rec-note { margin: 4px 4px 0; line-height: 1.55; }
+
+/* Phase D1 — home 本週功能追蹤 card (F01 7-day tracking cycle). */
+.tc-card { padding: 16px 18px; margin: 4px 0 14px; display: grid; gap: 6px; border: 2px solid #cfe3c2; background: linear-gradient(180deg, #f3f9ee 0%, #ffffff 85%); }
+.tc-card.none { border-color: #e3e8df; background: #fff; }
+.tc-card.ready_for_reassessment { border-color: #f0c77a; background: linear-gradient(180deg, #fff7e8 0%, #ffffff 85%); }
+.tc-card.completed { border-color: #d9dfe8; background: #fff; }
+.tc-heading { font-size: 13px; font-weight: 800; color: #5d8a47; letter-spacing: 0.03em; }
+.tc-card.ready_for_reassessment .tc-heading { color: #9a6700; font-size: 15px; }
+.tc-title { font-size: 20px; line-height: 1.35; }
+.tc-body { margin: 0; font-size: 14px; line-height: 1.6; color: var(--color-text-secondary, #555); }
+.tc-facts { display: grid; gap: 4px; margin-top: 2px; }
+.tc-fact { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.tc-fact span { color: var(--color-text-secondary, #777); }
+.tc-fact b { font-variant-numeric: tabular-nums; }
+.tc-dots-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.tc-dots { display: flex; gap: 6px; }
+.tc-dots span { width: 12px; height: 12px; border-radius: 50%; background: #e3e8df; }
+.tc-dots span.on { background: #7ea866; }
+.tc-card.ready_for_reassessment .tc-dots span.on { background: #e0a93b; }
+.tc-dots-caption { font-size: 12px; color: var(--color-text-secondary, #999); }
+.tc-cta { margin-top: 6px; }
+.tc-reassess-banner { display: grid; gap: 4px; margin: 10px 0 4px; padding: 12px 14px; border-radius: 14px; background: #fff7e8; border: 1px solid #f0c77a; color: #7a5200; }
+.f01-cycle-notice { padding: 12px 16px; margin-bottom: 10px; background: #fafaf7; box-shadow: none; }
+.f01-cycle-notice p { margin: 0; line-height: 1.55; }
+
+/* Phase D2 — reassessment result tag. */
+.fa5x-role-tag { justify-self: center; padding: 3px 10px; border-radius: 999px; background: #fff7e8; border: 1px solid #f0c77a; color: #7a5200; font-size: 12px; font-weight: 800; }
+
+/* Phase D3 — today's training progress line on the tracking card (separate from the date dots). */
+.tc-today { font-size: 15px; font-weight: 700; color: #3f6a2c; padding: 6px 10px; border-radius: 10px; background: #eef6e8; justify-self: start; }
+.tc-today.done { background: #e3f1da; }
+
+/* ── Phase D4 — 前後比較 (neutral colours: no good / bad signalling) ── */
+.tc-compare { font-size: 15px; font-weight: 700; color: #334155; font-variant-numeric: tabular-nums; }
+.cmp-subtitle { margin: -4px 0 10px; text-align: center; }
+.cmp-core { padding: 16px; display: grid; gap: 14px; }
+.cmp-pair { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.cmp-side { display: grid; gap: 2px; text-align: center; }
+.cmp-side-label { font-size: 14px; font-weight: 700; color: #475569; }
+.cmp-side-date { font-size: 13px; color: #64748b; }
+.cmp-side-value { font-size: 30px; color: #1e293b; font-variant-numeric: tabular-nums; }
+.cmp-arrow { font-size: 22px; color: #94a3b8; }
+.cmp-diff { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 10px 12px; border-radius: 10px; background: #f1f5f9; color: #334155; }
+.cmp-diff b { font-variant-numeric: tabular-nums; }
+.cmp-section { padding: 16px; margin-top: 12px; }
+.cmp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmp-chip { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: #f1f5f9; color: #334155; font-variant-numeric: tabular-nums; }
+.cmp-rep-table { display: grid; gap: 4px; }
+.cmp-rep-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 15px; color: #334155; font-variant-numeric: tabular-nums; }
+.cmp-rep-head { font-size: 13px; color: #64748b; font-weight: 700; }
+.cmp-note p { margin: 0 0 6px; line-height: 1.6; }
+.cmp-unavailable { padding: 16px; margin-bottom: 14px; }
+.cmp-missing { margin: 8px 0 0; padding-left: 20px; line-height: 1.7; }
+.cmp-home-cta { margin-top: 14px; }
+
+/* ── Phase D5 — 下一階段建議 (neutral colours: a decision label, not a good / bad verdict) ── */
+.tc-cta-secondary { margin-top: 4px; }
+.tc-d5-note { font-size: 13px; }
+.d5-yesno { grid-template-columns: 1fr 1fr; }
+.d5-note-label { display: block; margin-top: 12px; font-weight: 700; }
+.d5-note { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px 12px; border: 1px solid #d9dfe8; border-radius: 10px; font: inherit; font-size: 15px; resize: vertical; }
+.d5-status-card { padding: 16px; display: grid; gap: 4px; border: 2px solid #d9dfe8; background: #f8fafc; }
+.d5-status-card.review, .d5-status-card.noauto { border-color: #e2e8f0; background: #fff; }
+.d5-status-title { font-size: 22px; color: #1e293b; }
+.d5-status-card p { margin: 4px 0 0; line-height: 1.55; }
+.d5-ex-list { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 15px; line-height: 1.5; }
+.d5-ex-list .small { color: #64748b; }
+.d5-replace { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #f1f5f9; color: #334155; }
+.d5-replace .small { flex-basis: 100%; color: #64748b; }
+.d5-done, .d5-review { padding: 14px 16px; margin-top: 12px; display: grid; gap: 4px; }
+.d5-done p, .d5-review p { margin: 0; line-height: 1.55; }
+.d5-accept-note { margin: 14px 4px 0; line-height: 1.55; }
+
+/* ── Homepage + Assessment Result redesign ──────────────────────────────
+   One hero on Home (tracking mode reuses .functional-assessment-feature-card),
+   a calmer 5xSTS result, lighter recommendation cards. Existing green tokens
+   only; gradients stay soft (green -> off-white). */
+
+/* Home hero — tracking mode */
+.home-hero-tracking { display: grid; gap: 12px; }
+.home-hero-tracking .functional-assessment-feature-header { margin-bottom: 0; }
+.home-hero-eyebrow { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: var(--primary-dark); margin-bottom: 2px; }
+.home-hero-day { font-size: 15px; font-weight: 700; color: #2f4f22; }
+.home-hero-status { margin-top: 6px; font-size: 13px; line-height: 1.5; color: #4d5a48; }
+.home-hero-status.done { color: #3f6a2c; font-weight: 700; }
+.home-hero-illustration { width: clamp(84px, 30%, 116px); aspect-ratio: 1 / 1; height: auto; object-fit: contain; flex: none; }
+.home-hero-days { display: flex; justify-content: space-between; gap: 4px; }
+.home-hero-days span { flex: 1; max-width: 34px; aspect-ratio: 1 / 1; display: grid; place-items: center; border-radius: 50%; font-size: 12px; font-weight: 700; color: #6b7568; background: rgba(255,255,255,0.8); border: 1px solid #d9e4d1; font-variant-numeric: tabular-nums; }
+.home-hero-days span.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.home-hero-days span.last:not(.on) { border-style: dashed; border-color: #b9cfa9; }
+.home-hero-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.home-hero-stat { display: grid; gap: 2px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.78); }
+.home-hero-stat span { font-size: 12px; color: var(--muted); }
+.home-hero-stat b { font-size: 16px; color: #253220; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.home-hero-cta { margin-top: 2px; min-height: 48px; font-size: 16px; }
+.home-hero-link { justify-self: center; min-height: 44px; padding: 0 12px; background: none; border: none; color: var(--primary-dark); font-size: 15px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* Home — secondary tiles under the tracking hero */
+.home-secondary-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: -4px 0 16px; }
+.home-secondary-tile { display: grid; justify-items: start; gap: 2px; min-height: 44px; padding: 12px; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-medium); cursor: pointer; }
+.home-secondary-tile img { width: 40px; height: 40px; object-fit: contain; margin-bottom: 4px; }
+.home-secondary-tile b { font-size: 15px; }
+.home-secondary-tile .small { color: var(--muted); line-height: 1.4; }
+
+/* 5xSTS result */
+.fa5x-result-hero.completed { position: relative; overflow: hidden; background: linear-gradient(180deg, #e9f3e2 0%, #fbfaf4 100%); padding-top: 18px; }
+.fa5x-hero-illustration { position: absolute; top: 10px; right: 8px; width: 64px; height: 64px; object-fit: contain; pointer-events: none; }
+.fa5x-done-marks { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 8px 0 2px; }
+.fa5x-done-mark { display: grid; justify-items: center; gap: 4px; }
+.fa5x-done-mark i { position: relative; width: 36px; height: 36px; border-radius: 50%; background: #e3f1da; border: 2px solid #9cc38a; }
+.fa5x-done-mark i::after { content: ""; position: absolute; left: 11px; top: 6px; width: 8px; height: 15px; border: solid #3f6a2c; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+.fa5x-done-mark small { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fa5x-done-text { margin: 6px 0 0; text-align: center; font-weight: 700; color: #3f6a2c; }
+.fa5x-record-card .fa5x-muted { margin: 4px 0 0; text-align: center; }
+.fa5x-info-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border-radius: var(--radius-medium); background: #f4f8f1; }
+.fa5x-info-icon { width: 28px; height: 28px; object-fit: contain; flex: none; }
+.fa5x-info-row b { font-size: 15px; }
+.fa5x-info-row p { margin: 2px 0 0; line-height: 1.55; }
+.fa5x-next-card { position: relative; border: 1px solid #cfe3c2; background: linear-gradient(135deg, #f1f7ec 0%, #ffffff 70%); }
+.fa5x-next-illustration { position: absolute; top: 12px; right: 12px; width: 60px; height: 60px; object-fit: contain; pointer-events: none; }
+.fa5x-next-title { display: block; font-size: 17px; padding-right: 68px; }
+.fa5x-next-card > p { padding-right: 68px; }
+.fa5x-text-link { justify-self: center; min-height: 44px; padding: 0 12px; background: none; border: none; color: var(--primary-dark); font-size: 15px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* Recommendation cards — first layer + 為什麼推薦這個？ */
+.f01-rec-main { min-width: 0; }
+.f01-rec-purpose { font-size: 14px; font-weight: 700; color: var(--primary-dark); line-height: 1.4; }
+.f01-rec-self { padding: 2px 10px; border-radius: 999px; font-size: 12px; background: #f1f3ef; color: #5b6459; }
+.f01-rec-why { border-top: 1px solid var(--line); padding-top: 6px; }
+.f01-rec-why summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: 14px; font-weight: 700; color: var(--primary-dark); }
+.f01-rec-why .f01-match-badge { display: inline-block; margin: 4px 0 6px; }
+.f01-rec-why .f01-rec-reason { margin: 0; }
+.f01-rec-conditions { margin: 6px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.exercise-image-placeholder { width: 72px; aspect-ratio: 1 / 1; display: grid; place-items: center; align-content: center; gap: 2px; border-radius: 12px; background: #f3f5f1; border: 1px dashed #cfd8c8; text-align: center; }
+.exercise-image-placeholder img { width: 28px; height: 28px; object-fit: contain; opacity: 0.55; }
+.exercise-image-placeholder span { padding: 0 4px; font-size: 10px; line-height: 1.25; color: #5f6a5c; }
+
+/* Redesign: the global .btn-primary.full adds 20px above and below; inside these cards the grid gap spaces the CTA. */
+.home-hero-tracking .btn-primary.full, .fa5x-next-card .btn-primary.full { margin: 0; }
+.fa5x-next-card .fa5x-next-cta { margin-top: 4px; }
+
+/* ── Result states (presentation variants, NOT business / clinical states) ──
+   completed   = can continue (brand green)
+   review      = paused, needs further confirmation (warm neutral, never red)
+   unavailable = no usable result this time (neutral grey-green)
+   Every variant also carries its own text title — colour is never the only cue. */
+:root {
+  --state-completed-bg: #eef6e8;
+  --state-completed-border: #cfe3c2;
+  --state-completed-text: #2f4f22;
+  --state-review-bg: #faf4ea;
+  --state-review-border: #ecdcc2;
+  --state-review-text: #5e4524;
+  --state-review-accent: #c98a3b;
+  --state-unavailable-bg: #f2f4f0;
+  --state-unavailable-border: #dde3d8;
+  --state-unavailable-text: #3e4a3a;
+}
+.result-state { position: relative; overflow: hidden; }
+.result-state--completed { border: 1px solid var(--state-completed-border); }
+.result-state--review { background: var(--state-review-bg); border: 1px solid var(--state-review-border); }
+.result-state--unavailable { background: var(--state-unavailable-bg); border: 1px solid var(--state-unavailable-border); }
+.result-state-eyebrow { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; color: var(--state-review-text); }
+.result-state--review .result-state-eyebrow::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--state-review-accent); vertical-align: 1px; }
+.result-state-title { display: block; font-size: 22px; line-height: 1.3; word-break: keep-all; }
+.result-state--review .result-state-title { color: var(--state-review-text); }
+.result-state--unavailable .result-state-title { color: var(--state-unavailable-text); }
+.result-state-sub { margin: 4px 0 0; font-size: 15px; line-height: 1.6; color: #4d5a48; }
+.result-state--review .result-state-sub { color: #5c5043; }
+.result-state-illustration { width: 64px; height: 64px; object-fit: contain; }
+.result-state-note { background: var(--state-unavailable-bg); }
+
+/* 5xSTS incomplete / invalid */
+.fa5x-result-hero.result-state--unavailable { background: var(--state-unavailable-bg); padding-top: 18px; }
+.fa5x-result-hero.result-state--unavailable .result-state-illustration { margin-bottom: 2px; }
+.fa5x-result-hero.result-state--unavailable .fa5x-reason { margin: 2px 0 0; font-size: 14px; color: #4d5a48; }
+.fa5x-result-hero.result-state--unavailable .fa5x-reason span { font-weight: 700; }
+.fa5x-retry-cta { min-height: 48px; font-size: 16px; }
+.fa5x-retry-secondary { display: block; margin: 4px auto 0; }
+
+/* D5 需要進一步確認 */
+.d5-review-hero { display: grid; gap: 4px; padding: 18px 16px; padding-right: 88px; }
+.d5-review-hero .result-state-illustration { position: absolute; top: 14px; right: 12px; width: 68px; height: 68px; }
+.d5-review-report { padding: 14px 16px; margin-top: 12px; display: grid; gap: 8px; }
+.d5-review-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.d5-review-row span { color: var(--muted); flex-shrink: 0; }
+.d5-review-row b { text-align: right; }
+.d5-review-note b { font-weight: 400; white-space: pre-wrap; word-break: break-word; }
+.d5-review-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; }
+.d5-status-card.result-state--completed.adjust { background: #f5f7f2; }
+
+/* Recommendation page polish */
+.f01-rec-hero { display: flex; align-items: center; gap: 12px; background: #eef5e9; border: 1px solid #dfecd6; }
+.f01-rec-hero-text { flex: 1; min-width: 0; }
+.f01-rec-hero-count { margin: 2px 0 0; font-size: 15px; font-weight: 700; color: #2f4f22; }
+.f01-rec-hero-illustration { width: 76px; height: 76px; object-fit: contain; flex: none; }
+.f01-basis-card { gap: 10px; }
+.f01-basis-item { display: flex; align-items: flex-start; gap: 10px; }
+.f01-basis-icon { width: 28px; height: 28px; object-fit: contain; flex: none; margin-top: 2px; }
+.f01-basis-dot { width: 28px; height: 28px; flex: none; display: grid; place-items: center; }
+.f01-basis-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #b9cfa9; }
+.f01-basis-text { display: grid; gap: 1px; min-width: 0; }
+.f01-basis-text span { font-size: 12px; color: var(--muted); }
+.f01-basis-text b { font-size: 14px; line-height: 1.45; }
+.f01-rec-why summary { list-style: none; justify-content: space-between; padding: 4px 2px; }
+.f01-rec-why summary::-webkit-details-marker { display: none; }
+.f01-rec-why summary::after { content: ""; width: 8px; height: 8px; margin-left: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); transition: transform 0.15s ease; }
+.f01-rec-why[open] summary::after { transform: rotate(-135deg) translateY(-2px); }
+.f01-rec-why-body { display: grid; gap: 6px; margin: 4px 0 2px; padding: 10px 12px; border-radius: 12px; background: #f6f8f4; }
+.f01-rec-why-body .f01-match-badge { justify-self: start; margin: 0; }
+@media (max-width: 359px) {
+  .f01-rec-actions { flex-direction: column; }
+}
+
+/* ── Cross-Module Integration I-1 — Data page: 功能追蹤 (F01) + neutral weekly lines ── */
+.data-f01-card { padding: 14px 16px; margin-bottom: 12px; display: grid; gap: 10px; background: #f4f8f1; border: 1px solid #dfecd6; }
+.data-f01-card.empty { background: var(--card); }
+.data-f01-card p { margin: 0; line-height: 1.55; }
+.data-f01-card .btn.full { margin-top: 0; }
+.data-f01-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.data-f01-head b { font-size: 16px; }
+.data-f01-head .small { color: var(--muted); }
+.data-f01-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.data-f01-facts div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.85); }
+.data-f01-facts span { font-size: 12px; color: var(--muted); }
+.data-f01-facts b { font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.data-f01-compare { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; font-size: 15px; }
+.data-f01-compare b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.data-f01-trend { padding: 12px 14px; margin-bottom: 12px; display: grid; gap: 6px; }
+.data-f01-trend-svg { width: 100%; height: 110px; }
+.data-f01-trend-line { fill: none; stroke: var(--primary); stroke-width: 2.5; }
+.data-f01-trend-svg circle { fill: var(--primary); }
+.data-f01-trend-labels { display: flex; justify-content: space-between; gap: 4px; font-size: 11px; color: var(--muted); }
+.data-f01-trend-labels span { display: grid; justify-items: center; gap: 1px; }
+.data-f01-trend-labels b { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.data-source-line, .data-latest-score, .data-score-note { margin: 8px 2px 0; color: var(--muted); line-height: 1.5; }
+.data-latest-score b { color: var(--text); }
+
+/* I-2 — a saved but not completed training in the history (neutral, not an error). */
+.history-incomplete-tag { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; color: #5b6459; background: #eef1eb; }
+
+/* ── I-3 — 復健冒險 = current F01 cycle journey (existing map visuals kept) ── */
+.rehab-adventure-page .rehab-adventure-stage.passed .rehab-adventure-node { background: #eef1eb; color: #7a8476; border: 1px dashed #c5cdbf; }
+.rehab-adventure-page .rehab-adventure-stage.passed .rehab-adventure-stage-label { color: var(--muted); }
+.rehab-adventure-page .rehab-adventure-stage.waiting .rehab-adventure-node { background: #faf4ea; color: #8a6a3c; border-color: #ecdcc2; }
+.rehab-adventure-page .rehab-adventure-stage-label { flex-direction: column; gap: 1px; width: 84px; padding: 2px 6px; border-radius: 10px; white-space: normal; text-align: center; line-height: 1.25; }
+.rehab-adventure-page .rehab-adventure-stage-label b { font-size: 11px; }
+.rehab-adventure-page .rehab-adventure-stage-label > span:not(.rehab-adventure-stage-chip) { font-size: 11px; font-weight: 600; word-break: keep-all; }
+.rehab-chapter-status { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--color-primary-soft); color: var(--primary-dark); }
+.rehab-previous-chapter { margin: 2px 2px 8px; color: var(--muted); }
+.rehab-adventure-page .rehab-challenge-card.waiting { background: #faf4ea; border: 1px solid #ecdcc2; }
+.rehab-adventure-page .rehab-journey-cta { margin: 4px 0 0; }
+/* I-4 Home 今日復健 card */
+.patient-training-summary > div { min-width: 0; }
+.home-schedule-breakdown { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+
+/* ── Training Tab visual re-layout: 今日概況 → 今日任務 → 其他建議 → 快速功能 ──
+   Presentation only (scoped to .today-plan-page). Spacing tokens:
+   section 24px · title→content 12px · task gap 10px. */
+.today-plan-page { gap: 0; padding-bottom: 8px; }
+.today-plan-page .patient-training-header { margin-bottom: 12px; }
+.today-plan-page .section-title { margin: 0 0 12px; font-size: 16px; }
+.today-section { margin-top: 24px; }
+
+/* ① 今日概況 */
+.today-overview { padding: 14px 16px; display: grid; gap: 10px; background: #fbfcf8; }
+.today-overview-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.today-overview-top .patient-training-date { display: block; margin-top: 2px; font-size: 15px; }
+.today-overview-count { display: grid; justify-items: end; gap: 0; flex: none; }
+.today-overview-count .small { font-size: 11px; }
+.today-overview-count b { font-size: 24px; font-weight: 800; line-height: 1.15; color: var(--text); }
+.today-overview-bar .home-progress-bar-label { display: none; }
+.today-overview-bar .home-progress-bar { margin: 0; }
+.today-overview-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.today-overview-chip { font-size: 11px; font-weight: 600; color: var(--primary-dark); background: var(--color-primary-soft); border-radius: 999px; padding: 3px 9px; }
+
+/* compact date selector — navigation, not content */
+.today-plan-page .patient-training-week { margin: 12px 0 0; gap: 6px; }
+.today-plan-page .week-strip > span { padding: 5px 0; border-radius: 10px; gap: 0; background: transparent; border-color: transparent; }
+.today-plan-page .week-strip > span.active { background: #e8f2df; border-color: #b8d79f; }
+.today-plan-page .week-strip span.patient-training-week-day { background: none; border: 0; padding: 0; border-radius: 0; font-size: 11px; }
+.today-plan-page .week-strip > span b { font-size: 14px; line-height: 1.2; }
+
+/* ② 今日任務 */
+.today-group + .today-group { margin-top: 18px; }
+.today-group-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.today-group-head > div { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.today-group-head b { font-size: 14px; }
+.today-group-head .small { font-size: 11px; }
+.today-group-count { font-size: 13px; font-weight: 700; color: var(--primary-dark); flex: none; }
+.today-plan-muted { margin: 0 0 12px; color: var(--color-text-secondary); }
+.today-plan-page .today-plan-hint { margin: -2px 0 8px; color: var(--primary-dark); }
+.today-plan-reminder { margin: 2px 2px 0; color: var(--color-text-secondary); line-height: 1.5; font-size: 11px; }
+
+.today-task { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 10px; }
+.today-task.is-done { background: #fafcf7; }
+.today-task-image { width: 72px; height: 72px; flex: none; }
+.today-task-image .exercise-grid-card-image,
+.today-task-image .exercise-image-placeholder { width: 72px; height: 72px; border-radius: 12px; overflow: hidden; }
+.today-task-body { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.today-task-name { font-size: 15px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-task-meta { font-size: 12px; color: var(--color-text-secondary); }
+.today-task-foot { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.today-task .today-task-source { margin-left: 0; font-size: 10px; font-weight: 600; padding: 1px 7px; opacity: .85; }
+.today-task-link { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
+.today-task-action { flex: none; display: flex; align-items: center; }
+.today-task-start { border: 0; border-radius: 999px; background: var(--primary); color: #fff; font-weight: 700; font-size: 13px; padding: 0 16px; min-height: 36px; min-width: 64px; cursor: pointer; font-family: inherit; }
+.today-task-done { font-size: 12px; font-weight: 700; color: #5d7f35; white-space: nowrap; }
+.today-task-state { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; }
+.today-task--compact { padding: 8px 10px; gap: 10px; }
+.today-task--compact .today-task-image,
+.today-task--compact .today-task-image .exercise-grid-card-image,
+.today-task--compact .today-task-image .exercise-image-placeholder { width: 56px; height: 56px; }
+.today-task--compact .today-task-image .exercise-image-placeholder span { display: none; }
+.today-task--compact .today-task-name { font-size: 14px; }
+
+.today-plan-page .today-plan-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; margin-bottom: 10px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
+.today-plan-note > div { display: grid; gap: 2px; min-width: 0; }
+.today-plan-note b { font-size: 14px; }
+
+.today-empty { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 20px 16px; }
+.today-empty-icon { width: 56px; height: 56px; object-fit: contain; }
+.today-empty b { font-size: 15px; }
+.today-empty p { margin: 0 0 6px; }
+.today-empty .btn { min-width: 160px; }
+
+/* ③ 其他 ReMotion 建議 — collapsed, lighter weight */
+.today-plan-page .today-plan-more { margin: 24px 0 0; border: 1px dashed #d5dfcd; border-radius: 16px; padding: 0 12px; background: transparent; }
+.today-plan-page .today-plan-more > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 48px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.today-plan-page .today-plan-more > summary::-webkit-details-marker { display: none; }
+.today-plan-more-link { font-size: 12px; font-weight: 600; color: var(--primary-dark); white-space: nowrap; }
+.today-plan-more[open] .today-plan-more-link { visibility: hidden; }
+.today-plan-page .today-plan-more > p { margin: 0 0 10px; }
+
+/* ④ 快速功能 */
+.today-utilities { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.today-utility { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 14px; min-height: 56px; }
+.today-utility img { width: 24px; height: 24px; object-fit: contain; flex: none; }
+.today-utility > div { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.today-utility b { font-size: 13px; }
+.today-utility .small { font-size: 11px; line-height: 1.35; }
+.today-utility-arrow { color: var(--color-text-secondary); font-size: 16px; flex: none; }
+.today-utilities > .today-utility:only-child { grid-column: 1 / -1; }
+
+@media (max-width: 360px) {
+  .today-task { flex-wrap: wrap; }
+  .today-task-action { width: 100%; justify-content: flex-end; }
+  .today-utilities { grid-template-columns: 1fr; }
+}
+/* ── Data: F01 previous-week summary + trend note ── */
+.data-f01-prev { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,0.85); }
+.data-f01-prev > div { display: grid; gap: 1px; min-width: 0; }
+.data-f01-prev b { font-size: 14px; }
+.data-f01-prev-link { border: 0; background: none; padding: 6px 0; min-height: 36px; color: var(--primary-dark); font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; font-family: inherit; }
+.data-f01-trend-note { display: block; margin-top: 2px; }
+
+/* ── 我的 (profile hub): 個人摘要 → 復健設定 → 復健師 → 復健成就 → 帳號與設定 ── */
+.profile-hub { display: flex; flex-direction: column; gap: 0; padding-bottom: 8px; }
+.profile-hub .section-title { margin: 0 0 10px; font-size: 16px; }
+.profile-section { margin-top: 22px; }
+.profile-hero { display: flex; align-items: center; gap: 14px; padding: 16px; background: #fbfcf8; }
+.profile-avatar { width: 56px; height: 56px; flex: none; background: var(--color-primary-soft); color: var(--primary-dark); font-size: 22px; }
+.profile-hero-main { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.profile-name { margin: 0; font-size: 18px; }
+.profile-level { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.profile-level b { color: var(--primary-dark); }
+.profile-xp { display: flex; align-items: center; gap: 10px; }
+.profile-xp .xp-track.wide { width: auto; flex: 1; margin-top: 0; }
+.profile-xp .small { white-space: nowrap; }
+.profile-card { padding: 12px 14px; display: grid; gap: 8px; margin-bottom: 10px; }
+.profile-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.profile-row b { font-size: 14px; text-align: right; overflow-wrap: anywhere; }
+.profile-link { justify-self: start; border: 0; background: none; padding: 4px 0; min-height: 36px; color: var(--primary-dark); font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+.profile-therapist-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.profile-status-pill { font-size: 11px; font-weight: 700; color: var(--primary-dark); background: var(--color-primary-soft); border-radius: 999px; padding: 2px 9px; }
+.profile-manage { display: grid; gap: 4px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.profile-manage p { margin: 0; line-height: 1.5; }
+.profile-danger-link { justify-self: start; border: 0; background: none; padding: 4px 0; min-height: 36px; color: #b3261e; font-size: 13px; cursor: pointer; font-family: inherit; }
+.profile-history { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 0 14px; }
+.profile-history > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; min-height: 46px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.profile-history > summary::-webkit-details-marker { display: none; }
+.profile-history[open] .profile-history-link { visibility: hidden; }
+.profile-history-link { font-size: 12px; color: var(--primary-dark); }
+.profile-history .card { box-shadow: none; background: #f7f9f5; margin-bottom: 10px !important; }
+.profile-history-empty { padding: 4px 2px; }
+.profile-achv-facts { display: grid; gap: 6px; }
+.profile-achv-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.profile-achv-facts b { font-size: 14px; text-align: right; }
+.profile-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.profile-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; background: #f4f8f1; border: 1px solid #dfecd6; border-radius: 999px; padding: 3px 10px 3px 4px; }
+.profile-badge img { width: 20px; height: 20px; object-fit: contain; }
+.profile-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.profile-actions .btn { margin: 0; min-height: 40px; font-size: 13px; }
+.profile-account .logout-secondary { width: auto; border: 0; background: none; padding: 8px 0; font-size: 14px; }
+/* ── Core Mobile UX: shared exercise experience (detail / preparation / result) ──
+   One viewport: header → media → meta → facts → tabs → panel → sticky CTA.
+   Body text 16px, touch targets >= 44px, no nested big cards. */
+.exp-page { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+.exp-header { margin-bottom: 0; gap: 10px; }
+.exp-header .detail-back-btn { min-height: 44px; flex: none; }
+.exp-header-title { flex: 1; min-width: 0; font-size: 17px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exp-header > :last-child { flex: none; }
+.exp-media { position: relative; border-radius: 18px; overflow: hidden; background: var(--color-primary-soft); display: grid; place-items: center; }
+.exp-media--hero { height: 188px; }
+.exp-media--prep { height: 132px; width: 132px; flex: none; }
+.exp-media-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.exp-media .exercise-image-placeholder { width: 100%; height: 100%; aspect-ratio: auto; border-radius: 18px; gap: 6px; }
+.exp-media .exercise-image-placeholder img { width: 44px; height: 44px; }
+.exp-media .exercise-image-placeholder span { font-size: 14px; }
+.exp-media-video { position: absolute; right: 10px; bottom: 10px; min-height: 40px; border: 0; border-radius: 999px; padding: 0 14px; background: rgba(0,0,0,.62); color: #fff; font-size: 14px; }
+.exp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.exp-meta-item { font-size: 13px; color: var(--muted); }
+.exp-meta-item + .exp-meta-item::before { content: "·"; margin-right: 6px; }
+.exp-meta .source-tag-badge { margin-left: 0; }
+.exp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.exp-facts > div { display: grid; gap: 2px; padding: 8px 12px; border-radius: 14px; background: #fff; border: 1px solid var(--line); }
+.exp-facts b { font-size: 16px; }
+.exp-label { display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.exp-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 999px; background: #eef1ea; }
+.exp-tab { min-height: 40px; border: 0; border-radius: 999px; background: transparent; font-size: 15px; font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit; }
+.exp-tab.is-active { background: #fff; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.exp-panel-card { padding: 12px 14px; }
+.exp-panel { display: grid; gap: 10px; }
+.exp-panel[hidden] { display: none; }
+.exp-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.exp-steps li { display: flex; align-items: flex-start; gap: 10px; font-size: 16px; line-height: 1.45; }
+.exp-step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--color-primary-soft); color: var(--primary-dark); font-size: 14px; font-weight: 800; display: grid; place-items: center; }
+.exp-bullets { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 16px; line-height: 1.45; }
+.exp-text { margin: 2px 0 0; font-size: 15px; line-height: 1.5; }
+.exp-empty { margin: 0; font-size: 15px; color: var(--muted); }
+.exp-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.exp-chip { font-size: 14px; padding: 4px 10px; border-radius: 999px; background: #f3f6ef; border: 1px solid #dfe8d6; }
+.exp-chip--soft { background: #fff; }
+.exp-chip--body { background: var(--color-primary-soft); border-color: transparent; color: var(--primary-dark); font-weight: 600; }
+.exp-chip--body::before { content: "◉ "; font-size: 10px; }
+.exp-ai-status { margin: 0; font-size: 16px; font-weight: 800; color: var(--primary-dark); }
+.exp-ai-status--none { color: var(--muted); }
+.exp-ai-group, .exp-care-group { display: grid; gap: 2px; }
+.exp-muscles { display: grid; gap: 2px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.exp-more-link { justify-self: start; min-height: 44px; border: 0; background: none; padding: 0; color: var(--primary-dark); font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.exp-fold { border: 1px solid var(--line); border-radius: 16px; background: #fff; padding: 0 14px; }
+.exp-fold > summary { min-height: 48px; display: flex; align-items: center; font-size: 15px; font-weight: 700; cursor: pointer; }
+.exp-fold[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.exp-fold > :not(summary) { margin-bottom: 12px; }
+.exp-cta-bar { position: sticky; bottom: 0; z-index: 5; margin: auto -20px 0; padding: 10px 20px 12px; background: linear-gradient(rgba(245,246,247,0), #f5f6f7 26%); display: grid; gap: 8px; }
+.exp-cta-bar .btn { margin: 0; min-height: 52px; font-size: 17px; font-weight: 800; }
+/* Exercise Detail page-level CTA: a non-scrolling flex row of .phone between
+   .content and .bottom-nav, so it always sits directly on the nav (whose own
+   height already includes the safe-area inset) and content never scrolls
+   under it. Same 20px side margin as the page content. */
+.page-action-bar { flex: none; padding: 10px 20px 12px; background: #f5f6f7; box-shadow: 0 -6px 16px rgba(0, 0, 0, .04); position: relative; z-index: 5; }
+.page-action-bar:last-child { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.page-action-bar .exp-cta-bar { position: static; margin: 0; padding: 0; background: none; }
+/* bottom sheet */
+.exp-sheet { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; justify-content: flex-end; }
+.exp-sheet[hidden] { display: none; }
+.exp-sheet-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
+.exp-sheet-panel { position: relative; max-height: 78vh; overflow-y: auto; background: #fff; border-radius: 22px 22px 0 0; padding: 8px 18px calc(18px + env(safe-area-inset-bottom)); max-width: 480px; width: 100%; margin: 0 auto; }
+.exp-sheet-head { display: flex; justify-content: space-between; align-items: center; min-height: 48px; font-size: 17px; }
+.exp-sheet-close { width: 44px; height: 44px; border: 0; background: none; font-size: 18px; cursor: pointer; }
+.exp-sheet-body { display: grid; gap: 12px; }
+/* preparation */
+.exp-prep-name { margin: 0; font-size: 20px; }
+.exp-prep-top { display: flex; gap: 12px; align-items: stretch; }
+.exp-prep-camera { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 16px; background: #fff; border: 1px solid var(--line); }
+.exp-checklist { display: grid; gap: 0; padding: 4px 14px; }
+.exp-check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 16px; }
+.exp-check + .exp-check { border-top: 1px solid var(--line); }
+.exp-check input { width: 20px; height: 20px; accent-color: var(--primary); }
+.exp-prep-row { display: grid; gap: 2px; }
+.exp-prep-safety { margin: 0; font-size: 15px; line-height: 1.5; color: #7a5a12; background: #fff8e6; border-radius: 12px; padding: 8px 12px; }
+.exp-fold .ai-box { margin: 0; }
+/* result */
+.exp-result-head { display: grid; gap: 6px; padding: 14px 16px; }
+.exp-result-status { font-size: 15px; font-weight: 800; color: #3f7d34; }
+.exp-result-status.is-incomplete { color: #8a6d1c; }
+.exp-result-name { font-size: 20px; }
+.exp-result .reward-feedback-panel { margin: 0; }
+.exp-observations { display: grid; gap: 2px; padding: 12px 14px; }
+/* card placeholder (lists / Training Tab / records) — never another exercise's photo */
+.exercise-grid-card-image.exercise-card-placeholder { width: 100%; height: 100%; aspect-ratio: auto; border-radius: inherit; }
+.today-task-image .exercise-card-placeholder span { font-size: 10px; }
+/* ── F01 追蹤歷程 (read-only) ── */
+.data-f01-history-link { justify-self: start; min-height: 44px; border: 0; background: none; padding: 0; color: var(--primary-dark); font-weight: 700; font-size: 15px; cursor: pointer; font-family: inherit; }
+.track-hist-note { margin: 0 0 10px; }
+.track-hist-row { display: grid; gap: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.track-hist-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.track-hist-head b { font-size: 16px; }
+.track-hist-head .profile-status-pill { margin-left: auto; }
+.track-hist-values { display: grid; gap: 2px; }
+.track-hist-values b { font-size: 18px; }
+.track-hist-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* ── F01 功能追蹤 timeline (目前 → 週卡 → 週次趨勢) ── */
+.track-now { display: grid; gap: 6px; padding: 14px 16px; margin: 4px 0 12px; background: #f4f8f1; border-color: #dfecd6; }
+.track-now-title { font-size: 18px; }
+.track-now-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.track-now-facts > div { display: grid; gap: 1px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.85); }
+.track-now-facts b { font-size: 16px; }
+.track-week { display: grid; gap: 4px; padding: 14px 16px; margin-bottom: 10px; }
+.track-week .small { font-size: 14px; }
+.track-week-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.track-week-head b { font-size: 16px; }
+.track-week-values { font-size: 20px; margin: 2px 0; }
+.track-week.is-current { border-style: dashed; }
+.track-week-cta { margin-top: 6px; min-height: 44px; }
+.track-trend { padding: 12px 14px; }
+.f01-week-chart { width: 100%; height: auto; display: block; margin-top: 4px; }
+.f01-week-line { stroke: var(--primary); stroke-width: 2.5; }
+.f01-week-line.is-pending { stroke: #b9c9ae; stroke-dasharray: 5 5; }
+.f01-week-node { fill: var(--primary); }
+.f01-week-node.is-pending { fill: #fff; stroke: #b9c9ae; stroke-width: 2; stroke-dasharray: 3 3; }
+.f01-week-value { font-size: 13px; font-weight: 800; fill: var(--text); }
+.f01-week-q { font-size: 12px; font-weight: 800; fill: #8a9a80; }
+.f01-week-date { font-size: 11px; fill: var(--muted); }
+.f01-week-label { font-size: 12px; font-weight: 700; fill: var(--primary-dark); }
+/* ── Tracking history: shared-baseline label + 訓練表現 (secondary to the 5xSTS trend) ── */
+.f01-week-role { font-size: 9.5px; fill: var(--primary-dark); font-weight: 600; }
+.track-perf-title { font-size: 15px !important; color: var(--muted); }
+.track-perf { display: grid; gap: 6px; padding: 12px 14px; background: #fbfcf8; }
+.track-perf-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: 10px; min-height: 32px; border-top: 1px solid var(--line); padding-top: 6px; }
+.track-perf-row b { font-size: 16px; }
+.track-perf-compare { margin: 4px 0 0; display: grid; gap: 2px; font-size: 14px; font-weight: 600; }
+.track-perf-compare span { font-size: 13px; font-weight: 500; color: var(--muted); }
+.track-perf-note { margin: 2px 0 0; }
+
+/* ── 復健旅程: compact level, week selector, path states, environment ── */
+.journey-page { display: flex; flex-direction: column; gap: 10px; }
+.journey-page .rehab-adventure-header { margin-bottom: 0; }
+.journey-level { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; background: #fff; border: 1px solid var(--line); font-size: 14px; }
+.journey-level b { color: var(--primary-dark); }
+.journey-level-title { white-space: nowrap; }
+.journey-level .xp-track { width: auto; margin-top: 0; }
+.journey-level .small { white-space: nowrap; }
+.journey-weeks { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.journey-week { flex: none; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: 14px; font-weight: 700; color: var(--text); cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; }
+.journey-week.is-active { background: var(--color-primary-soft); border-color: #b8d79f; color: var(--primary-dark); }
+.journey-week.is-locked { color: var(--muted); background: #f3f4f1; cursor: default; }
+.journey-page .rehab-adventure-chapter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.journey-chapter-title { font-size: 17px; }
+.journey-page .rehab-adventure-route path { fill: none; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.journey-page .rehab-adventure-route .journey-seg.is-done { stroke: var(--primary); stroke-width: 4; stroke-dasharray: none; }
+.journey-page .rehab-adventure-route .journey-seg.is-active { stroke: #ffd15c; stroke-width: 5; stroke-dasharray: none; }
+.journey-page .rehab-adventure-route .journey-seg.is-future { stroke: #fff7e8; stroke-width: 2.4; stroke-dasharray: 0.1 6; }
+.journey-decor { position: absolute; font-size: 18px; line-height: 1; pointer-events: none; opacity: .9; }
+.journey-decor.d-plant-a { left: 6%; bottom: 8%; }
+.journey-decor.d-plant-b { left: 46%; bottom: 14%; font-size: 15px; }
+.journey-decor.d-flag { right: 5%; top: 8%; }
+.journey-decor.d-spark { left: 42%; top: 6%; font-size: 14px; }
+.journey-decor.d-done { right: 8%; bottom: 36%; font-size: 22px; }
+.rehab-adventure-map-scene.journey-env-1 { background: #eaf4ea; }
+.rehab-adventure-map-scene.journey-env-2 { background: #e6f3e2; }
+.rehab-adventure-map-scene.journey-env-3 { background: #e3f2dc; }
+.journey-result { margin: 4px 0; display: grid; gap: 2px; }
+.journey-result b { font-size: 18px; }
+.journey-complete { background: #f4f8f1; border-color: #dfecd6; }
+/* ── 自主練習 library: title → search → 六大功能構面 → AI 能力 → one result grid ── */
+.sp-page { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
+.sp-header { margin-bottom: 0; }
+.sp-intro { margin: 0; font-size: 15px; color: var(--text); }
+.sp-safety { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.sp-search-row { position: sticky; top: -20px; z-index: 4; margin: 4px -20px 0; padding: 8px 20px; background: #f5f6f7; }
+.sp-search-row .self-practice-search-input { min-height: 44px; font-size: 16px; padding: 10px 16px; }
+.sp-filter-btn { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: #fff; display: grid; place-items: center; cursor: pointer; }
+.sp-filter-btn svg { width: 20px; height: 20px; fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+.sp-filter-btn.is-active { border-color: var(--primary); background: var(--color-primary-soft); }
+.sp-filter-btn .sp-filter-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* icon-only with CSS; the word 篩選 remains for screen readers and as a no-CSS fallback */
+.sp-filter-count { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; padding: 0 4px; }
+.sp-domains { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-domains .category-pill { min-height: 38px; padding: 0 14px; font-size: 14px; }
+.sp-ai-banner { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--color-primary-soft); border: 1px solid #cfe3cf; }
+.sp-ai-banner img { width: 28px; height: 28px; object-fit: contain; flex: none; margin-top: 2px; mix-blend-mode: multiply; }
+.sp-ai-banner > div { display: grid; gap: 1px; min-width: 0; }
+.sp-ai-banner b { font-size: 15px; color: var(--primary-dark); }
+.sp-ai-banner span { font-size: 14px; line-height: 1.45; }
+.sp-ai-banner .small { font-size: 13px; }
+.sp-results-head { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; }
+.sp-results-head b { font-size: 17px; }
+.sp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sp-card { display: grid; gap: 4px; align-content: start; padding: 0 0 10px; border: 1px solid var(--line); border-radius: 16px; background: #fff; overflow: hidden; text-align: left; cursor: pointer; font-family: inherit; color: var(--text); }
+.sp-card-media { position: relative; display: block; }
+.sp-card .exercise-grid-card-image { aspect-ratio: 4 / 3; border-radius: 0; }
+.sp-card .exercise-card-placeholder { border: 0; border-bottom: 1px dashed #cfd8c8; border-radius: 0; }
+.sp-card .exercise-card-placeholder img { width: 32px; height: 32px; }
+.sp-card .exercise-card-placeholder span { font-size: 12px; }
+/* Exercise photos are transparent 800×800 PNGs (subject ~68–74% of the height,
+   centred); the mint frame is CSS. One contain + padding rule for every
+   confirmed image in library cards, Exercise Detail and AI Preparation —
+   no per-exercise sizing. */
+.sp-card .exercise-grid-card-image img[data-exercise-media],
+.exp-media-img { box-sizing: border-box; padding: 12px; object-fit: contain; }
+.sp-ai-badge { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 2px; padding: 2px 7px 2px 4px; border-radius: 999px; background: rgba(255,255,255,.92); font-size: 11px; font-weight: 800; color: var(--primary-dark); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.sp-ai-badge img { width: 14px; height: 14px; }
+.sp-card-name { padding: 0 10px; font-size: 15px; line-height: 1.35; }
+.sp-card-meta { padding: 0 10px; font-size: 13px; color: var(--muted); }
+.sp-page .self-practice-empty-state { display: grid; justify-items: center; gap: 6px; padding: 24px 12px; text-align: center; }
+.sp-filter-sheet .chip-grid { margin-top: 6px; }
+.sp-filter-sheet .chip-select { min-height: 40px; }
+.sp-sheet-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 6px; }
+.sp-sheet-footer .btn { min-height: 46px; }
+/* ── 自主練習 「全部」: six 功能構面 sections, each a horizontal rail ── */
+.sp-rail-section { display: grid; gap: 6px; margin-top: 6px; }
+.sp-rail-head { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0; border: 0; background: none; cursor: pointer; font-family: inherit; color: var(--text); text-align: left; }
+.sp-rail-head b { font-size: 17px; }
+.sp-rail-head span { font-size: 14px; font-weight: 700; color: var(--primary-dark); white-space: nowrap; }
+.sp-rail { display: flex; gap: 10px; margin: 0 -20px; padding: 2px 20px 6px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scroll-padding-left: 20px; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.sp-rail::-webkit-scrollbar { display: none; }
+.sp-rail .sp-card { flex: 0 0 152px; width: 152px; scroll-snap-align: start; }
+.sp-rail .sp-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

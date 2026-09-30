@@ -23,7 +23,32 @@ import { generateId, nowIso } from "../utils/id.js";
  */
 const functionalAssessmentSessionsCollection = createCollection("functionalAssessmentSessions");
 
-export const FUNCTIONAL_ASSESSMENT_BODY_REGIONS = ["shoulder"];
+export const FUNCTIONAL_ASSESSMENT_BODY_REGIONS = ["shoulder", "lower_limb"];
+
+/**
+ * ReMotion Sarcopenia Redesign Phase 1 — assessment-type discriminator.
+ * One collection (`functionalAssessmentSessions`), two protocols so far.
+ * Defined as constants (never scattered raw strings) so every reader/writer
+ * in this file and in app.js references the same two values.
+ */
+export const FUNCTIONAL_ASSESSMENT_TYPES = {
+  SHOULDER: "shoulder",
+  FIVE_TIMES_SIT_TO_STAND: "five_times_sit_to_stand",
+};
+
+/**
+ * Legacy-compatible read of a session's assessment type. EVERY session
+ * created before this phase has no `assessmentType` field and was always a
+ * shoulder assessment — Phase 7.1–7.6 never supported any other bodyRegion.
+ * This is the ONLY place that fallback rule lives; every read helper below
+ * goes through it rather than re-deriving it inline. No destructive
+ * migration is performed — existing documents are never rewritten just to
+ * add this field.
+ */
+export function resolveAssessmentType(session) {
+  if (!session) return null;
+  return session.assessmentType || FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER;
+}
 
 export const functionalAssessmentService = {
   list() {
@@ -32,27 +57,51 @@ export const functionalAssessmentService = {
   getById(id) {
     return functionalAssessmentSessionsCollection.getById(id);
   },
-  getByPatientId(patientId) {
-    return functionalAssessmentSessionsCollection.query((s) => s.patientId === patientId);
+  /**
+   * `assessmentType` is an OPTIONAL filter (additive — every existing call
+   * site that passes only `patientId` keeps returning every session for
+   * that patient, exactly as before).
+   */
+  getByPatientId(patientId, { assessmentType } = {}) {
+    return functionalAssessmentSessionsCollection.query(
+      (s) => s.patientId === patientId && (!assessmentType || resolveAssessmentType(s) === assessmentType)
+    );
   },
   /**
-   * Creates a minimal session shell. Only "shoulder" is a valid bodyRegion
-   * in Phase 7.1 — every other region is disabled at the UI layer and
-   * should never reach this call at all (see the Phase 7.1 report's
-   * "Shoulder selection behavior" section), but this still validates
-   * defensively rather than silently defaulting an unknown region.
+   * Creates a minimal session shell. `bodyRegion` must be one of
+   * FUNCTIONAL_ASSESSMENT_BODY_REGIONS — every UI entry point that can
+   * reach this call already only wires an onclick for a region it supports
+   * (see each region-selection call site's own comment), but this still
+   * validates defensively rather than trusting the caller.
+   *
+   * `assessmentType` is additive and OPTIONAL: when omitted, it is derived
+   * from `bodyRegion` (bodyRegion "shoulder" -> assessmentType "shoulder"),
+   * so every pre-existing call site (`create({ patientId, bodyRegion })`)
+   * keeps producing byte-identical shoulder session documents with zero
+   * caller changes.
    */
-  create({ patientId, bodyRegion }) {
+  create({ patientId, bodyRegion, assessmentType = null }) {
     if (!patientId) return { error: "缺少 patientId，無法建立功能評估。" };
     if (!FUNCTIONAL_ASSESSMENT_BODY_REGIONS.includes(bodyRegion)) {
       return { error: `bodyRegion 必須是 ${FUNCTIONAL_ASSESSMENT_BODY_REGIONS.join(" / ")} 其中之一。` };
     }
+    const resolvedType =
+      assessmentType ||
+      (bodyRegion === "shoulder"
+        ? FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER
+        : bodyRegion === "lower_limb"
+          ? FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND
+          : null);
     const record = functionalAssessmentSessionsCollection.create({
       id: generateId("functionalAssessment"),
       patientId,
       bodyRegion,
       status: "started",
       startedAt: nowIso(),
+      // Additive — absent on nothing going forward, but readers must still
+      // tolerate a missing value on documents from before this phase (see
+      // resolveAssessmentType()).
+      assessmentType: resolvedType,
     });
     return { session: record };
   },
@@ -104,29 +153,49 @@ export const functionalAssessmentService = {
    *     caller passes the selected problem). Legacy sessions with no
    *     `problemId` are handled by a read-side compatibility fallback in
    *     js/data/shoulderAssessmentFindings.js, not here.
+   *
+   * Sarcopenia Redesign Phase 2.1 — additive `result` param: an opaque,
+   * caller-shaped payload (this service never inspects its fields) for
+   * protocols whose completion carries real measured data, e.g. the
+   * five_times_sit_to_stand assessment's { repCount, totalDurationMs,
+   * repDurationsMs, ... } built in app.js's finalizeFa5xAssessment() from
+   * the LE05 sit-to-stand FSM's own repRecords. Never touches
+   * problemId/protocolMovementIds (shoulder's fields) or movementResults.
    */
-  completeSession(sessionId, { problemId = null, protocolMovementIds = null } = {}) {
+  completeSession(sessionId, { problemId = null, protocolMovementIds = null, result = null } = {}) {
     if (!sessionId) return { error: "缺少 sessionId，無法完成評估。" };
     const session = functionalAssessmentSessionsCollection.getById(sessionId);
     if (!session) return { error: "找不到此功能評估 session。" };
     const patch = { status: "completed", completedAt: nowIso() };
     if (problemId) patch.problemId = problemId;
     if (Array.isArray(protocolMovementIds)) patch.protocolMovementIds = protocolMovementIds;
+    if (result) patch.result = result;
     const updated = functionalAssessmentSessionsCollection.update(sessionId, patch);
     return { session: updated };
   },
-  /** All completed sessions for a patient, newest first (by completedAt, then startedAt). */
-  getCompletedByPatientId(patientId) {
+  /**
+   * All completed sessions for a patient, newest first (by completedAt,
+   * then startedAt). `assessmentType` is an OPTIONAL additive filter —
+   * omitted, it returns completed sessions of every type (shoulder AND
+   * five_times_sit_to_stand), exactly generalizing the pre-Phase-1 "there
+   * was only ever one type" behavior. Callers that specifically mean "the
+   * shoulder result" (e.g. the shoulder Result page CTA) must pass
+   * `{ assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER }` explicitly —
+   * see the app.js call-site audit for this phase.
+   */
+  getCompletedByPatientId(patientId, { assessmentType } = {}) {
     return functionalAssessmentSessionsCollection
-      .query((s) => s.patientId === patientId && s.status === "completed")
+      .query((s) => s.patientId === patientId && s.status === "completed" && (!assessmentType || resolveAssessmentType(s) === assessmentType))
       .sort((a, b) => new Date(b.completedAt || b.startedAt || 0) - new Date(a.completedAt || a.startedAt || 0));
   },
-  /** The most recent completed session for a patient, or null. Persistence-backed — survives reload. */
-  getLatestCompletedByPatientId(patientId) {
-    return functionalAssessmentService.getCompletedByPatientId(patientId)[0] || null;
+  /** The most recent completed session for a patient (optionally filtered by assessmentType), or null. Persistence-backed — survives reload. */
+  getLatestCompletedByPatientId(patientId, opts = {}) {
+    return functionalAssessmentService.getCompletedByPatientId(patientId, opts)[0] || null;
   },
-  /** Persistence-backed "does this patient have at least one completed Functional Assessment". */
-  hasCompletedByPatientId(patientId) {
-    return functionalAssessmentSessionsCollection.query((s) => s.patientId === patientId && s.status === "completed").length > 0;
+  /** Persistence-backed "does this patient have at least one completed Functional Assessment" (optionally of one specific assessmentType). */
+  hasCompletedByPatientId(patientId, { assessmentType } = {}) {
+    return functionalAssessmentSessionsCollection
+      .query((s) => s.patientId === patientId && s.status === "completed" && (!assessmentType || resolveAssessmentType(s) === assessmentType))
+      .length > 0;
   },
 };

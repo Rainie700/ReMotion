@@ -201,14 +201,18 @@ assert.ok(
   const page = sliceFn("function todaysRecommendationPage()");
   assert.ok(/已完成 \$\{completedCount\} \/ \$\{enrichedItems\.length\}/.test(page), "Today's Training shows 已完成 X / Y");
   assert.ok(
-    /isRecommendationItemCompleted\(it\.exerciseId, recommendationDateStr, patientId\)/.test(page),
-    "completion state is derived per item from persisted records"
+    /completed: legacyDoneIds\.has\(it\.exerciseId\)/.test(page) && /legacyRecommendationDoneIds\(recommendation, trainingEventService\.listTrainingEvents\(patientId\), recommendationDateStr\)/.test(page),
+    "completion state is derived per item from persisted records linked to this plan (I-4)"
   );
   assert.ok(/aiSupported: !!\(ex && ex\.aiSupported\)/.test(page), "the card's AI badge reflects the real catalog flag (J)");
 }
 {
-  const c = sliceFn("function isRecommendationItemCompleted(");
-  assert.ok(/analysisService\.getByPatientId\(patientId\)/.test(c) && /"self_practice"/.test(c), "completion check reads persisted self_practice records");
+  // I-4 — the same-day self_practice heuristic was replaced by plan linkage
+  // (js/data/todayPlanAggregator.js legacyRecommendationDoneIds); records
+  // without source fields keep the old rule there.
+  assert.ok(!appJs.includes("function isRecommendationItemCompleted("), "the exerciseId heuristic is gone from app.js");
+  const agg = readFileSync(join(root, "js/data/todayPlanAggregator.js"), "utf8");
+  assert.ok(/export function legacyRecommendationDoneIds\(/.test(agg) && /e\.recommendationId === recommendation\.id/.test(agg), "completion check reads records linked to this plan");
 }
 
 // I — the 數據 tab shows a REAL analysisService dashboard, not the hardcoded mock.

@@ -16,5 +16,5 @@ const lateral=createFlexibilitySession(FLEX_PROFILES["F06-09"],{targetReps:1});l
 
 const rotation=createFlexibilitySession(FLEX_PROFILES["F06-10"],{targetReps:1});rotation.processFrame({timestamp:0,...base});rotation.processFrame({timestamp:1000,...base,shoulderWidth:.7,noseOffset:-.1});const rr=rotation.processFrame({timestamp:2500,...base,shoulderWidth:.98}).summary;assert.equal(rr.totalReps,1);
 
-const appSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");for(const p of Object.values(FLEX_PROFILES))assert.ok(appSource.includes(`/images/exercise/${p.image}`),`${p.id} image-map entry missing`);
+const appSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");const {EXERCISE_ASSET_AUDIT}=await import("../js/data/exerciseAssets.js");for(const p of Object.values(FLEX_PROFILES))assert.ok(EXERCISE_ASSET_AUDIT[p.id],`${p.id} asset-audit entry missing (js/data/exerciseAssets.js is the one image mapping)`);
 console.log("F06 flexibility-series addition tests passed");

@@ -111,7 +111,10 @@ for (const fn of ["goFunctionalAssessmentShoulderResult", "goLatestFunctionalAss
 // Home "評估結果" unlock — persistence-backed decision + real onclick.
 {
   const home = appJs.slice(appJs.indexOf("hasCompletedFunctionalAssessment ="), appJs.indexOf("hasCompletedFunctionalAssessment =") + 1400);
-  assert.ok(/functionalAssessmentService\.hasCompletedByPatientId\(patientId\)/.test(home), "Home checks completion via the persistence-backed service method");
+  // Sarcopenia Redesign Phase 1 — this now explicitly filters to the
+  // SHOULDER assessmentType (a patient may also have a completed
+  // five_times_sit_to_stand session, which this card must not unlock on).
+  assert.ok(/functionalAssessmentService\.hasCompletedByPatientId\(patientId, \{ assessmentType: FUNCTIONAL_ASSESSMENT_TYPES\.SHOULDER \}\)/.test(home), "Home checks completion via the persistence-backed service method, filtered to shoulder");
   assert.ok(!/\.getByPatientId\(patientId\)\s*\n?\s*\.some\(\(s\) => s\.status === "completed"\)/.test(home), "no ad-hoc runtime scan");
   assert.ok(/hasCompletedFunctionalAssessment[\s\S]{0,600}clickable" onclick="goLatestFunctionalAssessmentResult\(\)"/.test(home), "when completed the card is clickable -> latest result");
   assert.ok(/hasCompletedFunctionalAssessment[\s\S]{0,900}secondary locked" aria-disabled="true"/.test(home), "when NOT completed the card keeps its disabled state");
