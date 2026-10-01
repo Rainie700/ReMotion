@@ -729,7 +729,7 @@ export const rehabExercises = [
     "precautions":"若伸手過程腳步移動，該次作廢；請在支撐物旁並有人保護。","reference_source":"SRALab｜Multidirectional Reach Test","demo_video_url":"待補",
     "key_points":"手臂肩高、雙腳完全平貼地面、左右側伸後回位","correct_angle":"手臂維持肩膀高度；伸展以距離評估","angle_tolerance":"不設定伸展角度門檻",
     "cnn_label":"Correct：雙腳固定並完成側伸回位\nCompensated：手臂掉落或軀幹過度傾斜\nFault：跨步或失去平衡","defaultSets":1,"defaultRepetitions":4,"defaultDurationSeconds":null,"measurementType":"repetition",
-    "cameraAngle":"正面（全身、雙手與雙腳完整入鏡，左右留空間）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis","legacy_exercise_id":"F05-09"
+    "cameraAngle":"正面（全身、雙手與雙腳完整入鏡，左右留空間）","analysisRequired":true,"rewardXp":30,"rewardStars":2,"trainingMode":"pose_analysis"
   },
   {
     "exercise_id": "F03-01",
