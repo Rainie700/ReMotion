@@ -19,7 +19,7 @@ const CLOUD_COLLECTIONS = [
 // fails (e.g. rules not yet deployed -> permission denied) the local copy is
 // kept and login is never blocked; if it succeeds, cloud and local records
 // are merged by id (cloud wins) instead of the local list being replaced.
-const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles"];
+const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries"];
 const isSyncedCollection = (name) => CLOUD_COLLECTIONS.includes(name) || OPTIONAL_CLOUD_COLLECTIONS.includes(name);
 
 function readRaw(key, fallback) {
@@ -52,6 +52,18 @@ async function getRecordsForField(name, field, value) {
 }
 
 async function loadCloudCollection(name, user) {
+  if (OPTIONAL_CLOUD_COLLECTIONS.includes(name)) {
+    if (user.role !== "therapist") return getRecordsForField(name, "patientId", user.id);
+    const relations = readRaw(collectionKey("therapistPatientRelations"), []).filter((r) => r.therapistId === user.id && r.status === "accepted");
+    const records = await Promise.all(relations.map(async (relation) => {
+      const snapshot = await getDocs(query(collection(firestore, name),
+        where("therapistId", "==", user.id),
+        where("patientId", "==", relation.patientId),
+        where("relationId", "==", relation.id)));
+      return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    }));
+    return mergeById(records);
+  }
   if (["therapistPatientRelations", "schedules", "analysisRecords"].includes(name)) {
     const [asPatient, asTherapist] = await Promise.all([
       getRecordsForField(name, "patientId", user.id),
@@ -89,6 +101,10 @@ function trackCloudWrite(promise, meta) {
 }
 
 function persistRecord(name, record) {
+  if (name === "trackingCycles" && cloudUser && record.patientId === cloudUser.id) {
+    const relation = readRaw(collectionKey("therapistPatientRelations"), []).find((r) => r.patientId === cloudUser.id && r.status === "accepted");
+    record = { ...record, therapistId: relation ? relation.therapistId : "", relationId: relation ? relation.id : "" };
+  }
   if (!cloudUser || !isSyncedCollection(name) || !record?.id) return;
   trackCloudWrite(setDoc(doc(firestore, name, record.id), record), { op: "set", name, id: record.id }).catch((error) => {
     console.error(`[storageService] failed to sync ${name}/${record.id}`, error);
@@ -132,7 +148,14 @@ export const storageService = {
     for (const name of OPTIONAL_CLOUD_COLLECTIONS) {
       try {
         const cloud = await loadCloudCollection(name, user);
-        writeRaw(collectionKey(name), mergeById([readRaw(collectionKey(name), []), cloud]));
+        const local = readRaw(collectionKey(name), []);
+        writeRaw(collectionKey(name), mergeById([local, cloud]));
+        if (name === "trackingCycles" && user.role === "patient") {
+          for (const cycle of local.filter((c) => c.patientId === user.id && c.userId === user.id)) {
+            persistRecord(name, cloud.find((c) => c.id === cycle.id) || cycle);
+          }
+          await waitForCloudWrites();
+        }
       } catch (error) {
         console.warn(`[storageService] optional collection "${name}" not loaded from cloud; keeping the local copy`, error);
       }

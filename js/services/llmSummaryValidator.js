@@ -213,6 +213,21 @@ export function validateWeeklySummary(candidate, context) {
     if (!facts.has(id)) fail("missingData", "UNKNOWN_EVIDENCE_FACT", "evidence fact is not present in the verified context", "evidenceFactIds", id);
   }
   const allText = textFields(candidate).map((f) => f.text).join("\n");
+  // A generic "no data" response must not pass merely because it invents nothing.
+  for (const audience of errors.length ? [] : ["userSummary", "professionalSummary"]) {
+    const fields = candidate[audience] || {};
+    const functionText = fields.functionSummary || "";
+    const trainingText = fields.trainingSummary || "";
+    if (hasBaseline && ![String(fa.baselineMs), String(Number((fa.baselineMs / 1000).toFixed(1)))].some((n) => new RegExp(`(?<![0-9.])${n.replace(/\./g, "\\.")}(?![0-9.])`).test(functionText))) {
+      fail("missingData", "KNOWN_BASELINE_OMITTED", "available baseline must be included", `${audience}.functionSummary`);
+    }
+    if (hasBaseline && /^(?:尚無資料|無資料|沒有資料)[。.]?$/.test(functionText.trim())) {
+      fail("missingData", "KNOWN_DATA_DENIED", "available assessment described as missing", `${audience}.functionSummary`);
+    }
+    if (Number.isInteger(context.training && context.training.completedDays) && /^(?:尚無資料|無資料|沒有資料)[。.]?$/.test(trainingText.trim())) {
+      fail("missingData", "KNOWN_DATA_DENIED", "available training count described as missing", `${audience}.trainingSummary`);
+    }
+  }
   if (context.reportedIssues && context.reportedIssues.professionalReviewRequired && !/專業/.test(allText)) {
     warnings.push({ code: "PROFESSIONAL_REVIEW_NOT_MENTIONED", message: "context requires professional review but the summary does not say so", path: "attentionNotes" });
   }

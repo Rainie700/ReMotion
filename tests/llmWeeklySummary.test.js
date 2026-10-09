@@ -176,18 +176,20 @@ const w2 = B.buildVerifiedWeeklyContext({ userId: P00.id, cycleId: seeded.cycle2
   assert.deepEqual([ev.evaluationStage, ev.generatedByLLM], ["phase_1a_validator_fixture", false], "the evidence snapshot carries the same labels");
 }
 
-// ── 7. Phase 1A scope: no LLM / API / key / Firestore / UI ────────────
+// ── 7. Phase 1B wiring: provider/service/UI exist; no secret is committed ──
 {
   const services = readdirSync(join(root, "js/services")).filter((f) => f.startsWith("llm"));
-  assert.deepEqual(services.sort(), ["llmContextBuilder.js", "llmSummaryFacts.js", "llmSummaryFallback.js", "llmSummarySchema.js", "llmSummaryValidator.js"]);
-  for (const f of services) {
+  assert.deepEqual(services.sort(), ["llmContextBuilder.js", "llmProviderAdapter.js", "llmSummaryFacts.js", "llmSummaryFallback.js", "llmSummarySchema.js", "llmSummaryValidator.js", "llmWeeklySummaryService.js"]);
+  for (const f of services.filter((name) => !["llmProviderAdapter.js", "llmWeeklySummaryService.js"].includes(name))) {
     const src = readFileSync(join(root, "js/services", f), "utf8");
     assert.ok(!/fetch\(|XMLHttpRequest|openai|anthropic|gemini|apiKey|api_key|REMOTION_LLM|firebase|setDoc|createCollection\(/i.test(src), `${f}: no provider / network / storage write`);
   }
   assert.ok(!existsSync(join(root, ".env.local")), "no .env.local");
   const appJs = readFileSync(join(root, "app.js"), "utf8");
-  assert.ok(!/llmContextBuilder|llmSummary|AI 本週摘要/.test(appJs), "no UI wiring in Phase 1A");
-  assert.ok(!/llmWeeklySummaries/.test(readFileSync(join(root, "firestore.rules"), "utf8")), "no Firestore collection / rules");
+  assert.ok(/generateCaseWeeklySummary/.test(appJs) && /AI 週摘要/.test(appJs), "Phase 1B UI wiring exists");
+  const config = readFileSync(join(root, "js/config/llmSummaryConfig.js"), "utf8");
+  assert.ok(/VITE_RECAPTCHA_ENTERPRISE_SITE_KEY/.test(config) && !/6L[a-zA-Z0-9_-]{20,}/.test(config), "App Check public site key comes from environment");
+  assert.ok(/match \/llmWeeklySummaries/.test(readFileSync(join(root, "firestore.rules"), "utf8")), "summary collection has explicit rules");
 }
 
-console.log("LLM weekly summary Phase 1A tests passed (context builder, fallback, 30 hand-authored validator fixtures — not LLM output)");
+console.log("LLM weekly summary Phase 1B tests passed (grounding, fallback, provider/UI wiring, 30 validator fixtures)");

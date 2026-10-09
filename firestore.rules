@@ -13,6 +13,25 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
     }
+    function linked(data) {
+      return data.therapistId == request.auth.uid
+        && exists(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId))
+        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.patientId == data.patientId
+        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.therapistId == request.auth.uid
+        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.status == 'accepted';
+    }
+    match /trackingCycles/{id} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid && request.resource.data.patientId == resource.data.patientId && request.resource.data.userId == resource.data.userId;
+      allow delete: if false;
+    }
+    match /llmWeeklySummaries/{id} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && linked(request.resource.data);
+      allow update: if request.auth != null && linked(resource.data) && linked(request.resource.data) && request.resource.data.patientId == resource.data.patientId;
+      allow delete: if false;
+    }
     // Data records are scoped in the client by patientId/therapistId and are
     // loaded only after authentication. Cross-account clinical sharing needs
     // a relation-aware server layer before these rules can be tightened.
@@ -24,8 +43,7 @@ service cloud.firestore {
           'analysisRecords',
           'patientAssessments',
           'recommendationResults',
-          'functionalAssessmentSessions',
-          'trackingCycles'
+          'functionalAssessmentSessions'
         ];
     }
   }

@@ -7,6 +7,7 @@ import { exerciseService, resolvePoseAnalyzer, POSE_ANALYZER } from "./js/data/e
 import { userService } from "./js/data/userService.js";
 import { relationService } from "./js/data/relationService.js";
 import { generateId, nowIso } from "./js/utils/id.js";
+import { createWeeklySummary, getSavedWeeklySummary, confirmWeeklySummary } from "./js/services/llmWeeklySummaryService.js";
 import { SQUAT_THRESHOLDS, SQUAT_ANALYSIS_MODE, DEFAULT_SQUAT_REWARD_XP, SQUAT_REQUIRED_LANDMARKS } from "./js/ai/squatConstants.js";
 import { computeKneeAngles, computeTrunkLeanDeg, computeKneeValgusSuspected, hasFullLowerBody } from "./js/ai/poseMath.js";
 import { createDetectionStabilityTracker, DETECTION_DISPLAY_STATE } from "./js/ai/detectionStability.js";
@@ -3260,6 +3261,11 @@ function patientDataOverviewPage() {
   const progress = functionalProgressService.getFunctionalProgress(patientId, getTrackingTodayKey());
   const records = analysisService.getByPatientId(patientId);
   const trendPoints = collectQualityTrendPoints(records, 7);
+  const summaryCycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
+  const confirmedWeeklySummary = summaryCycle ? getSavedWeeklySummary(summaryCycle.id) : null;
+  const patientSummaryHtml = confirmedWeeklySummary && confirmedWeeklySummary.status === "confirmed"
+    ? `<h3 class="section-title">AI 本週摘要</h3><div class="card llm-weekly-summary-card"><b>${summaryText(confirmedWeeklySummary.summary.userSummary.headline)}</b><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.functionSummary)}</p><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.trainingSummary)}</p><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.nextPlanSummary)}</p><div class="small muted">摘要已由復健師確認；內容僅整理既有資料，不是診斷或治療建議。</div></div>`
+    : "";
 
   const header = `<div class="header"><h1 class="page-title">我的數據</h1><img class="icon" src="/images/data.png" alt="數據" /></div>`;
   const nav = renderDataSegmentedNav("overview");
@@ -3280,6 +3286,7 @@ function patientDataOverviewPage() {
       ${nav}
       ${functionalHtml}
       ${weekHtml}
+      ${patientSummaryHtml}
       <h3 class="section-title">AI 姿勢分數趨勢</h3>
       <div class="card patient-data-trend-card">${renderQualityTrendChart([])}</div>
       <div class="card patient-data-empty">
@@ -3295,6 +3302,7 @@ function patientDataOverviewPage() {
     ${nav}
     ${functionalHtml}
     ${weekHtml}
+    ${patientSummaryHtml}
     <h3 class="section-title">AI 姿勢分數趨勢</h3>
     <div class="card patient-data-trend-card">${renderQualityTrendChart(trendPoints)}</div>
     <p class="small data-score-note">AI 姿勢分數是動作辨識比對姿勢的參考分數，不是醫療評估。</p>
@@ -4334,6 +4342,7 @@ function therapistCaseDetailPage() {
       const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER });
       return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
     })();
+    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId);
     bodyHtml = `
       <h3 class="section-title">今日復健狀況</h3>
       <div class="card"><div class="small">今日課表完成 <b>${cs.todayDone} / ${cs.todayTotal}</b>${lastCompleted ? `｜最近完成：${lastCompleted.exerciseName}` : ""}</div></div>
@@ -4346,6 +4355,7 @@ function therapistCaseDetailPage() {
         </div>
       </div>
       <div class="card patient-data-trend-card">${renderQualityTrendChart(trend)}</div>
+      ${weeklySummaryHtml}
       <h3 class="section-title">最近功能評估</h3>
       ${faReport
         ? `<div class="card">
@@ -4407,6 +4417,63 @@ function therapistCaseDetailPage() {
     ${segNav}
     ${bodyHtml}
   </div>`;
+}
+
+function summaryText(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function renderTherapistWeeklySummary(patientId) {
+  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
+  if (!cycle) return `<h3 class="section-title">AI 週摘要</h3><div class="card muted center">建立 F01 追蹤週期後即可產生摘要。</div>`;
+  const saved = getSavedWeeklySummary(cycle.id);
+  if (state.llmSummaryLoadingCycleId === cycle.id) {
+    return `<h3 class="section-title">AI 週摘要</h3><div class="card"><b>正在整理已驗證資料…</b><div class="small">若模型暫時無法使用，系統會自動顯示安全備用摘要。</div></div>`;
+  }
+  if (!saved) {
+    return `<h3 class="section-title">AI 週摘要</h3><div class="card"><b>把本週評估與訓練紀錄整理成摘要</b><div class="small" style="margin-top:6px;">只傳送去識別化的已驗證數據，不傳姓名、影像或原始姿勢座標。</div>${state.llmSummaryError ? `<div class="small" style="color:#a33;margin-top:6px;">${summaryText(state.llmSummaryError)}</div>` : ""}<button class="btn btn-primary full" style="margin-top:10px;" onclick="generateCaseWeeklySummary()">產生 AI 週摘要</button></div>`;
+  }
+  const s = saved.summary.professionalSummary;
+  const badge = saved.status === "confirmed" ? "已確認" : "待復健師確認";
+  const source = saved.source === "gemini" ? "Gemini 整理" : "安全備用摘要";
+  return `<h3 class="section-title">AI 週摘要</h3><div class="card llm-weekly-summary-card">
+    <div class="row" style="justify-content:space-between;"><b>${badge}</b><span class="pill ${saved.status === "confirmed" ? "active-status" : "pending"}">${source}</span></div>
+    <p class="small"><b>功能：</b>${summaryText(s.functionSummary)}</p>
+    <p class="small"><b>訓練：</b>${summaryText(s.trainingSummary)}</p>
+    <p class="small"><b>計畫：</b>${summaryText(s.planSummary)}</p>
+    ${(saved.summary.attentionNotes || []).map((n) => `<div class="small" style="color:#8a5b20;">注意：${summaryText(n)}</div>`).join("")}
+    <div class="small muted">此摘要僅整理系統既有資料，不是診斷或治療建議。</div>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-light" style="flex:1" onclick="generateCaseWeeklySummary()">重新產生</button>
+      ${saved.status === "confirmed" ? "" : `<button class="btn btn-primary" style="flex:1" onclick="confirmCaseWeeklySummary()">確認摘要</button>`}
+    </div>
+  </div>`;
+}
+
+async function generateCaseWeeklySummary() {
+  const patientId = state.selectedPatientId;
+  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
+  if (!cycle) return alert("此個案尚未建立 F01 追蹤週期。");
+  state.llmSummaryLoadingCycleId = cycle.id;
+  state.llmSummaryError = null;
+  render();
+  try {
+    await createWeeklySummary({ patientId, cycleId: cycle.id, therapistId: state.user.id });
+  } catch (error) {
+    state.llmSummaryError = "目前無法建立摘要，請確認此週期已有可用的評估資料。";
+  } finally {
+    state.llmSummaryLoadingCycleId = null;
+    render();
+  }
+}
+
+async function confirmCaseWeeklySummary() {
+  const patientId = state.selectedPatientId;
+  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
+  if (!cycle) return;
+  try { await confirmWeeklySummary(cycle.id, state.user.id); }
+  catch { alert("摘要尚未成功同步，請確認網路與 Firestore 規則後重試。"); }
+  render();
 }
 
 function setCaseDetailTab(t) {
@@ -5047,6 +5114,8 @@ window.getTrainingHistorySourceChips = getTrainingHistorySourceChips;
 window.goCaseList = goCaseList;
 window.goCaseDetail = goCaseDetail;
 window.goCaseDetailPlan = goCaseDetailPlan;
+window.generateCaseWeeklySummary = generateCaseWeeklySummary;
+window.confirmCaseWeeklySummary = confirmCaseWeeklySummary;
 window.goAssignPlan = goAssignPlan;
 window.setTherapistHomeView = setTherapistHomeView;
 window.setCaseDetailTab = setCaseDetailTab;
