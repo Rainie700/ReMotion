@@ -1,0 +1,7 @@
+current tree vs baseline copy rebuilt from backup-before (md5 verified)
+test:tracking current exit=1 baseline exit=1 | errors SAME | AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+test:flow-qa current exit=1 baseline exit=1 | errors SAME | AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
+test:home-redesign current exit=1 baseline exit=1 | errors SAME | ReferenceError: displayCompletedTrainingDays is not defined
+test:exercise-experience current exit=1 baseline exit=1 | errors SAME | AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
+test:self-practice-library current exit=1 baseline exit=1 | errors SAME | AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
+test:llm-weekly-summary current exit=1 baseline exit=1 | errors SAME | AssertionError [ERR_ASSERTION]: no .env.local

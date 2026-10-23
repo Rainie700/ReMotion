@@ -1,0 +1,37 @@
+$ REPO=<repo> RULES_PATH=<repo>/firestore.rules APP_URL=http://localhost:5173/?emulator=1 node phase3-version-flows.mjs   (Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080, project demo-remotion)
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+PASS | A0 synthetic patient A signed in on the emulator | 
+PASS | 1a 1.2 baseline vs 1.2 reassessment: comparison shown with a difference | 返回 五次坐站｜前後比較 F01 下肢功能｜7 日追蹤結果 初次評估 10/12 9.6 秒 → 再次評估 10/18 9.1 秒 完成時間差異 本次完成時間較初次少 0.5 秒 本週完成訓練：0 天 本週採用安排 本週尚未產生下一階段建議。 這裡整理你在本次 7 日追蹤前後的五次坐站結果。初次評估與再次評估使
+PASS | 1b no version notice on a compatible pair | 
+OBSERVED | 1c D5 for 1.2 vs 1.2 (decided by the unchanged matrix) | 返回 下一階段建議 下一階段建議狀態 需要更多資料 目前資料不足以建立下一階段自動調整。 規則判定 不自動判定 實際安排 不安排下一週 目前狀態 不安排下一週 決策來源 規則判定（未產生 LLM 草稿） 參考資料 初次／再次五次坐站 9.6 秒 → 9.1 秒 完成時間差異 本次完成時間較初次少 0.5 秒 本週完
+PASS | 1c D5 page has no version notice for a compatible pair | 
+PASS | B0 synthetic patient B signed in on the emulator | 
+PASS | 2a 1.1 vs 1.2: no difference computed (comparison unavailable) | 返回 五次坐站｜前後比較 F01 下肢功能｜7 日追蹤結果 目前無法建立完整前後比較 量測方式已更新，這兩次結果無法直接比較；舊紀錄仍會保留。 各次紀錄仍可查看（不直接比較）：初次 10/12 9.6 秒；再次 10/18 9.1 秒 查看下一階段建議 →返回首頁 首頁 訓練 數據 我的
+PASS | 2b version notice shown with the exact sentence | 
+PASS | 2c both stored times stay viewable side by side | 
+PASS | 2d no blame wording | 
+PASS | 2e D5 stays 不自動判定 for 1.1 vs 1.2 | 返回 下一階段建議 下一階段建議狀態 需要更多資料 目前資料不足以建立下一階段自動調整。 規則判定 不自動判定 實際安排 不安排下一週 目前狀態 不安排下一週 決策來源 規則判定（未產生 LLM 草稿） 參考資料 初次／再次五次坐站 無法比較 量測方式已更新，這兩次結果無法直接比較；舊紀錄仍會保留。 本週完成訓練天數 0 天 訓練目標 加強足踝力量與控制 新的不適或限制 沒有回報不適 目前
+PASS | 2f D5 page shows the version notice | 
+PASS | 3a 1.1 baseline result page still opens with its time | 
+PASS | 5a Data trend: no line between the 1.1 and the 1.2 point | M 18.0 18.0 M 282.0 92.0
+OBSERVED | 4b-1 ended cycle: actions offered on home | switchTab, goMap, goTrackingComparison, goD5StatusCheck, goTrackingWeekTraining, onInviteCodeQuery, goSelfPracticeLibrary, goActionRecords, goAchievements
+PASS | 4b-1 home has no button that cannot be completed (no end-cycle / no direct re-baseline button) | 
+OBSERVED | 4b-2 F01 下肢功能 page actions | goFunctionalDomainHome() ; goFiveTimesSitToStandAssessment() ; goF01DirectTraining() ; switchTab('home') ; switchTab('work') ; switchTab('data') ; switchTab('profile')
+OBSERVED | 4b-3 5xSTS assessment page reached (camera NOT started) | 返回 五次坐站測試 記錄你連續完成 5 次坐下、站起所需的時間，了解目前的下肢功能表現。 測試前準備 準備一張穩固、不易滑動的椅子 手機固定在前方，周圍保留足夠站立空間 系統會先協助你調整拍攝距離 測試怎麼做 先依畫面提示調整相機距離 
+PASS | 4b-4 no in-progress-cycle note after the cycle ended | 
+PASS | 4b-5 ended cycle: a NEW 1.2 test + 查看訓練建議 starts a new cycle | 2 cycles
+PASS | C0 synthetic patient C signed in on the emulator | 
+PASS | 4a-1 1.1 record: 查看訓練建議 explains it cannot be a new tracking baseline | [C] 這筆紀錄使用舊版量測方式，仍可查看，但不能作為新的追蹤基準。請以新版重新完成五次坐站評估。
+PASS | 4a-2 no cycle created from the 1.1 record | 
+PASS | D0 synthetic patient D signed in on the emulator | 
+OBSERVED | 4c-1 in-progress cycle: home card | ReMotion 早安，本機測試病人 D 今天沒有復健師安排 有 2 項 ReMotion 建議可以開始 準備好了嗎？我們開始吧！ 1 Lv. 復健新手 0 / 100 XP 再獲得 100 XP 升級 Lv.2 · 復健旅程 › — 連續復健 本週功能追蹤 F01 下肢功能 第 3 / 7 天 今日訓練 0 / 2 1 2 3 4 5 6 7 初次評估 9.4 秒 本週完成 0 天 再次評估 10/26 開始今日訓練 本週訓練 查看目
+OBSERVED | 4c-2 進行再次評估 before the planned day | [D] 這個追蹤週期目前無法進行再次評估，請回首頁查看追蹤狀態。
+PASS | 4c-3 new result during an active cycle explains that no new cycle is created and when it becomes possible | 你目前有進行中的 7 日追蹤（開始於 10/20），這次結果會保留，但不會建立新的追蹤；查看訓練建議也不會改變目前的追蹤。要以新的評估開始新追蹤，需先完成目前追蹤的再次評估（預計 10/26 起），再重新進行一次五次坐站。
+PASS | 4c-4 recommendation page states the active cycle is not changed | 返回 本次訓練建議 本次訓練建議 主要推薦 3 個動作，建議從「雙腳提踵」開始 目標：加強足踝力量與控制 未選擇可用時間，依規則最多列出 3 個動作，不是完整課表或處方。 你目前已有進行中的 F01 7 日追蹤（開始於 10/20），這次的建議不會改變那個追蹤週期。 推薦依據 五次坐站（F01 下肢功能） 完
+PASS | 4c-5 still exactly one cycle (no new baseline while one is in progress) | 
+PASS | 3b every stored result (incl. the 1.1 history) unchanged after the whole run | 
+PASS | 6 no request to any non-local host (whole run) | 
+PASS | 6b no unexpected alert / page error | 
+
+PHASE3 PASS 26 FAIL 0 OBSERVED 6
+exit=0

@@ -1,0 +1,15 @@
+01-complete.json               fa5x-frame-trace-1.1 endType=run_finished complete=true frames=299 dropF=0 dropE=0 mid=false gaps=0 result=completed/-
+02-tampered-decision.json      fa5x-frame-trace-1.1 endType=run_finished complete=true frames=299 dropF=0 dropE=0 mid=false gaps=0 result=completed/-
+03-tampered-input.json         fa5x-frame-trace-1.1 endType=run_finished complete=true frames=299 dropF=0 dropE=0 mid=false gaps=0 result=completed/-
+04-mid-run-start.json          fa5x-frame-trace-1.1 endType=run_finished complete=false frames=99 dropF=0 dropE=0 mid=true gaps=0 result=completed/-
+05-frame-gap.json              fa5x-frame-trace-1.1 endType=run_finished complete=false frames=294 dropF=0 dropE=0 mid=false gaps=1 result=completed/-
+06-capacity-truncated.json     fa5x-frame-trace-1.1 endType=run_finished complete=false frames=200 dropF=99 dropE=0 mid=false gaps=0 result=completed/-
+07-event-truncated.json        fa5x-frame-trace-1.1 endType=run_finished complete=false frames=299 dropF=0 dropE=14 mid=false gaps=0 result=completed/-
+08-format-1.0.json             fa5x-frame-trace-1.0 endType=run_finished complete=true frames=299 dropF=0 dropE=0 mid=false gaps=0 result=completed/-
+09-other-algorithm.json        fa5x-frame-trace-1.1 endType=run_finished complete=true frames=299 dropF=0 dropE=0 mid=false gaps=0 result=completed/-
+10-user-cancelled.json         fa5x-frame-trace-1.1 endType=user_cancelled complete=true frames=185 dropF=0 dropE=0 mid=false gaps=0 result=incomplete/user_cancelled
+11-manual-stop.json            fa5x-frame-trace-1.1 endType=manual_stop complete=true frames=260 dropF=0 dropE=0 mid=false gaps=0 result=none
+12-still-recording.json        fa5x-frame-trace-1.1 endType=still_recording complete=true frames=260 dropF=0 dropE=0 mid=false gaps=0 result=none
+13-tracking-lost-invalid.json  fa5x-frame-trace-1.1 endType=run_finished complete=true frames=214 dropF=0 dropE=0 mid=false gaps=0 result=invalid/tracking_lost
+14-frame-changed-invalid.json  fa5x-frame-trace-1.1 endType=run_finished complete=true frames=184 dropF=0 dropE=0 mid=false gaps=0 result=invalid/frame_changed
+15-not-json.json               parse error: Expected property name or '}' in JSON at position 2 (line 1 column 3)

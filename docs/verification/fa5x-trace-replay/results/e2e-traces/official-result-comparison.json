@@ -1,0 +1,176 @@
+[
+  {
+    "scenario": "completed",
+    "framesFed": 299,
+    "tracedFrames": 299,
+    "withoutRecorder": {
+      "status": "completed",
+      "completedReps": 5,
+      "totalDurationMs": 11748,
+      "failureReason": null,
+      "invalidReason": null,
+      "repDurationsMs": [
+        1122,
+        1122,
+        1122,
+        1122,
+        1122
+      ],
+      "rejectedAttempts": 1
+    },
+    "withRecorder": {
+      "status": "completed",
+      "completedReps": 5,
+      "totalDurationMs": 11748,
+      "failureReason": null,
+      "invalidReason": null,
+      "repDurationsMs": [
+        1122,
+        1122,
+        1122,
+        1122,
+        1122
+      ],
+      "rejectedAttempts": 1
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  },
+  {
+    "scenario": "tracking_lost_invalid",
+    "framesFed": 214,
+    "tracedFrames": 214,
+    "withoutRecorder": {
+      "status": "invalid",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "tracking_lost",
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "withRecorder": {
+      "status": "invalid",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "tracking_lost",
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  },
+  {
+    "scenario": "start_not_seated_invalid",
+    "framesFed": 160,
+    "tracedFrames": 160,
+    "withoutRecorder": {
+      "status": "invalid",
+      "completedReps": 0,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "start_position_not_seated",
+      "repDurationsMs": [],
+      "rejectedAttempts": 0
+    },
+    "withRecorder": {
+      "status": "invalid",
+      "completedReps": 0,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "start_position_not_seated",
+      "repDurationsMs": [],
+      "rejectedAttempts": 0
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  },
+  {
+    "scenario": "frame_changed_invalid",
+    "framesFed": 184,
+    "tracedFrames": 184,
+    "withoutRecorder": {
+      "status": "invalid",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "frame_changed",
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "withRecorder": {
+      "status": "invalid",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": null,
+      "invalidReason": "frame_changed",
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  },
+  {
+    "scenario": "timeout_incomplete",
+    "framesFed": 1075,
+    "tracedFrames": 1075,
+    "withoutRecorder": {
+      "status": "incomplete",
+      "completedReps": 0,
+      "totalDurationMs": null,
+      "failureReason": "timeout",
+      "invalidReason": null,
+      "repDurationsMs": [],
+      "rejectedAttempts": 0
+    },
+    "withRecorder": {
+      "status": "incomplete",
+      "completedReps": 0,
+      "totalDurationMs": null,
+      "failureReason": "timeout",
+      "invalidReason": null,
+      "repDurationsMs": [],
+      "rejectedAttempts": 0
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  },
+  {
+    "scenario": "user_cancelled",
+    "framesFed": 185,
+    "tracedFrames": 185,
+    "withoutRecorder": {
+      "status": "incomplete",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": "user_cancelled",
+      "invalidReason": null,
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "withRecorder": {
+      "status": "incomplete",
+      "completedReps": 1,
+      "totalDurationMs": null,
+      "failureReason": "user_cancelled",
+      "invalidReason": null,
+      "repDurationsMs": [
+        1122
+      ],
+      "rejectedAttempts": 0
+    },
+    "fullResultIdentical": true,
+    "everySnapshotIdentical": true
+  }
+]

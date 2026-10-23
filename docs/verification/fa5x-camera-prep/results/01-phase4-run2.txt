@@ -1,0 +1,25 @@
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+PASS | W375-0 signed in | 
+PASS | W375-1 note present on a new result during an active cycle | 你目前有進行中的 7 日追蹤（開始於 10/20），這次結果會保留，但不會建立新的追蹤；查看訓練建議也不會改變目前的追蹤。要以新的評估開始新追蹤，需先完成目前追蹤的再次評估（預計 10/26 起），再重新進行一次五次坐站。
+PASS | W375-2 note fully visible on screen together with the 查看訓練建議 button (before pressing it) | {"note":[507.75,622.875],"btn":[630.875,681.875],"navTop":682}
+PASS | W375-3 note sits above the button | 
+PASS | W375-4 every option: radio and its text on the same line | []
+PASS | W375-5 every option is one compact row (no wrapped radio; height < 60 px) | 44,44,44,44,44,44,44,44
+PASS | W375-6 no horizontal overflow (page / phone / form / options) | {"doc":false,"phone":false,"form":false}
+PASS | W375-7 options kept (沒有／有／不確定 ×2, 本人／家人或照顧者代答) | ["沒有","有","不確定","沒有","有","不確定","本人","家人或照顧者代答"]
+PASS | W375-8 tapping the row (far from the radio) selects it | 
+PASS | W375-9 saved report has the same fields and meaning | {"schemaVersion":"fa5x-condition-report-1","armsUsed":"no","physicalAssistance":"unknown","chairHeightCm":null,"sameChairAsBaseline":"not_applicable","source":"caregiver_report","reportedBy":"DUew5CBs80OVBtxAXlOz6Z8UbGLn","reportedAt":"2026-10-22T03:31:42.794Z
+PASS | W430-0 signed in | 
+PASS | W430-1 note present on a new result during an active cycle | 你目前有進行中的 7 日追蹤（開始於 10/20），這次結果會保留，但不會建立新的追蹤；查看訓練建議也不會改變目前的追蹤。要以新的評估開始新追蹤，需先完成目前追蹤的再次評估（預計 10/26 起），再重新進行一次五次坐站。
+PASS | W430-2 note fully visible on screen together with the 查看訓練建議 button (before pressing it) | {"note":[527.375,623.3125],"btn":[631.3125,682.3125],"navTop":682}
+PASS | W430-3 note sits above the button | 
+PASS | W430-4 every option: radio and its text on the same line | []
+PASS | W430-5 every option is one compact row (no wrapped radio; height < 60 px) | 44,44,44,44,44,44,44,44,44,44,44
+PASS | W430-6 no horizontal overflow (page / phone / form / options) | {"doc":false,"phone":false,"form":false}
+PASS | W430-7 options kept (沒有／有／不確定 ×2, 本人／家人或照顧者代答, 同一張椅子 是／不是／不確定) | ["沒有","有","不確定","沒有","有","不確定","是","不是","不確定","本人","家人或照顧者代答"]
+PASS | W430-8 tapping the row (far from the radio) selects it | 
+PASS | W430-9 saved report has the same fields and meaning | {"schemaVersion":"fa5x-condition-report-1","armsUsed":"no","physicalAssistance":"unknown","chairHeightCm":null,"sameChairAsBaseline":"unknown","source":"caregiver_report","reportedBy":"DUew5CBs80OVBtxAXlOz6Z8UbGLn","reportedAt":"2026-10-22T03:31:47.858Z"}
+PASS | X1 no request to any non-local host | 
+PASS | X2 no alert / page error | 
+
+PHASE4 PASS 22 FAIL 0

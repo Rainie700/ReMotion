@@ -1,0 +1,185 @@
+/**
+ * 下一階段建議 — the ACTUAL next-week arrangement vs the rule's judgement.
+ * Pure; the D5 engine output (proposal.d5) is never changed here.
+ *
+ *   proposal (recommendationResults, written by the PATIENT)
+ *     .d5     what the rules judged        .items  the rule's arrangement
+ *   review   (d5TherapistReviews/{proposalId}, written ONLY by a linked therapist —
+ *            firestore.rules) the therapist's confirmed items for ONE exact
+ *            proposal version (basePlanFingerprint + basis)
+ *
+ * A review authorizes nothing once the proposal changed: the patient re-doing
+ * the status check rewrites the proposal, its fingerprint no longer matches,
+ * and the rules refuse an acceptance whose items / basis differ from the review.
+ *
+ * Status (what the patient may do):
+ *   accepted      the patient already accepted (frozen)
+ *   no_auto       the rules make no next-week arrangement (NC-N01)
+ *   needs_review  a person must decide: the engine asks for professional review,
+ *                 an "adjust" without an executable rule (NC-A02), or the full
+ *                 next-week list still conflicts with the current limitations
+ *   reviewed      a linked therapist confirmed THIS proposal version; no conflict left
+ *   ready         the rules produced an arrangement the patient may accept
+ * Only "ready" / "reviewed" may be accepted. No threshold or clinical rule is
+ * added: these are routing decisions on the existing engine output.
+ */
+import { findF01LimitationConflict, F01_LIMITATIONS } from "./f01GoalRecommendation.js";
+import { checkCountingDefinitions } from "./f01DailyTargets.js";
+import { exerciseService } from "./exerciseService.js";
+
+const DECISION_LABEL = { no_auto_decision: "不自動判定", maintain: "維持", progress: "進階", adjust: "調整" };
+
+const ENGINE_REVIEW_TEXT = {
+  unmapped_discomfort: "回報了新的或加重的不適，規則不會依此自動更換動作。",
+  multiple_exercises_filtered: "目前勾選的情況同時排除了多個動作，規則不自動重組整份安排。",
+  no_valid_replacement: "被排除的動作找不到同目標、未命中排除規則的替代動作。",
+};
+
+/** Normalized { exerciseId, dose } of a plan item (dose only when set by a therapist). */
+// F01 batch 2 §3C — the therapist's counting basis is part of the plan (fingerprint / diff). It is
+// added ONLY when present, so every fingerprint stored before batch 2 stays byte-identical.
+const planItem = (it) => ({ exerciseId: it.exerciseId, dose: it.dose ? { sets: it.dose.sets ?? null, repetitions: it.dose.repetitions ?? null, durationSeconds: it.dose.durationSeconds ?? null, ...(it.dose.countingBasis ? { countingBasis: it.dose.countingBasis } : {}) } : null });
+
+/** Inputs of the rule's proposal itself (no draft): what an LLM draft is bound to. */
+function coreBasis(proposal) {
+  const d5 = (proposal && proposal.d5) || {};
+  return {
+    reassessmentId: d5.reassessmentId || null,
+    currentLimitations: [...(d5.currentLimitations || [])],
+    hasNewOrWorseningDiscomfort: d5.hasNewOrWorseningDiscomfort === true,
+    decisionRuleId: d5.decisionRuleId || null,
+  };
+}
+
+/** The rule's proposal version (items + inputs, no draft). An LLM draft is valid only for this exact version. */
+export function proposalCoreFingerprint(proposal) {
+  return JSON.stringify({ items: ((proposal && proposal.items) || []).map(planItem), basis: coreBasis(proposal) });
+}
+
+export const D5_DRAFT_PENDING_MAX_MS = 5 * 60 * 1000; // a draft request still "pending" after this counts as failed
+
+/** The proposal's LLM draft if it is a valid draft of THIS version (status "valid", same core fingerprint), else null. */
+export function currentValidDraft(proposal) {
+  const d = proposal && proposal.llmDraft;
+  return d && d.status === "valid" && d.proposalCoreFingerprint === proposalCoreFingerprint(proposal) && Array.isArray(d.items) && d.items.length ? d : null;
+}
+
+/** The patient-reported / rule inputs a review is bound to (the first four are also compared by firestore.rules at acceptance). */
+export function reviewBasis(proposal) {
+  const draft = currentValidDraft(proposal);
+  return { ...coreBasis(proposal), llmDraftId: draft ? draft.draftId : null };
+}
+
+/** Identifies the exact plan (items + basis) a review / an acceptance refers to. */
+export function planFingerprint(proposal, items = (proposal && proposal.items) || []) {
+  return JSON.stringify({ items: items.map(planItem), basis: reviewBasis(proposal) });
+}
+
+/**
+ * Every exercise of a list checked against the limitations (the existing
+ * Phase C exclusion rule). No conflict only means "no existing exclusion rule
+ * matched" — never "confirmed safe / suitable".
+ */
+export function findPlanConflicts(exerciseIds = [], limitationIds = []) {
+  return exerciseIds
+    .map((exerciseId) => ({ exerciseId, conflict: findF01LimitationConflict(exerciseId, limitationIds) }))
+    .filter((x) => x.conflict)
+    .map((x) => ({ exerciseId: x.exerciseId, ...x.conflict }));
+}
+
+/** Is `review` a valid confirmation of THIS proposal version? */
+export function isReviewValidFor(proposal, review, isReviewerLinked) {
+  return !!proposal && !!review
+    && review.proposalId === proposal.id && review.id === proposal.id
+    && review.patientId === proposal.patientId
+    && !!review.therapistId && isReviewerLinked(review.therapistId)
+    && Array.isArray(review.items) && review.items.length > 0
+    && review.basePlanFingerprint === planFingerprint(proposal)
+    && JSON.stringify(review.basis) === JSON.stringify(reviewBasis(proposal));
+}
+
+/**
+ * @param proposal          stored D5 proposal record
+ * @param review            d5TherapistReviews/{proposal.id} or null
+ * @param isReviewerLinked  (therapistId) => true when that therapist has an accepted relation with the patient
+ * @param nameOf            (exerciseId) => display name
+ * @param now               epoch ms (only to expire a draft request that never finished)
+ * @returns {{ status, ruleLabel, actualLabel, reasons, conflicts, review, staleReview, planItems, decisionSource, draft }}
+ *          planItems = what next week trains (reviewed items > valid LLM draft items > rule items)
+ *          decisionSource = "llm_draft" | "rule_fallback" | "rule_only"
+ */
+export function resolveD5Arrangement(proposal, { review = null, isReviewerLinked = () => false, nameOf = (id) => id, now = null, completionRulesVersion = null, getCatalog = (id) => exerciseService.getById(id) } = {}) {
+  // F01 batch 2 §3D — when the next week would run under the formal completion rules, a plan with
+  // an item lacking an executable counting definition cannot be accepted: it goes to the
+  // therapist (needs_review / counting_basis_missing). A routing decision only; no threshold.
+  const countingGap = (planItems) => (completionRulesVersion ? checkCountingDefinitions({ items: planItems, getCatalog }).undefinedItems : []);
+  const countingReason = (gap) => ({ code: "counting_basis_missing", text: `下一週有動作尚未設定可執行的計量方式（每側或合計）：${gap.map((g) => nameOf(g.exerciseId)).join("、")}。需由復健師確認後才能生效。` });
+  const llm = (proposal && proposal.llmDraft) || null;
+  const draft = currentValidDraft(proposal);
+  const pending = !!llm && llm.status === "pending" && !(now != null && Date.parse(llm.requestedAt || 0) + D5_DRAFT_PENDING_MAX_MS < now);
+  const decisionSource = draft ? "llm_draft" : llm && !pending ? "rule_fallback" : "rule_only";
+  const withSource = (a) => ({ ...a, decisionSource: pending ? "llm_pending" : decisionSource, draft: draft || null, draftAttempt: llm });
+  const d5 = (proposal && proposal.d5) || {};
+  const items = (proposal && proposal.items) || [];
+  const limits = d5.currentLimitations || [];
+  const ruleLabel = DECISION_LABEL[d5.matrixDecision] || DECISION_LABEL[d5.decision] || "—";
+  let actualLabel = DECISION_LABEL[d5.decision] || "—";
+  if (d5.selectionRuleId === "NC-P01" && d5.selectionFallback === "no_confirmed_progression") actualLabel = "維持（沒有套用進階）";
+
+  if (proposal && proposal.status === "accepted") {
+    const viaReview = !!(d5.confirmation && d5.confirmation.therapistReviewId);
+    return withSource({ status: "accepted", ruleLabel, actualLabel: viaReview ? "復健師確認後的安排" : actualLabel, reasons: [], conflicts: [], review: viaReview ? review : null, staleReview: false, planItems: items });
+  }
+
+  const valid = isReviewValidFor(proposal, review, isReviewerLinked);
+  const reviewConflicts = valid ? findPlanConflicts(review.items.map((it) => it.exerciseId), limits) : [];
+  const conflicts = findPlanConflicts(items.map((it) => it.exerciseId), limits);
+  const base = { conflicts, review: valid && !reviewConflicts.length ? review : null, staleReview: !!review && !valid, planItems: items };
+
+  if (d5.selectionRuleId === "NC-N01" || d5.decision === "no_auto_decision") return withSource({ ...base, status: "no_auto", ruleLabel, actualLabel: "不安排下一週", reasons: [] });
+
+  const reasons = [];
+  if (d5.confirmationMode === "professional_review_required") {
+    for (const r of d5.reviewReasons || []) reasons.push({ code: r, text: ENGINE_REVIEW_TEXT[r] || "規則要求進一步確認。" });
+    if (!reasons.length) reasons.push({ code: "professional_review_required", text: "規則要求進一步確認。" });
+  }
+  if (d5.selectionRuleId === "NC-A02") reasons.push({ code: "adjust_without_rule", text: "規則判定需要調整，但目前沒有可執行的調整規則；系統不會自動更換動作。" });
+  if (conflicts.length) {
+    const names = conflicts.map((c) => `${nameOf(c.exerciseId)}（${c.limitationLabel}）`).join("、");
+    reasons.push({ code: "plan_conflict", text: `下一週清單中仍有動作的注意事項提到你勾選的情況：${names}。` });
+  }
+  if (!items.length) reasons.push({ code: "empty_plan", text: "下一週沒有可安排的動作。" });
+
+  if (base.review) {
+    const gap = countingGap(review.items);
+    if (gap.length) return withSource({ ...base, status: "needs_review", ruleLabel, actualLabel: "待復健師檢視", reasons: [...reasons, countingReason(gap)], planItems: review.items });
+    return withSource({ ...base, status: "reviewed", ruleLabel, actualLabel: "復健師確認後的安排", reasons, planItems: review.items });
+  }
+  if (draft) return withSource({ ...base, status: "needs_review", ruleLabel, actualLabel: `LLM 草稿：${{ progress: "進階", maintain: "維持", regress: "退階" }[draft.plan && draft.plan.decision] || "—"}（待復健師確認）`, reasons: [...reasons.filter((r) => r.code !== "plan_conflict" && r.code !== "empty_plan"), { code: "llm_draft_requires_review", text: "LLM 推薦草稿一律需由復健師確認（本版工程設計）。" }], planItems: draft.items });
+  if (pending) return withSource({ ...base, status: "draft_pending", ruleLabel, actualLabel: "推薦草稿產生中", reasons });
+  if (reasons.length) return withSource({ ...base, status: "needs_review", ruleLabel, actualLabel: "待復健師檢視", reasons });
+  if (d5.nextCycleReady === true && d5.confirmationMode === "user_acceptance") {
+    const gap = countingGap(items);
+    if (gap.length) return withSource({ ...base, status: "needs_review", ruleLabel, actualLabel: "待復健師檢視", reasons: [...reasons, countingReason(gap)] });
+    return withSource({ ...base, status: "ready", ruleLabel, actualLabel, reasons });
+  }
+  return withSource({ ...base, status: "needs_review", ruleLabel, actualLabel: "待復健師檢視", reasons: [{ code: "not_ready", text: "規則沒有產生可直接接受的下一週安排。" }] });
+}
+
+export const isPatientAcceptable = (arrangement) => arrangement.status === "ready" || arrangement.status === "reviewed";
+
+/** Position-by-position changes between two plans (exercise or therapist dose). */
+export function diffPlans(beforeItems = [], afterItems = [], nameOf = (id) => id) {
+  const changes = [];
+  const fmt = (it) => (it ? { exerciseId: it.exerciseId, exerciseName: nameOf(it.exerciseId), dose: planItem(it).dose } : null);
+  for (let i = 0; i < Math.max(beforeItems.length, afterItems.length); i += 1) {
+    const b = beforeItems[i] || null;
+    const a = afterItems[i] || null;
+    if (b && a && b.exerciseId === a.exerciseId && JSON.stringify(planItem(b).dose) === JSON.stringify(planItem(a).dose)) continue;
+    const kind = !b ? "added" : !a ? "removed" : b.exerciseId !== a.exerciseId ? "replaced" : "dose_changed";
+    changes.push({ position: i + 1, kind, from: fmt(b), to: fmt(a) });
+  }
+  return changes;
+}
+
+export const limitationLabel = (id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label;

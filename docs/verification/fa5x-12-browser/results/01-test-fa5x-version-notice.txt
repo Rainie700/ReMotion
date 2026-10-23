@@ -1,0 +1,3 @@
+$ npm run -s test:fa5x-version-notice
+5xSTS version notice (fa5x-12-browser) tests passed
+exit=0

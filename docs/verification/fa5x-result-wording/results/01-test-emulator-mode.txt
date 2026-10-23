@@ -1,0 +1,3 @@
+$ npm run -s test:emulator-mode
+emulator mode guard tests passed
+exit=0

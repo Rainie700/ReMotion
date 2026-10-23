@@ -28,6 +28,7 @@ const { gamificationEngine: G } = await import("../js/data/gamificationEngine.js
 const { f01AdventureService } = await import("../js/data/f01AdventureProgress.js");
 const { todayPlanService } = await import("../js/data/todayPlanAggregator.js");
 const { getTrackingCycleViewState } = await import("../js/data/trackingCycle.js");
+const { FA5X_ALGORITHM_VERSION } = await import("../js/ai/exercises/sitToStand/assessmentConstants.js");
 const { assessmentService } = await import("../js/data/assessmentService.js");
 const { cycleTrainingPerformanceService, compareCycleScores } = await import("../js/data/cycleTrainingPerformance.js");
 
@@ -94,7 +95,7 @@ const c2 = trackingCycleService.getTrackingCycleById(first.cycle2Id);
   const baseline = functionalAssessmentService.getById(c1.baselineAssessmentId);
   assert.equal(baseline.status, "completed");
   assert.deepEqual([baseline.result.status, baseline.result.completedReps, baseline.result.totalDurationMs], ["completed", 5, 12800]);
-  assert.equal(baseline.result.algorithmVersion, "fa5x-assessment-1.0", "same result schema as the 5xSTS FSM");
+  assert.equal(baseline.result.algorithmVersion, FA5X_ALGORITHM_VERSION, "same result schema as the 5xSTS FSM");
   assert.deepEqual([c1.cycleStartDateKey, c1.plannedReassessmentDateKey, c1.selectedGoalId], ["2026-09-22", "2026-09-28", "G05"]);
   const rec1 = recommendationService.getById(c1.recommendationId);
   assert.deepEqual(rec1.items.map((i) => i.exerciseId), ["F01-17", "F01-18"], "Phase C output for G05 / 15 min");

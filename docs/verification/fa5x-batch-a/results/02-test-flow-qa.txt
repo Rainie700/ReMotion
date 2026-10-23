@@ -1,0 +1,22 @@
+$ npm run -s test:flow-qa
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
++ actual - expected
+
++ 'confirmed'
+- 'missing'
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/flowDataQa.test.js:204:59 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'confirmed',
+  expected: 'missing',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+exit=1

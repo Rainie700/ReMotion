@@ -1,0 +1,44 @@
+== S1_stand_2_gap_1
+  before #39 trk rising                 rep=rising     stand=1 seat=0 reps=0 | after #39 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #40 trk rising                 rep=rising     stand=2 seat=0 reps=0 | after #40 trk rising                 rep=rising     stand=2 seat=0 reps=0
+  before #41 GAP tracking_gap           rep=rising     stand=2 seat=0 reps=0 | after #41 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #42 trk standing_confirmed     rep=standing   stand=0 seat=0 reps=0 | after #42 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #43 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #43 trk rising                 rep=rising     stand=2 seat=0 reps=0
+  before #44 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #44 trk standing_confirmed     rep=standing   stand=0 seat=0 reps=0
+  before #45 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #45 trk standing               rep=standing   stand=0 seat=0 reps=0
+  before #46 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #46 trk standing               rep=standing   stand=0 seat=0 reps=0
+== S2_seat_2_gap_1
+  before #47 trk descending             rep=descending stand=0 seat=1 reps=0 | after #47 trk descending             rep=descending stand=0 seat=1 reps=0
+  before #48 trk descending             rep=descending stand=0 seat=2 reps=0 | after #48 trk descending             rep=descending stand=0 seat=2 reps=0
+  before #49 GAP tracking_gap           rep=descending stand=0 seat=2 reps=0 | after #49 GAP tracking_gap           rep=descending stand=0 seat=0 reps=0
+  before #50 trk rep_counted            rep=seated     stand=0 seat=0 reps=1 | after #50 trk descending             rep=descending stand=0 seat=1 reps=0
+  before #51 trk seated_idle            rep=seated     stand=0 seat=0 reps=1 | after #51 trk descending             rep=descending stand=0 seat=2 reps=0
+  before #52 trk seated_idle            rep=seated     stand=0 seat=0 reps=1 | after #52 trk rep_counted            rep=seated     stand=0 seat=0 reps=1
+  before #53 trk seated_idle            rep=seated     stand=0 seat=0 reps=1 | after #53 trk seated_idle            rep=seated     stand=0 seat=0 reps=1
+== S3_repeated_short_gaps
+  before #39 trk rising                 rep=rising     stand=1 seat=0 reps=0 | after #39 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #40 GAP tracking_gap           rep=rising     stand=1 seat=0 reps=0 | after #40 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #41 trk rising                 rep=rising     stand=2 seat=0 reps=0 | after #41 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #42 GAP tracking_gap           rep=rising     stand=2 seat=0 reps=0 | after #42 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #43 trk standing_confirmed     rep=standing   stand=0 seat=0 reps=0 | after #43 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #44 GAP tracking_gap           rep=standing   stand=0 seat=0 reps=0 | after #44 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #45 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #45 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #46 GAP tracking_gap           rep=standing   stand=0 seat=0 reps=0 | after #46 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #47 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #47 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #48 GAP tracking_gap           rep=standing   stand=0 seat=0 reps=0 | after #48 GAP tracking_gap           rep=rising     stand=0 seat=0 reps=0
+  before #49 trk standing               rep=standing   stand=0 seat=0 reps=0 | after #49 trk rising                 rep=rising     stand=1 seat=0 reps=0
+  before #50 trk descent_start          rep=descending stand=0 seat=0 reps=0 | after #50 trk rising                 rep=rising     stand=0 seat=0 reps=0
+  before #51 trk descending             rep=descending stand=0 seat=0 reps=0 | after #51 trk rising                 rep=rising     stand=0 seat=0 reps=0
+  before #52 trk descending             rep=descending stand=0 seat=0 reps=0 | after #52 trk rising                 rep=rising     stand=0 seat=0 reps=0
+  before #53 trk descending             rep=descending stand=0 seat=1 reps=0 | after #53 trk rising                 rep=rising     stand=0 seat=1 reps=0
+  before #54 trk descending             rep=descending stand=0 seat=2 reps=0 | after #54 trk rising                 rep=rising     stand=0 seat=2 reps=0
+  before #55 trk rep_counted            rep=seated     stand=0 seat=0 reps=1 | after #55 trk rejected_not_fully_standing rep=seated     stand=0 seat=0 reps=0
+  before #56 trk seated_idle            rep=seated     stand=0 seat=0 reps=1 | after #56 trk seated_idle            rep=seated     stand=0 seat=0 reps=0
+== S6_gap_in_fifth_seat
+  before #111 trk descending             rep=descending stand=0 seat=1 reps=4 | after #111 trk descending             rep=descending stand=0 seat=1 reps=4
+  before #112 trk descending             rep=descending stand=0 seat=2 reps=4 | after #112 trk descending             rep=descending stand=0 seat=2 reps=4
+  before #113 GAP tracking_gap           rep=descending stand=0 seat=2 reps=4 | after #113 GAP tracking_gap           rep=descending stand=0 seat=0 reps=4
+  before #114 trk rep_counted            rep=seated     stand=0 seat=0 reps=5 | after #114 trk descending             rep=descending stand=0 seat=1 reps=4
+  before #115 trk ignored_after_finish   rep=seated     stand=0 seat=0 reps=5 | after #115 trk descending             rep=descending stand=0 seat=2 reps=4
+  before #116 trk ignored_after_finish   rep=seated     stand=0 seat=0 reps=5 | after #116 trk rep_counted            rep=seated     stand=0 seat=0 reps=5
+  before #117 trk ignored_after_finish   rep=seated     stand=0 seat=0 reps=5 | after #117 trk ignored_after_finish   rep=seated     stand=0 seat=0 reps=5

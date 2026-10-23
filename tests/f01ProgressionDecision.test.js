@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -348,7 +349,7 @@ const select = (decision, goal, ids, lims = [], transitions) =>
 {
   const at = (y, m, d, h) => new Date(y, m, d, h, 0).toISOString();
   const cycle = { id: "c1", reassessmentId: "r1" };
-  const re = { id: "r1", result: { measuredAt: at(2026, 9, 4, 20) } };
+  const re = { id: "r1", result: { ...FA5X_M, measuredAt: at(2026, 9, 4, 20) } };
   const same = D.deriveNextCycleHandoff({ sourceCycle: cycle, reassessment: re, confirmationDateKey: "2026-10-04" });
   assert.equal(same.baselineReuseAllowed, true);
   assert.equal(same.requiresFreshBaseline, false);
@@ -362,7 +363,7 @@ const select = (decision, goal, ids, lims = [], transitions) =>
   assert.equal(later.cycleStartDateKey, null, "never back-dates Day 1");
   assert.equal(D.deriveNextCycleHandoff({ sourceCycle: cycle, reassessment: { ...re, id: "other" }, confirmationDateKey: "2026-10-04" }).requiresFreshBaseline, true, "only the cycle's own reassessment");
 
-  const good = { id: "n1", assessmentType: "five_times_sit_to_stand", status: "completed", result: { status: "completed", repCount: 5, totalDurationMs: 9000, measuredAt: at(2026, 9, 6, 9) } };
+  const good = { id: "n1", assessmentType: "five_times_sit_to_stand", status: "completed", result: { ...FA5X_M, status: "completed", repCount: 5, totalDurationMs: 9000, measuredAt: at(2026, 9, 6, 9) } };
   assert.equal(D.isUsableNextCycleBaseline(good), true);
   assert.equal(D.isUsableNextCycleBaseline({ ...good, status: "incomplete", result: { ...good.result, status: "incomplete" } }), false);
   assert.equal(D.isUsableNextCycleBaseline({ ...good, result: { ...good.result, status: "invalid" } }), false);
@@ -396,7 +397,16 @@ const select = (decision, goal, ids, lims = [], transitions) =>
     out.push({ g, t, lims, r: generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s1", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: g, limitationIds: lims, availableMinutes: t, catalog }) });
   }
   assert.equal(out.length, 640);
-  assert.equal(createHash("sha256").update(JSON.stringify(out)).digest("hex"), "955778ce6cba1a9a63f2bba19b4f9057c7c6e022eef5412939125b4bf08222e6", "Phase C output changed");
+  // F01 batch 2 §3B adds ONE disclosure field, `shortfall` (fewer eligible exercises than slots). Every other
+  // byte of the 640 outputs must still equal the pre-D5 output; the field itself must be exact.
+  const maxOf = (t) => (t === 10 ? 1 : t === 15 ? 2 : 3);
+  for (const o of out) {
+    const n = o.r.items.length, max = maxOf(o.t);
+    if (n > 0 && n < max) assert.deepEqual(o.r.shortfall, { requested: max, available: n }, `${o.g}/${o.t}/${o.lims}: shortfall stated`);
+    else assert.equal(o.r.shortfall, undefined, `${o.g}/${o.t}/${o.lims}: no shortfall`);
+  }
+  const withoutShortfall = out.map(({ r: { shortfall, ...r }, ...o }) => ({ ...o, r }));
+  assert.equal(createHash("sha256").update(JSON.stringify(withoutShortfall)).digest("hex"), "955778ce6cba1a9a63f2bba19b4f9057c7c6e022eef5412939125b4bf08222e6", "Phase C output changed");
 }
 
 // No LLM / network / clock in the engine

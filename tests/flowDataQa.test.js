@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -164,7 +165,7 @@ const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name
   const catalog = exerciseService.listNormalized();
   const mk = (at, ms, role = null) => {
     const s = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-    functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
+    functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
     return functionalAssessmentService.getById(s.id);
   };
   const baseline = mk([2026, 8, 28, 9, 0], 12000);

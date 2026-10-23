@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { createCarryWalkSession } from "../js/ai/exercises/carryWalk/session.js";
+import { calculateCarryWalkScore } from "../js/ai/exercises/carryWalk/score.js";
+
+const session=createCarryWalkSession({targetReps:1});
+const front={bodyReady:true,shoulderWidthRatio:1,hipWidthRatio:1,centerX:.5,trunkLeanDeg:4,pelvisTiltDeg:3,stepWidthRatio:.7,leftKneeFlexionDeg:32,rightKneeFlexionDeg:31,leftShrugRatio:1,rightShrugRatio:1,shoulderAsymmetryRatio:.02};
+const profile={...front,shoulderWidthRatio:.5,hipWidthRatio:.5};
+session.processFrame({timestamp:100,...front});
+session.processFrame({timestamp:500,...profile});
+session.processFrame({timestamp:600,...profile});
+session.processFrame({timestamp:700,...profile});
+session.processFrame({timestamp:1300,...front});
+session.processFrame({timestamp:1800,...profile});
+session.processFrame({timestamp:1900,...profile});
+session.processFrame({timestamp:2000,...profile});
+const result=session.processFrame({timestamp:2600,...front});
+const summary=session.getSummary();
+assert.equal(summary.completedLegs,2,"兩次穩定轉向應代表去程與回程");
+assert.equal(summary.totalReps,1,"完成去程及回程應計為一趟");
+assert.equal(summary.validReps,1,"軀幹穩定且左右步態接近應列為品質符合");
+assert.equal(summary.completed,true,"達到目標往返次數後應完成");
+assert.deepEqual(result.completedRep?.issues,[],"標準提物行走不應產生錯誤標記");
+assert.ok(calculateCarryWalkScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AD10 carry-walk session tests passed");

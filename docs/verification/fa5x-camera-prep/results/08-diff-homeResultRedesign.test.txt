@@ -1,0 +1,26 @@
+--- docs/verification/fa5x-camera-prep/backup-before/tests/homeResultRedesign.test.js	2026-10-22 11:25:53.001514100 +0800
++++ tests/homeResultRedesign.test.js	2026-10-22 11:27:10.355256300 +0800
+@@ -22,6 +22,8 @@
+ const { exerciseService } = await import("../js/data/exerciseService.js");
+ const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+ const { createCollection } = await import("../js/data/storageService.js");
++const DEMOL = await import("../js/ui/demoSyntheticLabel.js"); // fa5x-camera-prep: real card dependencies
++const F01T = await import("../js/data/f01DailyTargets.js");
+ 
+ function fnSource(name) {
+   const start = appJs.indexOf(`function ${name}(`);
+@@ -45,8 +47,13 @@
+   TRACKING_STATUS: T.TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS: T.TRACKING_CYCLE_LENGTH_DAYS,
+   getFa5xResultStatus: (r) => r.status, FA5X_RESULT_STATUS: { COMPLETED: "completed" },
+   fmtFa5xSec: (ms) => `${(ms / 1000).toFixed(1)} 秒`, getTrackingTodayKey: () => today,
++  // fa5x-camera-prep: the card's REAL dependencies added since this harness was written (no stubs) —
++  // weekSyntheticNote's helpers and F01 batch 2's displayCompletedTrainingDays (same set as
++  // tests/f01Batch1GapCoverage.test.js). The harness used to stop here with a ReferenceError.
++  describeWeekSynthetic: DEMOL.describeWeekSynthetic, DEMO_SYNTHETIC_TEXT: DEMOL.DEMO_SYNTHETIC_TEXT,
++  displayCompletedTrainingDays: F01T.displayCompletedTrainingDays,
+ };
+-const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
++const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
+ 
+ const catalog = exerciseService.listNormalized();
+ function fiveXSts(userId, { ms, at, role = null }) {

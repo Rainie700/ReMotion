@@ -112,7 +112,9 @@ function createFlexionLegTracker(side) {
 export function createSeatedKneeExtensionSession(config = {}) {
   const thresholds = config.thresholds || KN03_THRESHOLDS;
   const motion = config.motion === "flexion" ? "flexion" : "extension";
-  const targetReps = Math.max(1, Number(config.targetReps) || 10);
+  // F01 batch 2 — OPTIONAL per-side target, passed only for formal F01 trainings; without it nothing changes.
+  const targetPerSide = Number(config.targetPerSide) > 0 ? Math.max(1, Math.floor(Number(config.targetPerSide))) : null;
+  const targetReps = targetPerSide != null ? targetPerSide * 2 : Math.max(1, Number(config.targetReps) || 10);
   let left = motion === "flexion" ? createFlexionLegTracker("left") : createLegTracker("left");
   let right = motion === "flexion" ? createFlexionLegTracker("right") : createLegTracker("right");
   let repRecords = [];
@@ -143,7 +145,11 @@ export function createSeatedKneeExtensionSession(config = {}) {
       leftState: left.getState(),
       rightState: right.getState(),
       repRecords: repRecords.slice(),
-      completed: repRecords.length >= targetReps,
+      ...(targetPerSide != null ? { targetPerSide } : {}),
+      // per side: BOTH sides must reach the target (never the total of targetPerSide * 2)
+      completed: targetPerSide != null
+        ? repRecords.filter((r) => r.side === "left").length >= targetPerSide && repRecords.filter((r) => r.side === "right").length >= targetPerSide
+        : repRecords.length >= targetReps,
     };
   }
 

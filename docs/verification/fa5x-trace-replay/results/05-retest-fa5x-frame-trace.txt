@@ -1,0 +1,2 @@
+5xSTS dev frame trace tests passed
+test:fa5x-frame-trace exit=0

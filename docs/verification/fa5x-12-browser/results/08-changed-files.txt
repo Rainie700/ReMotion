@@ -1,0 +1,12 @@
+# files changed since this batch's backup (excluding node_modules, dist, this batch's folder):
+./app.js
+./docs/verification/fa5x-browser-local/browser/phase1-emulator-flows.mjs
+./docs/verification/fa5x-result-wording/browser/phase2-result-wording.mjs
+./js/data/fa5xMeasurementCompatibility.js
+./package.json
+./tests/fa5xMeasurementCompatibility.test.js
+./tests/fa5xVersionNotice.test.js
+# D5 matrix / decision files (must not appear above):
+2026-10-21_10:30:03 js/data/d5Arrangement.js
+2026-10-21_10:30:02 js/data/f01ProgressionDecision.js
+2026-10-12_12:44:00 js/data/f01ProgressionSpec.js

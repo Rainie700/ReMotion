@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {createSingleLegForwardReachSession} from "../js/ai/exercises/singleLegForwardReach/session.js";
+import {AK15_THRESHOLDS} from "../js/ai/exercises/singleLegForwardReach/constants.js";
+import {calculateSingleLegForwardReachScore} from "../js/ai/exercises/singleLegForwardReach/score.js";
+
+const tracker=createSingleLegForwardReachSession({targetPerSide:1,thresholds:AK15_THRESHOLDS});
+const standing={bodyReady:true,leftFootLiftRatio:0,rightFootLiftRatio:0,leftKneeFlexionDeg:5,rightKneeFlexionDeg:5,leftHipFlexionDeg:0,rightHipFlexionDeg:0,leftKneeValgusRatio:.03,rightKneeValgusRatio:.03,leftAnkleDeviationRatio:.03,rightAnkleDeviationRatio:.03,trunkLeanDeg:3,hipWidth:.2,bodyScale:.3,handFloorRatio:1};
+const reaching={...standing,rightFootLiftRatio:.1,leftKneeFlexionDeg:22,leftHipFlexionDeg:35,trunkLeanDeg:30,handFloorRatio:.15};
+tracker.processFrame({timestamp:0,...standing});
+tracker.processFrame({timestamp:200,...reaching});
+for(let t=300;t<=800;t+=100)tracker.processFrame({timestamp:t,...reaching});
+tracker.processFrame({timestamp:1000,...reaching});
+const result=tracker.processFrame({timestamp:2000,...standing});
+const s=result.summary;
+assert.equal(s.totalReps,1,"完整前伸、停留與回位應計為一次");
+assert.equal(s.leftReps,1,"右腳抬起時應記為左腳支撐");
+assert.equal(s.validReps,1);
+assert.deepEqual(result.completedRep.issues,[]);
+assert.ok(calculateSingleLegForwardReachScore(s).score>=90);
+console.log("AK15 single-leg forward reach session test passed");

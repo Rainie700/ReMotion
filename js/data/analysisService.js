@@ -1,7 +1,7 @@
 import { createCollection } from "./storageService.js";
 import { seedAnalysisRecords } from "./seedData.js";
 import { normalizeAnalysisRecord } from "./legacyAnalysisModes.js";
-import { toLocalDateKey } from "./trackingCycle.js";
+import { toLocalDateKey, isDateKey } from "./trackingCycle.js";
 import { isValidTrainingSource } from "./trainingSource.js";
 
 const analysisRecordsCollection = createCollection("analysisRecords", seedAnalysisRecords);
@@ -54,6 +54,13 @@ export function withTrainingSourceFields(record, executionContext = null) {
     if (ctx.trackingCycleId) out.trackingCycleId = ctx.trackingCycleId;
     if (ctx.recommendationId) out.recommendationId = ctx.recommendationId;
     if (ctx.sourceType === "therapist" && record.scheduleId) out.therapistPlanId = record.scheduleId;
+    // F01 batch 1 (spec 3.5) — the formal start's plan date and real start
+    // time; only for a matching f01_cycle context, only when valid.
+    // localDateKey above keeps its meaning (the completion's local date).
+    if (ctx.sourceSubtype === "f01_cycle") {
+      if (isDateKey(ctx.planDateKey)) out.planDateKey = ctx.planDateKey;
+      if (typeof ctx.trainingStartedAt === "string" && ctx.trainingStartedAt) out.trainingStartedAt = ctx.trainingStartedAt;
+    }
     return out;
   }
   if (record.scheduleId && record.source === ANALYSIS_RECORD_SOURCES.ASSIGNED) {

@@ -1,0 +1,13 @@
+# files newer than this batch's backup (expected: app.js, styles.css, tests/fiveTimesSitToStandAssessment.test.js, docs/dist only)
+./app.js
+./styles.css
+./tests/fiveTimesSitToStandAssessment.test.js
+# comparison / D5 / recommendation logic files (must not be listed above):
+js/data/d5Arrangement.js
+js/data/f01GoalRecommendation.js
+js/data/f01ProgressionDecision.js
+js/data/fa5xConditionReport.js
+js/data/functionalProgressService.js
+js/data/recommendationService.js
+js/data/trackingComparison.js
+js/data/trackingCycleService.js

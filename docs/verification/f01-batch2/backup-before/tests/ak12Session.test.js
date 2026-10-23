@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import {createLateralWeightShiftSession} from "../js/ai/exercises/lateralWeightShift/session.js";
+import {AK12_THRESHOLDS} from "../js/ai/exercises/lateralWeightShift/constants.js";
+import {calculateLateralWeightShiftScore} from "../js/ai/exercises/lateralWeightShift/score.js";
+
+const tracker=createLateralWeightShiftSession({targetPerSide:1,thresholds:AK12_THRESHOLDS});
+const ready={bodyReady:true,shoulderWidth:.4,ankleWidth:.2,ankleCenterX:.5,leftAnkleX:.4,rightAnkleX:.6,leftKneeFlexionDeg:5,rightKneeFlexionDeg:5,leftHipAbductionDeg:0,rightHipAbductionDeg:0,leftKneeValgusRatio:.03,rightKneeValgusRatio:.03,leftHeelLiftRatio:.02,rightHeelLiftRatio:.02,trunkSideLeanDeg:2,pelvisTiltDeg:2};
+const shifted={...ready,ankleWidth:.34,ankleCenterX:.44,leftAnkleX:.26,leftKneeFlexionDeg:28,leftHipAbductionDeg:15};
+tracker.processFrame({timestamp:0,...ready});
+tracker.processFrame({timestamp:200,...shifted});
+for(let t=300;t<=1100;t+=100)tracker.processFrame({timestamp:t,...shifted});
+const result=tracker.processFrame({timestamp:2200,...ready});
+const summary=result.summary;
+assert.equal(summary.totalReps,1,"完整側跨、停留與回位應計為一次");
+assert.equal(summary.leftReps,1,"左腳跨出應記錄在左側");
+assert.equal(summary.rightReps,0);
+assert.equal(summary.validReps,1,"符合角度與穩定條件的動作應為有效次數");
+assert.deepEqual(result.completedRep.issues,[]);
+assert.ok(calculateLateralWeightShiftScore(summary).score>=90);
+console.log("AK12 lateral weight shift session test passed");

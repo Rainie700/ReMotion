@@ -1,6 +1,8 @@
 import { functionalAssessmentService } from "./functionalAssessmentService.js";
 import { trackingCycleService } from "./trackingCycleService.js";
+import { displayCompletedTrainingDays } from "./f01DailyTargets.js";
 import { getTrackingCycleViewState, isCompletedFiveTimesSitToStandResult, toLocalDateKey } from "./trackingCycle.js";
+import { getFa5xMeasurementProfile } from "./fa5xMeasurementCompatibility.js";
 
 /**
  * Cross-Module Integration I-1 — F01 functional progress for the Data page
@@ -29,13 +31,20 @@ export function isComparable5xSts(session) {
 }
 
 export function buildAssessmentSeries(sessions = []) {
-  return sessions
+  const points = sessions
     .filter(isComparable5xSts)
     .map((s) => {
       const measuredAt = (s.result && s.result.measuredAt) || s.completedAt || null;
-      return { assessmentId: s.id, measuredAt, dateKey: measuredAt ? toLocalDateKey(measuredAt) : null, totalDurationMs: s.result.totalDurationMs, assessmentRole: s.result.assessmentRole || null };
+      return {
+        assessmentId: s.id, measuredAt, dateKey: measuredAt ? toLocalDateKey(measuredAt) : null, totalDurationMs: s.result.totalDurationMs, assessmentRole: s.result.assessmentRole || null,
+        // 5xSTS batch A — measurement-version group (null = version missing / unknown / inconsistent)
+        measurementGroup: getFa5xMeasurementProfile(s.result).group,
+      };
     })
     .sort((a, b) => String(a.measuredAt || "").localeCompare(String(b.measuredAt || "")) || String(a.assessmentId).localeCompare(String(b.assessmentId)));
+  // A trend line joins two points only when both were measured the same way (same known
+  // group, js/data/fa5xMeasurementCompatibility.js); every point stays visible either way.
+  return points.map((p, i) => ({ ...p, connectsToPrevious: i > 0 && !!p.measurementGroup && p.measurementGroup === points[i - 1].measurementGroup }));
 }
 
 const cycleOrder = (a, b) => String(a.cycleStartDateKey || "").localeCompare(String(b.cycleStartDateKey || ""))
@@ -73,6 +82,11 @@ export function buildF01TrackingTimeline({ cycles = [], userId, todayKey, getSes
     const s = id ? getSession(id) : null;
     return s && s.patientId === userId && isComparable5xSts(s) ? s.result.totalDurationMs : null;
   };
+  // 5xSTS batch A — measurement-version group of a chain assessment (null = unknown).
+  const groupOf = (id) => {
+    const s = id ? getSession(id) : null;
+    return s && s.result ? getFa5xMeasurementProfile(s.result).group : null;
+  };
   const weeks = [];
   const nodes = [];
   const segments = [];
@@ -93,7 +107,7 @@ export function buildF01TrackingTimeline({ cycles = [], userId, todayKey, getSes
       baselineMs: completed ? cmp.baselineMs : baselineMs,
       reassessmentMs: completed ? cmp.reassessmentMs : null,
       changeMs: completed ? cmp.changeMs : null,
-      completedDays: (cycle.completedTrainingDates || []).length,
+      completedDays: displayCompletedTrainingDays(cycle), // batch 2: null when measurement pending
       view,
     };
     weeks.push(week);
@@ -109,7 +123,12 @@ export function buildF01TrackingTimeline({ cycles = [], userId, todayKey, getSes
     else {
       nodes.push({ assessmentId: cycle.baselineAssessmentId, ms: week.baselineMs, dateKey: cycle.cycleStartDateKey, pending: false });
       from = nodes.length - 1;
-      if (last) segments.push({ from: from - 1, to: from, week: null, pending: false, gap: true });
+      // 5xSTS batch A — the dashed link between two weeks is drawn only when both points were
+      // measured the same way (same known measurement group); otherwise the line is broken.
+      const lastGroup = last && last.assessmentId ? groupOf(last.assessmentId) : null;
+      if (last && !last.pending && lastGroup && lastGroup === groupOf(cycle.baselineAssessmentId)) {
+        segments.push({ from: from - 1, to: from, week: null, pending: false, gap: true });
+      }
     }
     if (completed) nodes.push({ assessmentId: cycle.reassessmentId, ms: week.reassessmentMs, dateKey: cmp.reassessmentDateKey, pending: false });
     else if (!cycle.reassessmentId) nodes.push({ assessmentId: null, ms: null, dateKey: cycle.plannedReassessmentDateKey, pending: true });
@@ -131,7 +150,7 @@ export const functionalProgressService = {
         cycle,
         view: getTrackingCycleViewState(cycle, todayKey),
         baselineMs: isComparable5xSts(baseline) ? baseline.result.totalDurationMs : null,
-        completedTrainingDays: (cycle.completedTrainingDates || []).length,
+        completedTrainingDays: displayCompletedTrainingDays(cycle), // batch 2: null when measurement pending
         comparison: comparison && comparison.eligible ? comparison : null,
       };
     }

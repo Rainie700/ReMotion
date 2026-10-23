@@ -1,0 +1,13 @@
+case (TRUE values)                         | frame | 1.0 (before) | 1.1 (after)
+stand knee 146° (bent, should NOT count)   | 4:3   | 5/5          | 0/5 (not_fully_standing)   expect 0/5
+stand knee 146° (bent, should NOT count)   | 16:9  | 5/5          | 0/5 (not_fully_standing)   expect 0/5
+stand knee 146° (bent, should NOT count)   | 9:16  | 0/5 (not_fully_standing) | 0/5 (not_fully_standing)   expect 0/5
+stand knee 154° (should count)             | 4:3   | 5/5          | 5/5   expect 5/5
+stand knee 154° (should count)             | 16:9  | 5/5          | 5/5   expect 5/5
+stand knee 154° (should count)             | 9:16  | 0/5 (not_fully_standing) | 5/5   expect 5/5
+peak hipΔ 0.74 shank (should count)        | 4:3   | 5/5          | 5/5   expect 5/5
+peak hipΔ 0.74 shank (should count)        | 16:9  | 5/5          | 5/5   expect 5/5
+peak hipΔ 0.74 shank (should count)        | 9:16  | 0/5 (not_fully_standing) | 5/5   expect 5/5
+peak hipΔ 0.66 shank (should NOT count)    | 4:3   | 0/5 (not_fully_standing) | 0/5 (not_fully_standing)   expect 0/5
+peak hipΔ 0.66 shank (should NOT count)    | 16:9  | 0/5 (not_fully_standing) | 0/5 (not_fully_standing)   expect 0/5
+peak hipΔ 0.66 shank (should NOT count)    | 9:16  | 0/5 (not_fully_standing) | 0/5 (not_fully_standing)   expect 0/5

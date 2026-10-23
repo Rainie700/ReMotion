@@ -1,0 +1,8 @@
+M1 replay ignores completeness issues | test:fa5x-trace-replay exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+M2 replay skips per-frame comparison | test:fa5x-trace-replay exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+M3 recorder never flags mid-run start | test:fa5x-trace-replay exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+M4 recorder ignores frame gaps | test:fa5x-trace-replay exit=0 (NOT CAUGHT) | restored=yes | 
+M5 replay accepts any format version | test:fa5x-trace-replay exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+M6 tracing alters a decision (confirm count) | test:fa5x-frame-trace exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: snapshots identical with and without the trace listener
+M7 recorder drops the result when events overflow | test:fa5x-frame-trace exit=1 (caught) | restored=yes | TypeError: Cannot read properties of null (reading 'completedReps')
+M4 (rerun after adding R4b) recorder ignores frame gaps | test:fa5x-trace-replay exit=1 (caught) | restored=yes | AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:

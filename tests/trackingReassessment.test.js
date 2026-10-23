@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -27,7 +28,7 @@ const DAY3 = "2026-09-30", DAY7 = "2026-10-04", DAY9 = "2026-10-06";
 function fiveXSts(userId, { status = "completed", at = [2026, 8, 28, 14, 0], role = null } = {}) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
   const done = status === "completed";
-  const result = { status, completedReps: done ? 5 : 2, repCount: done ? 5 : 2, totalDurationMs: done ? 8900 : null, measuredAt: new Date(...at).toISOString(), ...(role || {}) };
+  const result = { ...FA5X_M, status, completedReps: done ? 5 : 2, repCount: done ? 5 : 2, totalDurationMs: done ? 8900 : null, measuredAt: new Date(...at).toISOString(), ...(role || {}) };
   functionalAssessmentService.completeSession(s.id, { result });
   return functionalAssessmentService.getById(s.id);
 }

@@ -1,0 +1,250 @@
+$ npm test   (BEFORE this batch)
+
+> rm@1.0.0 test
+> node scripts/runAllTests.mjs
+
+✓ test:f01-additions
+✓ test:f02-additions
+✓ test:gait-series
+✓ test:upper-limb-series
+✓ test:flexibility-series
+✓ test:six-domains
+✓ test:ad07
+✓ test:ad06
+✓ test:ad05
+✓ test:ad04
+✓ test:ad03
+✓ test:ad02
+✓ test:ad01
+✓ test:hp10
+✓ test:cr05
+✓ test:cr01
+✓ test:cr02
+✓ test:cr03
+✓ test:cr04
+✓ test:cr06
+✓ test:cr07
+✓ test:cr08
+✓ test:ad08
+✓ test:ad09
+✓ test:ad10
+✓ test:ad11
+✓ test:ad12
+✓ test:ak01
+✓ test:ak02
+✓ test:ak03
+✓ test:ak04
+✓ test:ak05
+✓ test:ak06
+✓ test:ak07
+✓ test:ak08
+✓ test:ak09
+✓ test:ak10
+✓ test:ak11
+✓ test:ak12
+✓ test:ak13
+✓ test:ak14
+✓ test:ak15
+✓ test:kn03
+✓ test:le05
+✓ test:le03
+✓ test:le04
+✓ test:le06
+✓ test:le07
+✓ test:sh01
+✓ test:sh02
+✓ test:sh03
+✓ test:sh04
+✓ test:sh05
+✓ test:sh06
+✓ test:sh07
+✓ test:shflexgeom
+✓ test:shflexmeas
+✓ test:shabdgeom
+✓ test:shabdmeas
+✓ test:shprotocol
+✓ test:shiaguards
+✓ test:shfindings
+✓ test:shresultloop
+✓ test:srloop
+✓ test:tploop
+✓ test:achievements
+✓ test:gamhubia
+✓ test:datav2
+✓ test:advstages
+✓ test:therapist
+✓ test:asmtctx
+✓ test:demoseed
+✓ test:sarcopeniaphase1
+✓ test:sarcopeniaphase15
+✓ test:f01mvp1
+✓ test:integration0
+✓ test:fa5x
+✓ test:fa5x-compat
+✓ test:fa5x-gap-reset
+✓ test:fa5x-version-notice
+✓ test:fa5x-frame-trace
+✓ test:fa5x-trace-replay
+✓ test:fa5x-condition-report
+✓ test:fa5x-blocked-result-checks
+✓ test:emulator-mode
+✓ test:f01rec
+✗ test:tracking
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(/OPTIONAL_CLOUD_COLLECTIONS = \["trackingCycles"\]/.test(storage))
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/trackingCycle.test.js:214:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:reassessment
+✓ test:training-days
+✓ test:f01-daily-targets
+✓ test:f01-batch2-completion
+✓ test:comparison
+✓ test:d5
+✓ test:d5-next-cycle
+✗ test:flow-qa
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
++ actual - expected
+
++ 'confirmed'
+- 'missing'
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/flowDataQa.test.js:204:59 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'confirmed',
+  expected: 'missing',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✗ test:home-redesign
+
+<anonymous_script>:33
+  const completedDays = displayCompletedTrainingDays(cycle); // batch 2: null when measurement pending
+                        ^
+
+ReferenceError: displayCompletedTrainingDays is not defined
+    at Object.renderTrackingCycleCard (eval at <anonymous> (file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:49:14), <anonymous>:33:25)
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:77:21
+
+Node.js v24.18.0
+✓ test:result-states
+✓ test:training-events
+✓ test:reward-consistency
+✓ test:f01-adventure
+✓ test:today-plan
+✓ test:training-tab-layout
+✓ test:patient00-showcase
+✓ test:data-profile-cleanup
+✗ test:exercise-experience
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
++ actual - expected
+
++ 'image'
+- 'placeholder'
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/exerciseExperience.test.js:41:57 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'image',
+  expected: 'placeholder',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:core-value-experience
+✗ test:self-practice-library
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
++ actual - expected
+
+  [
++   'image',
++   '/images/exercise/exercise_double_calf_raise.png'
+-   'placeholder',
+-   null
+  ]
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/selfPracticeLibrary.test.js:163:17 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [ 'image', '/images/exercise/exercise_double_calf_raise.png' ],
+  expected: [ 'placeholder', null ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✗ test:llm-weekly-summary
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no .env.local
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/llmWeeklySummary.test.js:187:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:llm-summary-validator
+✓ test:therapist-summary-cycle
+✓ test:patient00-demo-cloud-safety
+✓ test:cloud-record-inspector
+✓ test:patient-confirmed-summaries
+✓ test:weekly-summary-versions
+✓ test:f01-recommendation-view
+✓ test:d5-next-week-handoff
+✓ test:d5-therapist-review
+✓ test:d5-llm-recommendation
+✓ test:patient00-history-6w
+✓ test:hp04
+✓ test:hp01
+✓ test:hp02
+✓ test:hp03
+✓ test:hp07
+✓ test:hp08
+✓ test:hp09
+✓ test:hp05
+✓ test:hp06
+✓ test:le02
+
+123 / 129 test scripts passed
+failed: test:tracking, test:flow-qa, test:home-redesign, test:exercise-experience, test:self-practice-library, test:llm-weekly-summary
+exit=1

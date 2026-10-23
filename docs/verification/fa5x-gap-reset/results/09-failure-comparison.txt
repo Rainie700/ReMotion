@@ -1,0 +1,7 @@
+current tree vs copy rebuilt from docs/verification/fa5x-gap-reset/backup-before (pre-fix, 1.1)
+test:tracking current exit=1 pre-fix exit=1 | errors SAME
+test:flow-qa current exit=1 pre-fix exit=1 | errors SAME
+test:home-redesign current exit=1 pre-fix exit=1 | errors SAME
+test:exercise-experience current exit=1 pre-fix exit=1 | errors SAME
+test:self-practice-library current exit=1 pre-fix exit=1 | errors SAME
+test:llm-weekly-summary current exit=1 pre-fix exit=1 | errors SAME

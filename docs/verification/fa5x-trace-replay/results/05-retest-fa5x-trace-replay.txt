@@ -1,0 +1,2 @@
+5xSTS trace replay tests passed
+test:fa5x-trace-replay exit=0

@@ -1,0 +1,14 @@
+$ REPO=<repo> RULES_PATH=<repo>/firestore.rules APP_URL=http://localhost:5173/?emulator=1 node phase1-emulator-flows.mjs   (Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080, project demo-remotion)
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.$eval: Failed to find element matching selector ".fa5x-cond-form"
+    at C:\Users\User\AppData\Local\Temp\claude\c--Users-User-Downloads-ReMotion-main--4-\05ba5354-48bf-4dec-b01f-24cf711a0d96\scratchpad\emu\phase1-emulator-flows.mjs:187:18 {
+  log: [],
+  name: 'Error'
+}
+
+Node.js v24.18.0
+exit=1

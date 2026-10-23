@@ -80,3 +80,6 @@ ReMotion-code-audit.zip
 
 # Local documents
 /*.pdf
+
+# patient00 demo history: account snapshots, write manifests and backups (contain account ids)
+scripts/demo/patient00History6w/private/

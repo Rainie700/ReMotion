@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -31,7 +32,7 @@ let seq = 0;
 
 function baseline(userId) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8900, measuredAt: new Date(...D1, 14, 0).toISOString() } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8900, measuredAt: new Date(...D1, 14, 0).toISOString() } });
   return functionalAssessmentService.getById(s.id);
 }
 function saveRec(userId, session, goalId, minutes) {
@@ -158,7 +159,7 @@ const getCycle = (c) => trackingCycleService.getTrackingCycleById(c.id);
   assert.equal(getCycle(cycle).dailyTrainingProgress, undefined, "no refused write created a daily entry");
   // completed cycle takes no more training days
   const re = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(re.id, { result: { status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8000, measuredAt: new Date(...D7, 9, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
+  functionalAssessmentService.completeSession(re.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8000, measuredAt: new Date(...D7, 9, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
   assert.equal(trackingCycleService.completeTrackingCycleWithReassessment({ cycleId: cycle.id, userId: u, reassessment: functionalAssessmentService.getById(re.id), todayDateKey: key(D7) }).linked, true);
   assert.equal(rec(u, cycle, ids[0], D2).error, "cycle_already_completed");
   assert.equal(trackingCycleService.ensureDailyTrainingSnapshot({ cycleId: cycle.id, userId: u, dateKey: key(D2) }).error, "cycle_already_completed");
@@ -169,7 +170,7 @@ const getCycle = (c) => trackingCycleService.getTrackingCycleById(c.id);
   const u = "d3-d2fix";
   const { cycle } = startCycle(u);
   const re = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(re.id, { result: { status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8000, measuredAt: new Date(...D7, 9, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
+  functionalAssessmentService.completeSession(re.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8000, measuredAt: new Date(...D7, 9, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
   trackingCycleService.completeTrackingCycleWithReassessment({ cycleId: cycle.id, userId: u, reassessment: functionalAssessmentService.getById(re.id), todayDateKey: "2026-10-20" });
   assert.equal(getCycle(cycle).reassessmentDateKey, key(D7), "a simulated / later 'today' never becomes the stored date");
 }
@@ -222,14 +223,21 @@ const getCycle = (c) => trackingCycleService.getTrackingCycleById(c.id);
   assert.ok(listener.includes("recordExerciseCompletion(") && !listener.includes("getTrackingTodayKey"), "no debug date passed to the write");
   const arm = appJs.slice(appJs.indexOf("function armF01TrackingTraining("), appJs.indexOf("function armF01TrackingTraining(") + 800);
   assert.ok(arm.includes("cycle.recommendationId !== state.f01RecommendationId"), "only the active cycle's own recommendation arms the context");
+  // F01 batch 1 (spec 4.1) — the 開始訓練 entry no longer creates the snapshot itself: every
+  // formal entry goes through goDetectionPrep's preparation stage (formal_start, real local date).
   const start = appJs.slice(appJs.indexOf("function startF01RecommendedTraining("), appJs.indexOf("function armF01TrackingTraining("));
-  assert.ok(start.includes("ensureDailyTrainingSnapshot(") && start.includes("dateKey: toLocalDateKey(new Date())"), "snapshot at first start, real local date");
+  assert.ok(!start.includes("ensureDailyTrainingSnapshot(") && start.includes("goDetectionPrep()"), "snapshot via the shared preparation stage");
+  const prep = appJs.slice(appJs.indexOf("function prepareF01FormalTrainingTarget("), appJs.indexOf("function passF01FinalCheck("));
+  assert.ok(prep.includes("prepareF01FormalTraining(") && prep.includes("dateKey: toLocalDateKey(new Date())"), "snapshot at first formal start, real local date");
   const serviceCode = serviceSrc.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
   assert.ok(!/getTrackingTodayKey|trackingToday|URLSearchParams|window\./.test(serviceCode), "the service code never reads the debug override");
-  assert.ok(/dateKey = toLocalDateKey\(analysisRecord\.completedAt \|\| analysisRecord\.createdAt\)/.test(serviceSrc), "training date = record's real completion time");
+  // F01 batch 1 (spec 4.4) — the plan date confirmed at the formal start wins; else the record's real completion time.
+  assert.ok(/dateKey = toLocalDateKey\(analysisRecord\.completedAt \|\| analysisRecord\.createdAt\)/.test(serviceSrc), "fallback: record's real completion time");
+  assert.ok(/if \(isDateKey\(analysisRecord\.planDateKey\)\) dateKey = analysisRecord\.planDateKey;/.test(serviceSrc), "plan date first");
   assert.ok(/reassessmentDateKey: toLocalDateKey\(reassessmentMeasuredAt\)/.test(serviceSrc), "D2 date = real measurement date");
   const card = appJs.slice(appJs.indexOf("function renderTrackingCycleCard("), appJs.indexOf("function goTrackingWeekTraining("));
-  assert.ok(card.includes("(cycle.completedTrainingDates || []).length") && card.includes("getDailyProgressView("), "card uses real completed days + real daily progress");
+  // F01 batch 2 §3A — still the real completed days (the same raw count), but null ("待確認") when the measurement is pending.
+  assert.ok(card.includes("displayCompletedTrainingDays(cycle)") && card.includes("getDailyProgressView("), "card uses real completed days + real daily progress");
   assert.ok(!/detector|FSM/.test(appJs.slice(appJs.indexOf("function armF01TrackingTraining("), appJs.indexOf("function armF01TrackingTraining(") + 50)), "sanity");
 }
 

@@ -108,6 +108,32 @@ export const LLM_WEEKLY_SUMMARY_SCHEMA = Object.freeze({
                 },
               },
             },
+            // Present only when the accepted plan is a linked therapist's reviewed version
+            // (d5.confirmation.therapistReviewId); doses = the training amounts the therapist set.
+            therapistReview: {
+              type: "object",
+              additionalProperties: false,
+              required: ["reviewed", "changed", "doses"],
+              properties: {
+                reviewed: { const: true },
+                changed: { type: "boolean" },
+                doses: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["exerciseId", "name", "sets", "repetitions", "durationSeconds"],
+                    properties: {
+                      exerciseId: EXERCISE_ID,
+                      name: { type: "string", minLength: 1 },
+                      sets: { type: ["integer", "null"], minimum: 1 },
+                      repetitions: { type: ["integer", "null"], minimum: 1 },
+                      durationSeconds: { type: ["integer", "null"], minimum: 1 },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         reportedIssues: {

@@ -1,0 +1,105 @@
+{
+  "checks": [
+    [
+      "PASS",
+      "home: W6 synthetic baseline labelled"
+    ],
+    [
+      "PASS",
+      "today plan lists W6 exercises"
+    ],
+    [
+      "PASS",
+      "history: 6 weeks"
+    ],
+    [
+      "PASS",
+      "history: synthetic weeks labelled"
+    ],
+    [
+      "PASS",
+      "W2: rule suggestion shown"
+    ],
+    [
+      "PASS",
+      "W2: simulated therapist review shown"
+    ],
+    [
+      "PASS",
+      "W2: therapist change shown"
+    ],
+    [
+      "PASS",
+      "W2: patient accepted the reviewed content"
+    ],
+    [
+      "PASS",
+      "W4: no proposal, restarted by a new assessment"
+    ],
+    [
+      "PASS",
+      "W4: no next-stage button for a replaced week"
+    ],
+    [
+      "PASS",
+      "W5 (real): not labelled synthetic"
+    ],
+    [
+      "PASS",
+      "W5 (real): accepted rule plan"
+    ],
+    [
+      "PASS",
+      "patient sees 5 confirmed summaries (got 5)"
+    ],
+    [
+      "PASS",
+      "W2 summary: reviewed plan, not 'waiting'"
+    ],
+    [
+      "PASS",
+      "W2 summary: never 'needs professional confirmation'"
+    ],
+    [
+      "PASS",
+      "W2 summary: simulated confirmation labelled"
+    ],
+    [
+      "PASS",
+      "W5 real summary: real confirmation wording"
+    ],
+    [
+      "PASS",
+      "records: synthetic training labelled"
+    ],
+    [
+      "PASS",
+      "today plan 開始 opens training prep"
+    ],
+    [
+      "PASS",
+      "therapist overview: synthetic records note"
+    ],
+    [
+      "PASS",
+      "therapist W2: simulated confirmation"
+    ],
+    [
+      "PASS",
+      "therapist W2: plan text includes the review"
+    ],
+    [
+      "PASS",
+      "therapist W2: arrangement block"
+    ],
+    [
+      "PASS",
+      "therapist week selector lists 6 weeks (got 6)"
+    ],
+    [
+      "PASS",
+      "therapist records: synthetic labelled"
+    ]
+  ],
+  "errors": []
+}

@@ -1,0 +1,3 @@
+$ npm run -s test:data-profile-cleanup
+Data showcase cleanup + profile IA tests passed
+exit=0

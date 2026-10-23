@@ -1,4 +1,6 @@
 import { toLocalDateKey, formatDateKeyMonthDay, isCompletedFiveTimesSitToStandResult } from "./trackingCycle.js";
+import { checkFa5xMeasurementCompatibility, describeFa5xIncompatibility } from "./fa5xMeasurementCompatibility.js";
+import { isTrainingMeasurementPending } from "./f01DailyTargets.js";
 
 /**
  * Phase D4 — baseline vs reassessment 5xSTS comparison for ONE tracking
@@ -11,6 +13,12 @@ import { toLocalDateKey, formatDateKeyMonthDay, isCompletedFiveTimesSitToStandRe
  *
  * Wording is strictly descriptive ("少 / 多 X 秒"): no improvement / decline /
  * maintain / progression judgement and no percentage.
+ *
+ * Measurement compatibility (fa5x-assessment-1.1): both results must come from
+ * the same measurement group (js/data/fa5xMeasurementCompatibility.js). An
+ * incompatible pair is NOT eligible — so it never reaches D5 (Gate 1 →
+ * no automatic decision, hence no LLM call) or any trend difference — but the
+ * two stored times are returned as `historical` for display only.
  */
 
 export const FIVE_TIMES_SIT_TO_STAND_TYPE = "five_times_sit_to_stand";
@@ -59,7 +67,7 @@ function measuredDateKey(session) {
 }
 
 /**
- * @returns {{ eligible: false, missing: string[] } |
+ * @returns {{ eligible: false, missing: string[], measurementCompatibility?, historical? } |
  *           { eligible: true, baselineMs, reassessmentMs, changeMs, baselineSeconds, reassessmentSeconds, changeSeconds,
  *             baselineText, reassessmentText, differenceText, baselineDateKey, reassessmentDateKey,
  *             baselineDateText, reassessmentDateText, completedTrainingDays, completedTrainingDateKeys,
@@ -89,6 +97,22 @@ export function buildTrackingComparison({ cycle, baselineAssessment, reassessmen
   }
   if (missing.length) return { eligible: false, missing: [...new Set(missing)] };
 
+  const compatibility = checkFa5xMeasurementCompatibility(baselineAssessment.result, reassessment.result);
+  if (!compatibility.compatible) {
+    return {
+      eligible: false,
+      missing: [describeFa5xIncompatibility(compatibility.reason)],
+      measurementCompatibility: compatibility,
+      // display only: each stored time on its own, no difference
+      historical: {
+        baselineText: formatSeconds(baselineAssessment.result.totalDurationMs),
+        reassessmentText: formatSeconds(reassessment.result.totalDurationMs),
+        baselineDateText: formatDateKeyMonthDay(measuredDateKey(baselineAssessment)),
+        reassessmentDateText: formatDateKeyMonthDay(measuredDateKey(reassessment)),
+      },
+    };
+  }
+
   const baselineMs = baselineAssessment.result.totalDurationMs;
   const reassessmentMs = reassessment.result.totalDurationMs;
   const changeMs = reassessmentMs - baselineMs; // raw ms first; only the text is rounded
@@ -117,8 +141,9 @@ export function buildTrackingComparison({ cycle, baselineAssessment, reassessmen
     reassessmentDateKey,
     baselineDateText: formatDateKeyMonthDay(baselineDateKey),
     reassessmentDateText: formatDateKeyMonthDay(reassessmentDateKey),
-    completedTrainingDays: dates.length,
+    completedTrainingDays: isTrainingMeasurementPending(cycle) ? null : dates.length, // batch 2: null, never 0, when pending
     completedTrainingDateKeys: dates,
     repComparison,
+    measurementCompatibility: compatibility,
   };
 }

@@ -1,0 +1,118 @@
+$ RULES_PATH=<repo>/firestore.rules firebase emulators:exec --only firestore --project demo-remotion "node firestoreRulesCheck.mjs"
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode firestoreRulesCheck.mjs[22m
+[2026-10-21T16:41:40.547Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55cfc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L206, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'create' @ L43, false for 'create' @ L206
+[2026-10-21T16:41:40.633Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55cfd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L206, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'create' @ L43, false for 'create' @ L206
+[2026-10-21T16:41:40.705Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55cfe error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L206, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'create' @ L43, false for 'create' @ L206
+[2026-10-21T16:41:41.149Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d03 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'update' @ L47, false for 'update' @ L206
+[2026-10-21T16:41:41.280Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d05 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'update' @ L47, false for 'update' @ L206
+[2026-10-21T16:41:41.346Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d06 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'update' @ L47, false for 'update' @ L206
+[2026-10-21T16:41:41.403Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d07 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L52, false for 'delete' @ L206
+[2026-10-21T16:41:41.971Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d0d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L43:24 for 'create' @ L43, false for 'create' @ L206, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'create' @ L43, false for 'create' @ L206
+[2026-10-21T16:41:42.043Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d0e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L43:24 for 'create' @ L43, false for 'create' @ L206, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L206, false for 'create' @ L43, false for 'create' @ L206
+[2026-10-21T16:41:42.310Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d11 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'create' @ L104, false for 'create' @ L206
+[2026-10-21T16:41:42.379Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d12 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:42.446Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d13 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:42.502Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d14 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L112:24 for 'delete' @ L112, false for 'delete' @ L206, false for 'delete' @ L112, false for 'delete' @ L206
+[2026-10-21T16:41:42.628Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d16 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L104:24 for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, Null value error. for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:42.935Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L127, false for 'create' @ L206, false for 'update' @ L129, false for 'update' @ L206
+[2026-10-21T16:41:43.003Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L127:24 for 'create' @ L127, false for 'create' @ L206, evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, false for 'update' @ L129, false for 'update' @ L206
+[2026-10-21T16:41:43.076Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L127:24 for 'create' @ L127, false for 'create' @ L206, evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, false for 'update' @ L129, false for 'update' @ L206
+[2026-10-21T16:41:43.139Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L127:24 for 'create' @ L127, false for 'create' @ L206, evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, false for 'update' @ L129, false for 'update' @ L206
+[2026-10-21T16:41:43.202Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L127:24 for 'create' @ L127, false for 'create' @ L206, evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, Null value error. for 'create' @ L127, false for 'create' @ L206
+[2026-10-21T16:41:43.268Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d1f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L132, false for 'delete' @ L206
+[2026-10-21T16:41:43.683Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d25 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:43.889Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d28 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, false for 'update' @ L129, false for 'update' @ L206
+[2026-10-21T16:41:44.145Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d2b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L104:24 for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:44.217Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d2c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L104:24 for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:44.301Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d2d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:44.431Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d2f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L104:24 for 'create' @ L104, false for 'create' @ L206, evaluation error at L107:24 for 'update' @ L107, false for 'update' @ L206, false for 'update' @ L107, false for 'update' @ L206
+[2026-10-21T16:41:44.616Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x43e55d32 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L127:24 for 'create' @ L127, false for 'create' @ L206, evaluation error at L129:24 for 'update' @ L129, false for 'update' @ L206, false for 'update' @ L129, false for 'update' @ L206
+PASS | patient starts a relation (invite code)
+PASS | outsider cannot create a relation for the patient
+PASS | therapist cannot create a relation on its own
+PASS | patient cannot link to itself
+PASS | outsider cannot read the relation
+PASS | patient reads own relation
+PASS | therapist reads own relation
+PASS | therapist may end the relation
+PASS | therapist cannot re-activate it
+PASS | patient may re-activate it
+PASS | parties never change
+PASS | outsider cannot update it
+PASS | nobody deletes a relation
+PASS | login query: therapist's relations
+PASS | login query: patient's relations
+PASS | outsider cannot list the patient's relations
+PASS | source therapist creates the transferred relation
+PASS | outsider cannot fake a transfer
+PASS | transfer only to the recorded target
+PASS | patient creates own recommendation
+PASS | outsider cannot create one for the patient
+PASS | therapist cannot write the patient's proposal
+PASS | outsider cannot update it
+PASS | outsider cannot delete it
+PASS | patient re-evaluates own draft (status check)
+PASS | patient cannot claim a review that does not exist
+PASS | linked therapist writes the review
+PASS | linked therapist updates the review
+PASS | patient cannot write a review
+PASS | patient cannot forge one as the therapist
+PASS | outsider cannot write a review
+PASS | review must target that patient's proposal
+PASS | review id must be the proposal id
+PASS | nobody deletes a review
+PASS | patient reads the review
+PASS | outsider cannot read the review
+PASS | login query: patient's reviews
+PASS | login query: therapist's reviews
+PASS | patient accepts exactly the reviewed plan
+PASS | accepted items are frozen
+PASS | linking the next cycle keeps working after the relation ended
+PASS | ended relation: therapist can no longer write the review
+PASS | other items than the review -> refused
+PASS | changed patient report (limitations) -> refused
+PASS | review id of another doc -> refused
+PASS | review of an ended relation -> refused
+PASS | acceptance without a review claim (rule-ready plan) is a patient write
+PASS | therapist cannot review an accepted proposal
+
+48 / 48 rule checks passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
+exit=0

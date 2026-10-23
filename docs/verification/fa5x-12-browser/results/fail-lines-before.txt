@@ -1,0 +1,12 @@
+✗ test:tracking
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+✗ test:flow-qa
+AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
+✗ test:home-redesign
+ReferenceError: displayCompletedTrainingDays is not defined
+✗ test:exercise-experience
+AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
+✗ test:self-practice-library
+AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
+✗ test:llm-weekly-summary
+AssertionError [ERR_ASSERTION]: no .env.local

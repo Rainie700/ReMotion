@@ -1,4 +1,5 @@
 import { F01_GOALS, F01_EXERCISE_MAPPING, F01_EXERCISE_SPEC } from "./f01RecommendationSpec.js";
+import { F01_AUTO_RECOMMENDATION_EXCLUSIONS } from "./f01DailyTargets.js";
 
 /**
  * F01 Recommendation Phase C — explainable, rule-ordered recommendation (pure).
@@ -171,7 +172,7 @@ export function orderF01GoalCandidates({ goal, limitationIds = [], catalog = [] 
  *   availableMinutes: 10|15|20      (optional; default: 3 items)
  *   catalog: normalized exercises   (exerciseService.listNormalized())
  */
-export function generateF01GoalRecommendation({ assessment, selectedGoalId, limitationIds = [], availableMinutes = null, catalog = [] }) {
+export function generateF01GoalRecommendation({ assessment, selectedGoalId, limitationIds = [], availableMinutes = null, catalog = [], excludeAutoRecommendationPending = false }) {
   const base = { ruleVersion: F01_RECOMMENDATION_RULE_VERSION, items: [], excluded: [], missingExerciseIds: [] };
 
   // R00 — quality gate
@@ -191,7 +192,10 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
 
   const { ordered, excluded, missingExerciseIds, candidateCount } = orderF01GoalCandidates({ goal, limitationIds, catalog });
 
-  const picked = ordered.slice(0, maxItems);
+  // F01 batch 2 §3B — new-version automatic candidates skip exercises whose counting is pending
+  // (F01-19). Applied BEFORE the R06 cut so the next candidate fills the slot; data untouched.
+  const autoExcluded = excludeAutoRecommendationPending ? ordered.filter((c) => F01_AUTO_RECOMMENDATION_EXCLUSIONS[c.exercise.id]) : [];
+  const picked = ordered.filter((c) => !autoExcluded.includes(c)).slice(0, maxItems);
   const limitationsApplied = limitations.length > 0;
   const items = picked.map((c, idx) => {
     const matchedConditions = [
@@ -226,9 +230,12 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
   if (timeOption) basis.push({ key: "time", label: "可用時間", value: `${timeOption.minutes} 分鐘（決定建議動作數量）` });
   if (limitationsApplied) basis.push({ key: "limitations", label: "排除條件", value: `${limitations.map((l) => l.label).join("、")}${excluded.length ? `（已排除 ${excluded.length} 個動作）` : "（沒有動作因此被排除）"}` });
 
+  // F01 batch 2 §3B — fewer eligible exercises than the time option's slots is stated, never filled in.
+  const shortfall = items.length > 0 && items.length < maxItems ? { requested: maxItems, available: items.length } : null;
   return {
     ...base,
     status: items.length ? "ok" : "no_candidates",
+    ...(shortfall ? { shortfall } : {}),
     functionalDomain: F01_DOMAIN.id,
     sourceAssessmentId: assessment.sessionId || null,
     selectedGoalId: goal.goalId,
@@ -238,7 +245,8 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
     candidateCount,
     items,
     basis,
-    excluded,
+    // limitation exclusions (R03) first, then the batch-2 automatic-candidate exclusions (with a reason, no limitation)
+    excluded: [...excluded, ...autoExcluded.map((c) => ({ exerciseId: c.exercise.id, exerciseName: c.exercise.name, reason: F01_AUTO_RECOMMENDATION_EXCLUSIONS[c.exercise.id] }))],
     missingExerciseIds,
   };
 }

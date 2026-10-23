@@ -1,0 +1,18 @@
+import assert from"node:assert/strict";
+import{createFloorObjectPickupSession}from"../js/ai/exercises/floorObjectPickup/session.js";
+import{calculateFloorObjectPickupScore}from"../js/ai/exercises/floorObjectPickup/score.js";
+const session=createFloorObjectPickupSession({targetReps:1});
+const standing={bodyReady:true,leftKneeAngle:170,rightKneeAngle:170,trunkLeanDeg:5,handFloorRatio:1,kneeForwardRatio:.1,shoulderTiltDeg:2};
+const bottom={bodyReady:true,leftKneeAngle:90,rightKneeAngle:92,trunkLeanDeg:30,handFloorRatio:.2,kneeForwardRatio:.2,shoulderTiltDeg:3};
+session.processFrame({timestamp:0,...standing});
+session.processFrame({timestamp:100,...bottom});
+session.processFrame({timestamp:200,...bottom});
+session.processFrame({timestamp:300,...bottom});
+session.processFrame({timestamp:800,...bottom});
+const result=session.processFrame({timestamp:1800,...standing});
+assert.equal(result.summary.totalReps,1);
+assert.equal(result.summary.validReps,1);
+assert.equal(result.summary.completed,true);
+assert.equal(result.completedRep.kneeFlexionDeg,90);
+assert.ok(calculateFloorObjectPickupScore(result.summary).score>=90);
+console.log("AD04 floor-object-pickup session tests passed");

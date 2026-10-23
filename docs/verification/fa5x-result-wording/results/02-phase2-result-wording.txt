@@ -1,0 +1,36 @@
+$ REPO=<repo> RULES_PATH=<repo>/firestore.rules APP_URL=http://localhost:5173/?emulator=1 node phase2-result-wording.mjs   (Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080, project demo-remotion)
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+PASS | W0 synthetic patient signed in on the emulator | 
+PASS | W1 home: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W1 home: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W2 none: note says the record is kept and comparability needs separate confirmation | 
+PASS | W3 none: no comparison guarantee / recommendation-basis claim on the page | 
+PASS | W4 none: time label | 觀察時間｜測試條件尚未回報
+PASS | W6 none: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W6 none: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W2 unsure: note says the record is kept and comparability needs separate confirmation | 
+PASS | W3 unsure: no comparison guarantee / recommendation-basis claim on the page | 
+PASS | W4 unsure: time label | 觀察時間｜是否用手撐：不確定
+PASS | W6 unsure: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W6 unsure: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W2 assisted: note says the record is kept and comparability needs separate confirmation | 
+PASS | W3 assisted: no comparison guarantee / recommendation-basis claim on the page | 
+PASS | W4 assisted: time label | 觀察時間｜回報有人協助
+PASS | W6 assisted: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W6 assisted: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W2 clear: note says the record is kept and comparability needs separate confirmation | 
+PASS | W3 clear: no comparison guarantee / recommendation-basis claim on the page | 
+PASS | W4 clear: time label | 完成時間（依使用者回報的條件）
+PASS | W6 clear: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W6 clear: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W2 reassessment: note says the record is kept and comparability needs separate confirmation | 
+PASS | W3 reassessment: no comparison guarantee / recommendation-basis claim on the page | 
+PASS | W4 reassessment: time label | 觀察時間｜測試條件尚未回報
+PASS | W5 reassessment: still says it is recorded in the 7-day tracking | 
+PASS | W6 reassessment: banner does not cover the page (content and header start below it) | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W6 reassessment: bottom nav fully inside the viewport | {"bannerBottom":24.796875,"appTop":25,"headerTop":45,"navBottom":900,"vh":900,"scrollY":0}
+PASS | W7 no request to any non-local host | 
+PASS | W8 no alert / page error | 
+
+PHASE2 PASS 31 FAIL 0
+exit=0

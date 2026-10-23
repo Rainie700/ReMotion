@@ -1,0 +1,25 @@
+Per-test comparison: current tree vs baseline copy rebuilt from docs/verification/fa5x-frame-trace/backup-before (before any frame-trace / replay code)
+== test:tracking (tests/trackingCycle.test.js)
+  current : exit=1 | AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  baseline: exit=1 | AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  error-lines hash current=11c2ffcf baseline=11c2ffcf -> SAME
+== test:flow-qa (tests/flowDataQa.test.js)
+  current : exit=1 | AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
+  baseline: exit=1 | AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
+  error-lines hash current=b2962268 baseline=b2962268 -> SAME
+== test:home-redesign (tests/homeResultRedesign.test.js)
+  current : exit=1 | ReferenceError: displayCompletedTrainingDays is not defined
+  baseline: exit=1 | ReferenceError: displayCompletedTrainingDays is not defined
+  error-lines hash current=9e37aea3 baseline=9e37aea3 -> SAME
+== test:exercise-experience (tests/exerciseExperience.test.js)
+  current : exit=1 | AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
+  baseline: exit=1 | AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
+  error-lines hash current=4fb4e3ac baseline=4fb4e3ac -> SAME
+== test:self-practice-library (tests/selfPracticeLibrary.test.js)
+  current : exit=1 | AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
+  baseline: exit=1 | AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
+  error-lines hash current=80ce89ed baseline=80ce89ed -> SAME
+== test:llm-weekly-summary (tests/llmWeeklySummary.test.js)
+  current : exit=1 | AssertionError [ERR_ASSERTION]: no .env.local
+  baseline: exit=1 | AssertionError [ERR_ASSERTION]: no .env.local
+  error-lines hash current=c8266469 baseline=c8266469 -> SAME

@@ -1,0 +1,3 @@
+$ npm run -s test:d5-next-cycle
+F01 D5 next-cycle service tests passed
+exit=0

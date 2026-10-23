@@ -1,0 +1,2 @@
+5xSTS measurement compatibility tests passed
+exit=0

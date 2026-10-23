@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { createAnkleEversionSession } from "../js/ai/exercises/ankleEversion/session.js";
+import { calculateAnkleEversionScore } from "../js/ai/exercises/ankleEversion/score.js";
+
+const session=createAnkleEversionSession({targetReps:1});
+const ready={bodyReady:true,leftFootAxisRatio:0,rightFootAxisRatio:0,leftFootLengthRatio:.5,rightFootLengthRatio:.5,leftHeelX:.3,rightHeelX:.7,leftKneeX:.3,rightKneeX:.7,leftLegScale:.2,rightLegScale:.2,pelvisCenterX:.5,pelvisScale:.5};
+const everted={...ready,leftFootAxisRatio:-.134};
+session.processFrame({timestamp:0,...ready});
+session.processFrame({timestamp:100,...ready});
+session.processFrame({timestamp:200,...ready});
+session.processFrame({timestamp:300,...ready});
+session.processFrame({timestamp:500,...everted});
+session.processFrame({timestamp:600,...everted});
+session.processFrame({timestamp:700,...everted});
+const result=session.processFrame({timestamp:1300,...ready});
+const summary=session.getSummary();
+assert.equal(summary.totalReps,1,"腳掌向外轉、停留並回正應計為一次");
+assert.equal(summary.leftReps,1,"應辨識主要外翻的左腳");
+assert.equal(summary.validReps,1,"標準外翻幅度且腳跟與膝蓋穩定應列為品質符合");
+assert.equal(summary.completed,true,"達到目標次數後應完成");
+assert.deepEqual(result.completedRep?.issues,[],"標準踝外翻不應產生錯誤標記");
+assert.ok(calculateAnkleEversionScore(summary).score>=90,"標準動作品質分數應至少 90 分");
+console.log("AK04 ankle-eversion session tests passed");

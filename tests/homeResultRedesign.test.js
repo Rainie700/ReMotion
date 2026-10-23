@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -21,6 +22,8 @@ const { recommendationService } = await import("../js/data/recommendationService
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
 const { createCollection } = await import("../js/data/storageService.js");
+const DEMOL = await import("../js/ui/demoSyntheticLabel.js"); // fa5x-camera-prep: real card dependencies
+const F01T = await import("../js/data/f01DailyTargets.js");
 
 function fnSource(name) {
   const start = appJs.indexOf(`function ${name}(`);
@@ -44,13 +47,18 @@ const heroDeps = {
   TRACKING_STATUS: T.TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS: T.TRACKING_CYCLE_LENGTH_DAYS,
   getFa5xResultStatus: (r) => r.status, FA5X_RESULT_STATUS: { COMPLETED: "completed" },
   fmtFa5xSec: (ms) => `${(ms / 1000).toFixed(1)} 秒`, getTrackingTodayKey: () => today,
+  // fa5x-camera-prep: the card's REAL dependencies added since this harness was written (no stubs) —
+  // weekSyntheticNote's helpers and F01 batch 2's displayCompletedTrainingDays (same set as
+  // tests/f01Batch1GapCoverage.test.js). The harness used to stop here with a ReferenceError.
+  describeWeekSynthetic: DEMOL.describeWeekSynthetic, DEMO_SYNTHETIC_TEXT: DEMOL.DEMO_SYNTHETIC_TEXT,
+  displayCompletedTrainingDays: F01T.displayCompletedTrainingDays,
 };
-const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
+const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
 
 const catalog = exerciseService.listNormalized();
 function fiveXSts(userId, { ms, at, role = null }) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
   return functionalAssessmentService.getById(s.id);
 }
 const u = "home-redesign";

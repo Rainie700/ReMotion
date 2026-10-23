@@ -1,0 +1,16 @@
+<div class="card fa5x-condition-card">
+      <b class="fa5x-section-title">測試條件（使用者回報）</b>
+      <p class="small">尚未回報</p>
+      <ul class="small fa5x-cond-issues"><li>測試條件尚未回報</li></ul>
+      <p class="small fa5x-muted">測試條件由使用者回報，系統沒有驗證；回報不會改變上方的量測結果。</p>
+      <details class="fa5x-cond-form" open="">
+        <summary>確認測試條件</summary>
+        <p class="small">請依實際情況回答。不確定可以選「不確定」，沒有回答的題目也會記為不確定。新的回答會另外保存，先前的回答不會被刪除。</p>
+        <fieldset class="fa5x-cond-q"><legend>起身時有沒有用手撐椅面、扶手、膝蓋或其他物品？</legend><label class="fa5x-cond-option"><input type="radio" name="fa5xCondArms" value="no"> 沒有</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondArms" value="yes"> 有</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondArms" value="unknown"> 不確定</label></fieldset>
+        <fieldset class="fa5x-cond-q"><legend>測試時有沒有人扶你或協助你？</legend><label class="fa5x-cond-option"><input type="radio" name="fa5xCondAssist" value="no"> 沒有</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondAssist" value="yes"> 有</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondAssist" value="unknown"> 不確定</label></fieldset>
+        <fieldset class="fa5x-cond-q" data-same-chair="1"><legend>和初次評估使用同一張椅子嗎？</legend><label class="fa5x-cond-option"><input type="radio" name="fa5xCondSameChair" value="yes"> 是</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondSameChair" value="no"> 不是</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondSameChair" value="unknown"> 不確定</label></fieldset>
+        <label class="small fa5x-cond-q">椅子高度（公分，可不填）<input id="fa5xCondChairCm" type="number" inputmode="decimal" min="20" max="90" step="0.5"></label>
+        <fieldset class="fa5x-cond-q"><legend>由誰回答？</legend><label class="fa5x-cond-option"><input type="radio" name="fa5xCondSource" value="self_report"> 本人</label><label class="fa5x-cond-option"><input type="radio" name="fa5xCondSource" value="caregiver_report"> 家人或照顧者代答</label></fieldset>
+        <button class="btn btn-light full" onclick="submitFa5xConditionReport('functionalAssessment_mviebn73_4_53csad')">儲存測試條件</button>
+      </details>
+    </div>

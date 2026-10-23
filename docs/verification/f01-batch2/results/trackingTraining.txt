@@ -1,0 +1,8 @@
+[analysisService] create listener failed Error: listener boom
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/trackingTraining.test.js:209:57
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/js/data/analysisService.js:104:13
+    at Set.forEach (<anonymous>)
+    at Object.create (file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/js/data/analysisService.js:103:21)
+    at training (file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/trackingTraining.test.js:51:26)
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/trackingTraining.test.js:210:17
+Phase D3 training completion tests passed

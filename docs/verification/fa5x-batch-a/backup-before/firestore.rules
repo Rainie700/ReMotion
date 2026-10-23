@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.role in ['patient', 'therapist'];
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    match /publicUsers/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    function relationDoc(relationId) {
+      return /databases/$(database)/documents/therapistPatientRelations/$(relationId);
+    }
+    // The signed-in user is the therapist of an ACCEPTED relation with data.patientId
+    // (data carries therapistId + relationId).
+    function linked(data) {
+      return data.therapistId == request.auth.uid
+        && exists(relationDoc(data.relationId))
+        && get(relationDoc(data.relationId)).data.patientId == data.patientId
+        && get(relationDoc(data.relationId)).data.therapistId == request.auth.uid
+        && get(relationDoc(data.relationId)).data.status == 'accepted';
+    }
+
+    // ── Therapist ↔ patient relations ─────────────────────────────────────
+    // A relation can only be STARTED by the patient (invite code) — or by the
+    // therapist of an existing relation it just transferred (sourceRelationId).
+    // Either party may end it; only the patient may (re)activate it; the two
+    // parties never change. A third account can neither read nor write it.
+    function isTransfer(data) {
+      return ('sourceRelationId' in data) && data.sourceRelationId is string
+        && get(relationDoc(data.sourceRelationId)).data.therapistId == request.auth.uid
+        && get(relationDoc(data.sourceRelationId)).data.patientId == data.patientId
+        && get(relationDoc(data.sourceRelationId)).data.transferredToTherapistId == data.therapistId;
+    }
+    match /therapistPatientRelations/{id} {
+      allow read: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || resource.data.therapistId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.patientId is string && request.resource.data.therapistId is string
+        && request.resource.data.patientId != request.resource.data.therapistId
+        && ((request.resource.data.patientId == request.auth.uid) || isTransfer(request.resource.data));
+      allow update: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || resource.data.therapistId == request.auth.uid)
+        && request.resource.data.patientId == resource.data.patientId
+        && request.resource.data.therapistId == resource.data.therapistId
+        && (request.resource.data.status != 'accepted' || resource.data.status == 'accepted' || resource.data.patientId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /trackingCycles/{id} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid && request.resource.data.patientId == resource.data.patientId && request.resource.data.userId == resource.data.userId;
+      allow delete: if false;
+    }
+    match /llmWeeklySummaries/{id} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && linked(request.resource.data);
+      allow update: if request.auth != null && linked(resource.data) && linked(request.resource.data) && request.resource.data.patientId == resource.data.patientId;
+      allow delete: if false;
+    }
+
+    // ── Recommendations (first plan, D5 next-stage proposals) ─────────────
+    // Written ONLY by the patient they belong to. A proposal accepted as a
+    // therapist-reviewed plan must carry exactly that review's items and match
+    // its basis (the patient's reported inputs / the rule) — a review of an
+    // older version, or of another patient, authorizes nothing. An accepted
+    // plan's items never change afterwards.
+    function claimsReview(next) {
+      return ('d5' in next) && next.d5 is map
+        && ('confirmation' in next.d5) && next.d5.confirmation is map
+        && ('therapistReviewId' in next.d5.confirmation) && next.d5.confirmation.therapistReviewId is string;
+    }
+    function reviewMatches(docId, next) {
+      let review = get(/databases/$(database)/documents/d5TherapistReviews/$(docId)).data;
+      let relation = get(relationDoc(review.relationId)).data;
+      return next.d5.confirmation.therapistReviewId == docId
+        && review.proposalId == docId
+        && review.patientId == request.auth.uid
+        && review.items == next.items
+        && review.basis.reassessmentId == next.d5.reassessmentId
+        && review.basis.currentLimitations == next.d5.currentLimitations
+        && review.basis.hasNewOrWorseningDiscomfort == next.d5.hasNewOrWorseningDiscomfort
+        && review.basis.decisionRuleId == next.d5.decisionRuleId
+        && relation.therapistId == review.therapistId
+        && relation.patientId == request.auth.uid
+        && relation.status == 'accepted';
+    }
+    // The same accepted, review-backed confirmation carried over unchanged (e.g. linking the next cycle).
+    function keepsAcceptedReview(docId) {
+      return resource != null && resource.data.status == 'accepted' && claimsReview(resource.data)
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.d5.confirmation == resource.data.d5.confirmation;
+    }
+    match /recommendationResults/{id} {
+      // Read stays open to signed-in users: these docs carry no therapistId / relationId,
+      // so a linked therapist's read cannot be scoped here (see the report).
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.patientId == request.auth.uid
+        && (!claimsReview(request.resource.data) || reviewMatches(id, request.resource.data));
+      allow update: if request.auth != null
+        && resource.data.patientId == request.auth.uid
+        && request.resource.data.patientId == resource.data.patientId
+        && (resource.data.status != 'accepted' || request.resource.data.items == resource.data.items)
+        && (!claimsReview(request.resource.data) || keepsAcceptedReview(id) || reviewMatches(id, request.resource.data));
+      allow delete: if request.auth != null && resource.data.patientId == request.auth.uid;
+    }
+
+    // ── Therapist review of a next-stage proposal ─────────────────────────
+    // Only a therapist with an ACCEPTED relation to the proposal's patient may
+    // write it, only for that patient's not-yet-accepted proposal (doc id =
+    // proposal id). The patient can read it, never write it.
+    function reviewTargetsProposal(proposalId, data) {
+      let proposal = get(/databases/$(database)/documents/recommendationResults/$(proposalId)).data;
+      return data.id == proposalId && data.proposalId == proposalId
+        && proposal.patientId == data.patientId
+        && proposal.status != 'accepted';
+    }
+    match /d5TherapistReviews/{proposalId} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && linked(request.resource.data)
+        && reviewTargetsProposal(proposalId, request.resource.data);
+      allow update: if request.auth != null && linked(request.resource.data)
+        && request.resource.data.patientId == resource.data.patientId
+        && reviewTargetsProposal(proposalId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // Other data records are scoped in the client by patientId/therapistId and
+    // are loaded only after authentication. Cross-account clinical sharing for
+    // these needs a relation-aware layer before they can be tightened.
+    match /{collectionName}/{documentId} {
+      allow read, create, update, delete: if request.auth != null
+        && collectionName in [
+          'schedules',
+          'analysisRecords',
+          'patientAssessments',
+          'functionalAssessmentSessions'
+        ];
+    }
+  }
+}

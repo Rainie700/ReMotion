@@ -1,0 +1,50 @@
+{
+  "note": "synthetic local emulator data only (project demo-remotion)",
+  "patient": {
+    "uid": "wXUTdGCi2LtwXU2PSqLPCIzPguQZ",
+    "email": "bv-patient-mviebmv8@local.test"
+  },
+  "therapist": {
+    "uid": "CWLuhCGdeF4WMfn6D4R29SicMdaH",
+    "email": "bv-therapist-mviebmv8@local.test"
+  },
+  "relationId": "bv-rel-1",
+  "sessions": [
+    {
+      "id": "functionalAssessment_mviebn74_5_0xwbtj",
+      "version": "fa5x-assessment-1.0",
+      "ms": 10400,
+      "role": null
+    },
+    {
+      "id": "functionalAssessment_mviebn74_6_n5rsgb",
+      "version": "fa5x-assessment-1.0",
+      "ms": 10100,
+      "role": "reassessment"
+    },
+    {
+      "id": "functionalAssessment_mviebn6b_1_omv7je",
+      "version": "fa5x-assessment-1.1",
+      "ms": 9600,
+      "role": null
+    },
+    {
+      "id": "functionalAssessment_mviebn73_4_53csad",
+      "version": "fa5x-assessment-1.1",
+      "ms": 9100,
+      "role": "reassessment"
+    },
+    {
+      "id": "functionalAssessment_mviebn75_7_juhotu",
+      "version": "fa5x-assessment-1.1",
+      "ms": 8800,
+      "role": null
+    }
+  ],
+  "cycles": [
+    "bv-cycle-1",
+    "trackingCycle_mviebn72_3_gzn4tm"
+  ],
+  "s5": "functionalAssessment_mviebn75_7_juhotu",
+  "r2": "functionalAssessment_mviebn73_4_53csad"
+}

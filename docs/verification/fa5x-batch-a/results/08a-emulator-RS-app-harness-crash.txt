@@ -1,0 +1,37 @@
+$ RULES_PATH=<repo>/firestore.rules REPO=<repo> firebase emulators:exec --only firestore --project demo-remotion "node fa5xRelationSessionCheck.mjs"
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode fa5xRelationSessionCheck.mjs[22m
+preflight FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-remotion ping(127.0.0.1:8080)="Ok"
+[2026-10-21T16:42:01.795Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c2e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:01.866Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c2f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:02.018Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c31 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:02.102Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c32 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:02.183Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c33 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:02.613Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x4add1c3a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+file:///C:/Users/User/AppData/Local/Temp/claude/c--Users-User-Downloads-ReMotion-main--4-/05ba5354-48bf-4dec-b01f-24cf711a0d96/scratchpad/emu/fa5xRelationSessionCheck.mjs:115
+results.push([JSON.stringify(stored.result) === JSON.stringify(completedRec.result) && stored.conditionReports.length === 2 ? "PASS" : "FAIL", "APP stored result unchanged by reports; 2 reports kept"]);
+                                    ^
+
+TypeError: Cannot read properties of undefined (reading 'result')
+    at file:///C:/Users/User/AppData/Local/Temp/claude/c--Users-User-Downloads-ReMotion-main--4-/05ba5354-48bf-4dec-b01f-24cf711a0d96/scratchpad/emu/fa5xRelationSessionCheck.mjs:115:37
+
+Node.js v24.18.0
+[33m[1m! [22m[39m Script exited unsuccessfully (code 1)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
+
+[1m[31mError:[39m[22m Script "[1mnode fa5xRelationSessionCheck.mjs[22m" exited with code 1
+exit=1

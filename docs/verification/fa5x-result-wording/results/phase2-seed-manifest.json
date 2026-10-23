@@ -1,0 +1,14 @@
+{
+  "note": "synthetic local emulator data only (demo-remotion)",
+  "patient": {
+    "uid": "rxi4W0042ervfA3LgxzvS9OvB8pW",
+    "email": "rw-patient-mvieb34p@local.test"
+  },
+  "cases": {
+    "none": "functionalAssessment_mvieb3qj_1_tote32",
+    "unsure": "functionalAssessment_mvieb3qk_2_ov9skb",
+    "assisted": "functionalAssessment_mvieb3qk_3_mzpr8u",
+    "clear": "functionalAssessment_mvieb3qk_4_848bsn",
+    "reassessment": "functionalAssessment_mvieb3ro_8_mevos0"
+  }
+}

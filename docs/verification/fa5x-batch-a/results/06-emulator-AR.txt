@@ -1,0 +1,111 @@
+$ RULES_PATH=<repo>/firestore.rules firebase emulators:exec --only firestore --project demo-remotion "node fa5xSessionRulesCheck.mjs"
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode fa5xSessionRulesCheck.mjs[22m
+[2026-10-21T16:41:08.655Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab730 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'create' @ L185, false for 'create' @ L206
+[2026-10-21T16:41:08.757Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab731 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'create' @ L185, false for 'create' @ L206
+[2026-10-21T16:41:10.237Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab743 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.306Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab744 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.532Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab747 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.599Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab748 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.675Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab749 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.883Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab74b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:10.948Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab74c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.014Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab74d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.079Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab74e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.142Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab74f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.203Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab750 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'create' @ L185, false for 'create' @ L206
+[2026-10-21T16:41:11.276Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab751 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'create' @ L185, false for 'create' @ L206
+[2026-10-21T16:41:11.339Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab752 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.524Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab754 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.774Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab757 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L198, false for 'delete' @ L206
+[2026-10-21T16:41:11.823Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab758 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L198, false for 'delete' @ L206
+[2026-10-21T16:41:11.887Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab759 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:11.958Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab75a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:12.021Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab75b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:12.148Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab75d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:41:12.766Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x8b9ab766 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+PASS | AR1 owner creates own session (no result, empty stamp)
+PASS | AR1 owner reads own session
+PASS | AR1 owner lists own sessions (patientId query)
+PASS | AR2 outsider cannot create a session for the patient
+PASS | AR2 therapist cannot create a session for the patient
+PASS | AR3 outsider cannot read the session
+PASS | AR3 outsider cannot list the whole collection
+PASS | AR3 outsider cannot query by the patient's id
+PASS | AR4 linked therapist reads the stamped session
+PASS | AR4 linked therapist 3-field query
+PASS | AR5 old single-field therapist query is refused
+PASS | AR5 other therapist cannot read
+PASS | AR5 therapist of an ENDED relation cannot read (stamp still on the doc)
+PASS | AR5 stamp naming another patient's relation grants nothing
+PASS | AR5 unstamped session is not readable by the therapist
+PASS | AR5 relation ended after stamping -> therapist read refused
+PASS | AR6 owner stores the result the first time (completeSession)
+PASS | AR6 owner cannot overwrite the stored result
+PASS | AR6 owner cannot remove the stored result
+PASS | AR7 owner appends one condition report
+PASS | AR7 owner appends a second report (first unchanged)
+PASS | AR8 cannot change an earlier report
+PASS | AR8 cannot drop a report
+PASS | AR8 cannot append two reports in one write
+PASS | AR9 report written as someone else is refused
+PASS | AR9 unknown source value is refused
+PASS | AR9 synthetic_demo source is refused
+PASS | AR9 invalid answer value is refused
+PASS | AR9 extra field in a report is refused
+PASS | AR9 a new session cannot start with reports
+PASS | AR10 client cannot create a demoSynthetic session
+PASS | AR10 client cannot add demoSynthetic to its session
+PASS | AR10 client cannot remove an existing demoSynthetic flag
+PASS | AR10 a write keeping the flag unchanged is allowed
+PASS | AR11 owner cannot delete
+PASS | AR11 therapist cannot delete
+PASS | AR12 stamp with an ended relation is refused
+PASS | AR12 stamp with another patient's relation is refused
+PASS | AR12 stamp whose therapist does not match the relation is refused
+PASS | AR13 owner stamps a legacy session with its accepted relation
+PASS | AR13 re-stamp that also changes the result is refused
+PASS | AR13 owner may clear the stamp
+PASS | AR14 5xSTS create
+PASS | AR14 5xSTS completeSession
+PASS | AR14 5xSTS append report
+PASS | AR14 shoulder create
+PASS | AR14 shoulder movement result
+PASS | AR14 shoulder completeSession
+PASS | AR15 linked therapist cannot update the patient's session
+
+49 / 49 rule checks as expected
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
+exit=0

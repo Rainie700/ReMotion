@@ -1,0 +1,3 @@
+$ npm run -s test:reassessment
+Phase D2 reassessment tests passed
+exit=0

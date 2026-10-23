@@ -1,0 +1,15 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-05 placeholder (label + visible text)
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:176:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0

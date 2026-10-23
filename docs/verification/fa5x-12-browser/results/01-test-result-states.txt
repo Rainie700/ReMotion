@@ -1,0 +1,3 @@
+$ npm run -s test:result-states
+Result state UI tests passed
+exit=0

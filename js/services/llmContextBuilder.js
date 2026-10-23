@@ -14,15 +14,20 @@
  *                              confirmedAction = d5.decision, transitions = its selection; an unconfirmed
  *                              proposal never reaches the context (spec §4.2)
  *   reported issues         <- the D5 status check (discomfort, new limitations, confirmation mode)
+ *   therapist review        <- d5TherapistReviews/{proposalId}, only when the accepted proposal names it
+ *                              (d5.confirmation.therapistReviewId): the accepted items are then the
+ *                              therapist's, so transitions and doses follow them, not the rule's proposal
  * Free text (discomfort notes, reasons, user-entered text) is never copied in.
  */
 import { trackingCycleService } from "../data/trackingCycleService.js";
+import { getD5Review } from "../data/d5TherapistReviewService.js";
 import { functionalProgressService } from "../data/functionalProgressService.js";
 import { cycleTrainingPerformanceService } from "../data/cycleTrainingPerformance.js";
 import { recommendationService } from "../data/recommendationService.js";
 import { exerciseService } from "../data/exerciseService.js";
 import { F01_GOALS } from "../data/f01RecommendationSpec.js";
 import { toLocalDateKey } from "../data/trackingCycle.js";
+import { displayCompletedTrainingDays } from "../data/f01DailyTargets.js";
 import { secondsDisplay, differenceDisplay, buildContextFacts } from "./llmSummaryFacts.js";
 import { LLM_SUMMARY_SCHEMA_VERSION, validateVerifiedContext } from "./llmSummarySchema.js";
 
@@ -43,10 +48,11 @@ const clean = (text) => (typeof text === "string" ? text.replace(/[\u0000-\u001f
  *   performance    this cycle's entry of buildCycleTrainingPerformance() (or null)
  *   recommendation the cycle's own recommendation (cycle.recommendationId) or null
  *   proposal       the D5 proposal whose d5.sourceCycleId is this cycle, or null
+ *   review         the d5TherapistReviews doc of that proposal, or null
  *   exerciseName   (exerciseId) => catalog name or null
  * @returns {object} VerifiedContextV1
  */
-export function assembleVerifiedContext({ cycle, week = null, performance = null, recommendation = null, proposal = null, exerciseName = () => null }) {
+export function assembleVerifiedContext({ cycle, week = null, performance = null, recommendation = null, proposal = null, review = null, exerciseName = () => null }) {
   const nameOf = (id, fallback) => clean(exerciseName(id)) || clean(fallback) || id;
 
   let functionalAssessment = null;
@@ -70,7 +76,7 @@ export function assembleVerifiedContext({ cycle, week = null, performance = null
 
   const aiAverage = performance && Number.isFinite(performance.averageAiPostureScore) ? performance.averageAiPostureScore : null;
   const training = {
-    completedDays: week ? week.completedDays : (cycle.completedTrainingDates || []).length,
+    completedDays: week ? week.completedDays : displayCompletedTrainingDays(cycle), // batch 2: null when pending (schema allows null)
     formalRecordCount: performance ? performance.completedTrainingCount : null,
     aiPostureAverage: aiAverage,
     aiPostureScoreAvailable: aiAverage !== null,
@@ -89,7 +95,11 @@ export function assembleVerifiedContext({ cycle, week = null, performance = null
   // Only an ACCEPTED proposal (proposal.status) reaches the context; its stored layers are copied as-is.
   if (d5 && proposal.status === "accepted" && D5_VALUES.has(d5.matrixDecision) && D5_VALUES.has(d5.decision)) {
     const current = d5.currentExerciseIds || [];
-    const proposed = new Set(d5.proposedExerciseIds || []);
+    // Accepted as a therapist-reviewed plan: the stored items ARE the therapist's (copied at acceptance).
+    const confirmation = d5.confirmation || {};
+    const reviewed = !!(review && confirmation.therapistReviewId && confirmation.therapistReviewId === review.id && review.proposalId === proposal.id);
+    const acceptedItems = (proposal.items || []).filter((it) => it && /^F0[1-6]-\d{2}$/.test(it.exerciseId || ""));
+    const proposed = new Set(reviewed ? acceptedItems.map((it) => it.exerciseId) : d5.proposedExerciseIds || []);
     const rep = d5.replacedExercise || null;
     const transitions = [];
     for (const fromId of current) {
@@ -100,6 +110,14 @@ export function assembleVerifiedContext({ cycle, week = null, performance = null
       } // no confirmed target for this exercise -> no transition (never guessed)
     }
     decision = { ruleOutcome: d5.matrixDecision, confirmationStatus: proposal.status, confirmedAction: d5.decision, transitions };
+    if (reviewed) {
+      const n = (v) => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
+      decision.therapistReview = {
+        reviewed: true,
+        changed: (review.changes || []).length > 0,
+        doses: acceptedItems.filter((it) => it.dose).map((it) => ({ exerciseId: it.exerciseId, name: nameOf(it.exerciseId, it.exerciseName), sets: n(it.dose.sets), repetitions: n(it.dose.repetitions), durationSeconds: n(it.dose.durationSeconds) })),
+      };
+    }
   }
 
   const reportedIssues = d5
@@ -142,12 +160,14 @@ export function buildVerifiedWeeklyContext({ userId, cycleId, todayKey = toLocal
   const recommendation = cycle.recommendationId ? recommendationService.getById(cycle.recommendationId) : null;
   const proposal = recommendationService.getF01D5ProposalForCycle(userId, cycle.id);
   const ownProposal = proposal && proposal.patientId === userId ? proposal : null;
+  const review = ownProposal ? getD5Review(ownProposal.id) : null;
   const context = assembleVerifiedContext({
     cycle,
     week,
     performance,
     recommendation: recommendation && recommendation.patientId === userId ? recommendation : null,
     proposal: ownProposal,
+    review: review && review.patientId === userId ? review : null,
     exerciseName: (id) => (exerciseService.getNormalizedById(id) || {}).name || null,
   });
   return { context, facts: buildContextFacts(context), schemaErrors: validateVerifiedContext(context) };

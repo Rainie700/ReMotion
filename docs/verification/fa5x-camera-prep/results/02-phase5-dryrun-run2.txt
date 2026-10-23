@@ -1,0 +1,13 @@
+PASS | A1 red banner 「本機測試資料｜Firebase 模擬器（demo-remotion）｜非正式資料」 is shown | 本機測試資料｜Firebase 模擬器（demo-remotion）｜非正式資料
+PASS | A2 registration through the app's own 建立帳號 form succeeds | 
+PASS | A3 the account exists in the LOCAL Auth emulator (project demo-remotion) | gHyjXtHwgZ8AhBzLADS2r7q9E0Ia
+PASS | A4 login with the new local account reaches the home page | 
+PASS | A5 the user profile document was written to the LOCAL Firestore emulator | 200
+PASS | A6 the browser cache uses only the separate remotion_emulator_ keys (normal remotion_ cache untouched) | remotion_emulator_collection_llmWeeklySummaries,remotion_emulator_collection_d5TherapistReviews,remotion_emulator_collection_trackingCycles,remotion_emulator_collection_recommendationResults,remotion_emulator_collection_therapistPatientRelations,remotion_emula
+PASS | A7 ?fa5xDebug=1 kept in the address bar after login (debug dock will be available on the detection page) | http://localhost:5173/?emulator=1&fa5xDebug=1
+PASS | B1 without ?emulator=1 there is NO red banner (= production configuration; never test there) | 
+PASS | X1 tester page made no request to any non-local host | 
+PASS | X2 no alert / page error on the tester page | 
+control page: non-local hosts it tried (all blocked, nothing sent): none
+
+PHASE5 PASS 10 FAIL 0

@@ -1,0 +1,1 @@
+emulator constant in bundle: var Oie=!1,lh=()=>Oie;`${ch}`

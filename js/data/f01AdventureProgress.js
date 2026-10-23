@@ -97,7 +97,8 @@ function stageDetail(n, ctx) {
     case 2: return { text: "依初次評估選擇訓練目標，建立本週的訓練計畫。", cta: cycle ? { label: "查看本週訓練", action: `goTrackingWeekTraining('${cycle.id}')` } : null };
     // I-4 — 今日訓練 lives on the Training Tab (復健師安排 first, then ReMotion 建議).
     case 3: return { text: "完成第一次本週訓練後，下一個關卡就會解鎖。", cta: { label: "前往今日復健", action: "goSchedule()" } };
-    case 4: return { text: `本週已完成 ${raw.trainingDays} / ${F01_ADVENTURE_STEADY_DAYS} 個訓練日。`, progress: { current: raw.trainingDays, target: F01_ADVENTURE_STEADY_DAYS }, cta: { label: "前往今日復健", action: "goSchedule()" } };
+    // F01 batch 2 §3A — unknown training days (null) are shown as pending, never as 0 / "not trained".
+    case 4: return { ...(Number.isInteger(raw.trainingDays) ? { text: `本週已完成 ${raw.trainingDays} / ${F01_ADVENTURE_STEADY_DAYS} 個訓練日。`, progress: { current: raw.trainingDays, target: F01_ADVENTURE_STEADY_DAYS } } : { text: "本週訓練日待確認（計量方式未定），暫不列入關卡進度。", progress: null }), cta: { label: "前往今日復健", action: "goSchedule()" } };
     case 5: return { text: `完成本週安排後，於第 7 天（${formatDateKeyMonthDay(viewState.plannedReassessmentDateKey)}）進行再次評估。`, cta: { label: "查看本週訓練", action: `goTrackingWeekTraining('${cycle.id}')` } };
     case 6: return { text: "現在可以進行再次評估。", cta: { label: "進行再次評估", action: `goTrackingReassessment('${cycle.id}')` } };
     case 7: return { text: "查看本週前後比較與下一階段建議。", cta: { label: "查看下一階段建議", action: `goD5StatusCheck('${cycle.id}')` } };

@@ -1,0 +1,11 @@
+$ npm run -s test:home-redesign
+<anonymous_script>:33
+  const completedDays = displayCompletedTrainingDays(cycle); // batch 2: null when measurement pending
+                        ^
+
+ReferenceError: displayCompletedTrainingDays is not defined
+    at Object.renderTrackingCycleCard (eval at <anonymous> (file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:49:14), <anonymous>:33:25)
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:77:21
+
+Node.js v24.18.0
+exit=1

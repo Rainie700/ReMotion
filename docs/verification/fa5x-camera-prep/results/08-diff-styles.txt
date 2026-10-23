@@ -1,0 +1,23 @@
+--- docs/verification/fa5x-camera-prep/backup-before/styles.css	2026-10-22 11:25:53.279866200 +0800
++++ styles.css	2026-10-22 11:27:50.023312800 +0800
+@@ -3612,6 +3612,20 @@
+ .d5-review-form { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; }
+ 
+ /* 本機隔離展示 bar (dev server + ?localDemo=d5 only) */
++/* 5xSTS 測試條件表單 (fa5x-camera-prep): each option is one full-width tappable row — radio and text on
++   the same line. Scoped to this form only; the global `input { width:100%; padding:11px }` rule had made
++   each radio full-width and centred, pushing its text to the next line. Markup / names / values unchanged. */
++.fa5x-cond-form { margin-top: 8px; }
++.fa5x-cond-form summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
++.fa5x-cond-form .fa5x-cond-q { border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
++.fa5x-cond-form .fa5x-cond-q legend { padding: 0; margin: 0 0 6px; font-size: 14px; font-weight: 600; line-height: 1.45; white-space: normal; }
++.fa5x-cond-form .fa5x-cond-option { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; min-height: 44px; margin: 6px 0 0; padding: 8px 12px; border: 1px solid #dfe5da; border-radius: 10px; background: #fff; font-size: 15px; line-height: 1.4; cursor: pointer; }
++.fa5x-cond-form .fa5x-cond-option input[type="radio"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; padding: 0; border: 0; accent-color: #5f8d49; cursor: pointer; }
++.fa5x-cond-form .fa5x-cond-option:has(input:checked) { border-color: #5f8d49; background: #eef5e8; }
++.fa5x-cond-form label.fa5x-cond-q { display: flex; flex-direction: column; gap: 6px; }
++.fa5x-cond-form label.fa5x-cond-q input[type="number"] { width: 100%; box-sizing: border-box; }
++.fa5x-cond-form > .btn { margin-top: 14px; }
++
+ /* local browser verification (dev + ?emulator=1 only): page content starts below the 本機測試資料 banner */
+ body.emulator-mode { padding-top: var(--emulator-banner-h, 24px); }
+ body.emulator-mode .phone { height: calc(100dvh - var(--emulator-banner-h, 24px)); }

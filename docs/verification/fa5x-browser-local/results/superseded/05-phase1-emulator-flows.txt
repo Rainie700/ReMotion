@@ -1,0 +1,38 @@
+$ REPO=<repo> RULES_PATH=<repo>/firestore.rules APP_URL=http://localhost:5173/?emulator=1 node phase1-emulator-flows.mjs   (Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080, project demo-remotion)
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+PASS | B1 patient logs in on the emulator (synthetic account) | 
+PASS | B1 banner 本機測試資料 visible after login | 
+PASS | B2 patient login re-stamped all 5 legacy sessions with the accepted relation | 
+PASS | B3 re-stamp left every stored result unchanged | 
+PASS | B4 local cache separated (only remotion_emulator_* keys) | 
+PASS | C1 unreported result shows 觀察時間 + 測試條件尚未回報 | 觀察時間｜測試條件尚未回報
+PASS | C2 hero time unchanged on the page (8.8 秒) | 
+PASS | C3 form has no pre-selected answer | 
+PASS | C4 unanswered questions saved as unknown (never no) | {"schemaVersion":"fa5x-condition-report-1","armsUsed":"unknown","physicalAssistance":"unknown","chairHeightCm":null,"sameChairAsBaseline":"not_applicable","source":"self_report","reportedBy":"iSh6wRl0
+PASS | C4 page lists both 不確定 issues | 
+PASS | C5 explicit 不確定 saved; first report unchanged | 
+PASS | C6 有協助 saved as a third report | 
+PASS | C6 label stays 觀察時間 and names 回報有人協助 | 觀察時間｜回報有人協助
+PASS | C7 stored result unchanged after three reports | 
+PASS | D0 reload: session restored and data re-loaded from the emulator (cache cleared before reload) | 
+PASS | D1 after reload: 3 reports, latest (有協助) shown | 
+      測試條件（使用者回報）
+      本人回報｜沒有用手撐、有人協助｜2026.10.22 01:02（共 3 次回報，以最新一次為準）
+      回報有人協助
+      測試條件由使用者回報，系統沒有驗證；回報不會改變上方的量測結果。
+      
+        補充或更正測試條件
+        
+PASS | D2 after reload: hero time still 8.8 秒 | 
+PASS | D3 emulator copy: result unchanged, 3 reports | 
+PASS | D4 reassessment result asks the same-chair question | 
+PASS | E1 Data chart: line broken between 1.0 and 1.1 points (2 sub-paths) | M 18.0 18.0 L 106.0 35.1 M 194.0 63.5 L 282.0 92.0
+PASS | E2 追蹤歷程: W1 and W2 drawn, no dashed link joining 1.0 week to 1.1 week | ["f01-week-line","f01-week-line"]
+PASS | F1 therapist logs in on the emulator (synthetic account) | 
+PASS | F2 therapist loaded all 5 re-stamped patient sessions | functionalAssessment_mvid1b9v_1_fktr4v,functionalAssessment_mvid1ban_4_4v4l8z,functionalAssessment_mvid1bao_5_ls1i8t,functionalAssessment_mvid1bao_6_s9yp9w,functionalAssessment_mvid1bao_7_lsstbl
+PASS | F3 therapist cache also separated | 
+PASS | G1 no request to any non-local host (whole run) | 
+PASS | G2 no alert / page error during the run | 
+
+PHASE1 PASS 26 FAIL 0
+exit=0

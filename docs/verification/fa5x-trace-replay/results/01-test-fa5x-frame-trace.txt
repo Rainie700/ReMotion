@@ -1,0 +1,2 @@
+5xSTS dev frame trace tests passed
+exit=0

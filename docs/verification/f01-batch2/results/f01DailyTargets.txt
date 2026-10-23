@@ -1,0 +1,1 @@
+F01 batch 1 daily target snapshot tests passed (synthetic data; not a completion-accuracy validation)

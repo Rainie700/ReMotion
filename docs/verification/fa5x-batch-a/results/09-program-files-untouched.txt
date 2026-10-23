@@ -1,0 +1,12 @@
+2026-10-22 00:36:08 docs/verification/fa5x-batch-a/results/01-baseline-npm-test.txt
+2026-10-22 00:09:54 app.js
+2026-10-22 00:07:53 firestore.rules
+2026-10-22 00:12:42 package.json
+2026-10-22 00:06:38 js/data/fa5xConditionReport.js
+2026-10-22 00:06:55 js/data/functionalAssessmentService.js
+2026-10-22 00:07:18 js/data/storageService.js
+2026-10-22 00:08:22 js/data/functionalProgressService.js
+2026-10-22 00:10:37 scripts/seedDemoAccounts.mjs
+2026-10-22 00:11:25 scripts/fa5xSessionRulesCheck.mjs
+2026-10-22 00:12:29 tests/fa5xConditionReport.test.js
+2026-10-22 00:10:08 tests/resultStates.test.js

@@ -192,6 +192,7 @@ export const recommendationService = {
       items: result.items.map((it) => ({ ...it, matchedConditions: it.matchedConditions.map((c) => ({ ...c })) })),
       basis: result.basis.map((b) => ({ ...b })),
       excluded: result.excluded.map((e) => ({ ...e })),
+      ...(result.shortfall ? { shortfall: { ...result.shortfall } } : {}),
       missingExerciseIds: [...result.missingExerciseIds],
       recommendationRuleVersion: result.ruleVersion,
       status: "draft",

@@ -1,0 +1,40 @@
+$ REPO=<repo> RULES_PATH=<repo>/firestore.rules APP_URL=http://localhost:5173/?emulator=1 node phase1-emulator-flows.mjs   (Auth 127.0.0.1:9099 + Firestore 127.0.0.1:8080, project demo-remotion)
+preflight ok: Firestore 127.0.0.1:8080, Auth 127.0.0.1:9099, project demo-remotion
+PASS | B1 patient logs in on the emulator (synthetic account) | 
+PASS | B1 banner 本機測試資料 visible after login | 
+PASS | B2 patient login re-stamped all 5 legacy sessions with the accepted relation | 
+PASS | B3 re-stamp left every stored result unchanged | 
+PASS | B4 local cache separated (only remotion_emulator_* keys) | 
+PASS | C1 unreported result shows 觀察時間 + 測試條件尚未回報 | 觀察時間｜測試條件尚未回報
+PASS | C2 hero time unchanged on the page (8.8 秒) | 
+PASS | C3 form has no pre-selected answer | 
+PASS | C4 unanswered questions saved as unknown (never no) | {"schemaVersion":"fa5x-condition-report-1","armsUsed":"unknown","physicalAssistance":"unknown","chairHeightCm":null,"sameChairAsBaseline":"not_applicable","source":"self_report","reportedBy":"tOt2lRLX
+PASS | C4 page lists both 不確定 issues | 
+PASS | C5 explicit 不確定 saved; first report unchanged | 
+PASS | C6 有協助 saved as a third report | 
+PASS | C6 label stays 觀察時間 and names 回報有人協助 | 觀察時間｜回報有人協助
+PASS | C7 stored result unchanged after three reports | 
+PASS | D1 after reload: 3 reports, latest (有協助) shown | 
+      測試條件（使用者回報）
+      本人回報｜沒有用手撐、有人協助｜2026.10.22 01:01（共 3 次回報，以最新一次為準）
+      回報有人協助
+      測試條件由使用者回報，系統沒有驗證；回報不會改變上方的量測結果。
+      
+    
+PASS | D2 after reload: hero time still 8.8 秒 | 
+PASS | D3 emulator copy: result unchanged, 3 reports | 
+FAIL | D4 reassessment result asks the same-chair question | no .fa5x-cond-form on the reassessment result (card saved to d4-reassessment-card.html)
+FAIL | harness crashed | page.evaluate: TypeError: Cannot read properties of null (reading 'role')
+    at renderDashboard (http://localhost:5173/app.js:5234:22)
+    at render (http://localhost:5173/app.js:13493:191)
+    at render (http://localhost:5173/app.js:13893:160)
+    at render (http://localhost:5173/app.js:13908:160)
+    at render (http://localhost:5173/app.js:13928:160)
+    at render (http://localhost:5173/app.js:13948:160)
+    at render (http://localhost:5173/app.js:13968:160)
+    at render (http://localhost:5173/app.js:13988:160)
+    at render (http://localhost:5173/app.js:14006:160)
+    at render (http://localhost:5173/app.js:14024:160)
+
+PHASE1 PASS 17 FAIL 2
+exit=1

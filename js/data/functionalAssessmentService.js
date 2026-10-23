@@ -1,5 +1,6 @@
 import { createCollection } from "./storageService.js";
 import { generateId, nowIso } from "../utils/id.js";
+import { FA5X_CONDITION_REPORT_SCHEMA, validateFa5xConditionAnswers } from "./fa5xConditionReport.js";
 
 /**
  * ReMotion 2.0 Phase 7.1 — Functional Assessment Session shell.
@@ -172,6 +173,33 @@ export const functionalAssessmentService = {
     if (result) patch.result = result;
     const updated = functionalAssessmentSessionsCollection.update(sessionId, patch);
     return { session: updated };
+  },
+  /**
+   * F01-A01 五次坐站 (batch A) — APPENDS one test-condition report to
+   * `session.conditionReports` (a list next to `session.result`). Never reads
+   * or writes `result`, `status`, or any earlier report.
+   *
+   * App-side rules only: `reportedBy` must be the session's own patient, the
+   * session must be a 5xSTS session whose measurement is stored, answers must
+   * be valid (an unanswered question is passed as "unknown", never "no").
+   * Whether the cloud copy really cannot be overwritten depends on
+   * firestore.rules being deployed and verified — this method does not and
+   * cannot guarantee that. A report is a user statement, not a verification.
+   * @returns {{ session, report } | { error: string }}
+   */
+  appendFa5xConditionReport(sessionId, answers, { reportedBy } = {}) {
+    const session = sessionId ? functionalAssessmentSessionsCollection.getById(sessionId) : null;
+    if (!session) return { error: "session_not_found" };
+    if (resolveAssessmentType(session) !== FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND) return { error: "not_5xsts" };
+    if (!session.result) return { error: "measurement_missing" };
+    if (!reportedBy || reportedBy !== session.patientId) return { error: "reporter_not_owner" };
+    const valid = validateFa5xConditionAnswers(answers);
+    if (!valid.ok) return { error: valid.error };
+    const report = { schemaVersion: FA5X_CONDITION_REPORT_SCHEMA, ...valid.answers, reportedBy, reportedAt: nowIso() };
+    const before = Array.isArray(session.conditionReports) ? session.conditionReports : [];
+    // Only `conditionReports` is in the patch: the stored measurement is not touched.
+    const updated = functionalAssessmentSessionsCollection.update(sessionId, { conditionReports: [...before, report] });
+    return { session: updated, report };
   },
   /**
    * All completed sessions for a patient, newest first (by completedAt,

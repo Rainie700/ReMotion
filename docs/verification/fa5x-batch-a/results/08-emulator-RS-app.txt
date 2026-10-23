@@ -1,0 +1,65 @@
+$ RULES_PATH=<repo>/firestore.rules REPO=<repo> firebase emulators:exec --only firestore --project demo-remotion "node fa5xRelationSessionCheck.mjs"
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode fa5xRelationSessionCheck.mjs[22m
+preflight FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-remotion ping(127.0.0.1:8080)="Ok"
+[2026-10-21T16:42:33.594Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fda error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:33.668Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fdb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:33.824Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fdd error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:33.902Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fde error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:33.981Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fdf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+[2026-10-21T16:42:34.441Z]  @firebase/firestore: Firestore (13.1.0): GrpcConnection RPC 'Write' stream 0x340d7fe6 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L185:24 for 'create' @ L185, false for 'create' @ L206, evaluation error at L191:24 for 'update' @ L191, false for 'update' @ L206, false for 'update' @ L191, false for 'update' @ L206
+PASS | R-S1 patient creates accepted relation with T
+PASS | R-S1 patient writes a session stamped with rel-a
+PASS | R-S1 T reads the stamped session
+PASS | R-S1 T 3-field query (storageService shape)
+ALLOWED-RISK | R-S2 patient creates an ACCEPTED relation with T2 without invite / consent
+ALLOWED-RISK | R-S2 ...and T2 then reads a session stamped with it
+PASS | R-S3 T ends rel-a
+PASS | R-S3 T single read after end refused
+PASS | R-S3 T 3-field query after end refused
+PASS | R-S4 patient re-activates rel-a
+PASS | R-S4 T reads again after re-activation
+PASS | R-S5 T2 query with T's relationId refused
+PASS | R-S5 T2 query claiming itself on rel-a refused
+PASS | R-S10 T2 single read of T-stamped session refused
+PASS | R-S6 T rewrites stamp on patient's session refused
+PASS | R-S6 T2 re-stamps session to itself refused
+PASS | R-S7 stamp with another patient's relation refused
+PASS | R-S7 stamp with an ended relation refused
+PASS | R-S7 stamp with mismatched therapist refused
+PASS | R-S8 T (stamped) reads
+PASS | R-S8 T2 (accepted rel-b but not stamped on s1) refused
+ALLOWED-RISK | R-S9 T sets transferredToTherapistId=T3 on its own relation
+ALLOWED-RISK | R-S9 T creates an ACCEPTED transfer relation for T3
+ALLOWED-RISK | R-S9 patient app stamps a session with rel-tr (as a first-found accepted relation)
+ALLOWED-RISK | R-S9 T3 reads that session
+PASS | R-S11 patient restamp to an ended relation refused
+PASS | APP 5xSTS create (real record)
+PASS | APP 5xSTS completeSession (real record)
+PASS | APP 5xSTS appendFa5xConditionReport (real record)
+PASS | APP 5xSTS second report (real record)
+PASS | APP restamp-only write keeps everything (same doc)
+PASS | APP shoulder create (real record)
+PASS | APP shoulder movement result (real record)
+PASS | APP shoulder completeSession (real record)
+PASS | APP therapist login query (storageService shape) returns both
+PASS | APP stored result unchanged by reports; 2 reports kept
+
+PASS 30, FAIL 0, ALLOWED-RISK 6, REFUSED(observed) 0
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
+exit=0

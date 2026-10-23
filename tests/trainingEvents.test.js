@@ -1,6 +1,7 @@
 process.env.TZ = "Asia/Taipei"; // local-date semantics are asserted for the app's real audience
 
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -143,7 +144,7 @@ const f01Ctx = { sourceType: "remotion", sourceSubtype: "f01_cycle", trackingCyc
   const u = "f01-guard";
   const catalog = exerciseService.listNormalized();
   const s = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, totalDurationMs: 9000, measuredAt: new Date(2026, 8, 28, 9).toISOString() } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, totalDurationMs: 9000, measuredAt: new Date(2026, 8, 28, 9).toISOString() } });
   const baseline = functionalAssessmentService.getById(s.id);
   const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: baseline.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G05", availableMinutes: 10, catalog });
   const recommendation = recommendationService.createF01GoalRecommendation({ patientId: u, result: r }).recommendation;
@@ -174,7 +175,7 @@ const f01Ctx = { sourceType: "remotion", sourceSubtype: "f01_cycle", trackingCyc
   // ── 7. Functional progress: valid completed 5xSTS totalDurationMs only ──
   const mk = (status, ms, day, role = null) => {
     const x = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-    functionalAssessmentService.completeSession(x.id, { result: { status, repCount: status === "completed" ? 5 : 2, totalDurationMs: ms, repDurationsMs: [1, 1, 1, 1, 1], measuredAt: new Date(2026, 9, day, 9).toISOString(), ...(role || {}) } });
+    functionalAssessmentService.completeSession(x.id, { result: { ...FA5X_M, status, repCount: status === "completed" ? 5 : 2, totalDurationMs: ms, repDurationsMs: [1, 1, 1, 1, 1], measuredAt: new Date(2026, 9, day, 9).toISOString(), ...(role || {}) } });
     return functionalAssessmentService.getById(x.id);
   };
   mk("incomplete", null, 3);

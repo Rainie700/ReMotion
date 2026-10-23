@@ -55,6 +55,10 @@ export function buildContextFacts(ctx) {
     add("decision.confirmation_status", "decision.confirmationStatus", d.confirmationStatus);
     add("decision.confirmed_action", "decision.confirmedAction", d.confirmedAction);
     (d.transitions || []).forEach((tr, i) => add(`transition.${tr.fromExerciseId}`, `decision.transitions[${i}]`, `${tr.fromExerciseId}->${tr.toExerciseId}`));
+    if (d.therapistReview) {
+      add("decision.therapist_review", "decision.therapistReview.reviewed", true);
+      d.therapistReview.doses.forEach((x, i) => add(`dose.${x.exerciseId}`, `decision.therapistReview.doses[${i}]`, x.exerciseId));
+    }
   }
   const r = ctx.reportedIssues || {};
   add("issues.new_discomfort", "reportedIssues.newDiscomfort", r.newDiscomfort);
@@ -67,10 +71,10 @@ export function buildContextFacts(ctx) {
  * Normalized numerical allowlist of a context, by unit kind. schemaVersion is
  * never a source (it is not a measurement). Values only exist when the
  * context has them (a null reassessment adds nothing).
- * @returns {{ seconds:Set<number>, ms:Set<number>, days:Set<number>, records:Set<number>, score:Set<number>, week:Set<number>, count:Set<number>, any:Set<number> }}
+ * @returns {{ seconds:Set<number>, ms:Set<number>, days:Set<number>, records:Set<number>, score:Set<number>, week:Set<number>, count:Set<number>, dose:Set<number>, any:Set<number> }}
  */
 export function buildNumberAllowlist(ctx) {
-  const k = { seconds: new Set(), ms: new Set(), days: new Set(), records: new Set(), score: new Set(), week: new Set(), count: new Set() };
+  const k = { seconds: new Set(), ms: new Set(), days: new Set(), records: new Set(), score: new Set(), week: new Set(), count: new Set(), dose: new Set() };
   const fa = ctx && ctx.functionalAssessment;
   if (fa && fa.valid) {
     for (const ms of [fa.baselineMs, fa.reassessmentMs]) if (Number.isFinite(ms)) { k.ms.add(ms); k.seconds.add(oneDecimal(ms)); }
@@ -88,7 +92,12 @@ export function buildNumberAllowlist(ctx) {
   if (exercises.length) k.count.add(exercises.length);
   const transitions = (ctx && ctx.decision && ctx.decision.transitions) || [];
   if (transitions.length) k.count.add(transitions.length);
-  const any = new Set([...k.seconds, ...k.ms, ...k.days, ...k.records, ...k.score, ...k.week, ...k.count]);
+  // training amounts a therapist set in the accepted plan (組 / 下; a hold time is also 秒)
+  for (const x of (ctx && ctx.decision && ctx.decision.therapistReview && ctx.decision.therapistReview.doses) || []) {
+    for (const v of [x.sets, x.repetitions, x.durationSeconds]) if (Number.isInteger(v)) k.dose.add(v);
+    if (Number.isInteger(x.durationSeconds)) k.seconds.add(x.durationSeconds);
+  }
+  const any = new Set([...k.seconds, ...k.ms, ...k.days, ...k.records, ...k.score, ...k.week, ...k.count, ...k.dose]);
   return { ...k, any };
 }
 

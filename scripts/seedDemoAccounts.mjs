@@ -177,7 +177,8 @@ async function main() {
     // patientAssessments / functionalAssessmentSessions are keyed by patientId only
     for (const pid of [patientUid, ...SHOWCASE.map((s) => s.pid)]) {
       removed += await deleteDemoBy(dbT, "patientAssessments", "patientId", pid);
-      removed += await deleteDemoBy(dbT, "functionalAssessmentSessions", "patientId", pid);
+      // 5xSTS batch A rules: functionalAssessmentSessions can no longer be listed by another
+      // account or deleted by anyone from a client — prior demo sessions are left in place.
       removed += await deleteDemoBy(dbT, "schedules", "patientId", pid);
       removed += await deleteDemoBy(dbT, "analysisRecords", "patientId", pid);
       removed += await deleteDemoBy(dbT, "therapistPatientRelations", "patientId", pid);
@@ -253,8 +254,11 @@ async function main() {
     { ...assessmentDoc({ id: `assessment${MARK}p0`, patientId: patientUid, bodyParts: ["下肢", "上肢肩部"], goals: ["肌力", "關節活動度"] }) });
   const p0Fa = `fa${MARK}p0_shoulder`;
   const faSide = (deg) => ({ completed: true, peakROM: { deg }, status: "completed", measurementQuality: { valid: true }, statusReason: null });
-  await setDoc(doc(dbT, "functionalAssessmentSessions", p0Fa), {
-    id: p0Fa, patientId: patientUid, bodyRegion: "shoulder", status: "completed",
+  // 5xSTS batch A rules: only the patient's own account may create its assessment sessions
+  // (was written with the therapist account). Empty relation stamp: the patient app stamps
+  // the current accepted relation at its next login, after which the therapist can read it.
+  await setDoc(doc(dbP, "functionalAssessmentSessions", p0Fa), {
+    id: p0Fa, patientId: patientUid, therapistId: "", relationId: "", bodyRegion: "shoulder", status: "completed",
     startedAt: iso(atDaysAgo(8, 11)), completedAt: iso(atDaysAgo(8, 11)),
     problemId: "P-SH-03", protocolMovementIds: ["A01", "A02"],
     movementResults: [
@@ -323,7 +327,10 @@ async function main() {
       }
     }
 
-    if (s.shoulderFa) {
+    if (s.shoulderFa && process.env.SEED_SHOWCASE_SESSIONS_UNDER_OLD_RULES === "1") {
+      // 5xSTS batch A rules: a showcase patient has no Auth account, so NO client account may
+      // create its assessment session any more (owner-only create). Skipped by default; the
+      // env flag only exists for a project still running the pre-batch-A rules.
       const faId = `fa${MARK}${s.pid}_shoulder`;
       await setDoc(doc(dbT, "functionalAssessmentSessions", faId), {
         id: faId, patientId: s.pid, bodyRegion: "shoulder", status: "completed",
@@ -334,6 +341,8 @@ async function main() {
         ],
       });
       fas += 1;
+    } else if (s.shoulderFa) {
+      console.log(`• skipped ${s.name}'s shoulder assessment session: batch-A rules allow only the patient's own account to create it (showcase patients have none)`);
     }
   }
 

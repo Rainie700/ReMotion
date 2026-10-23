@@ -1,0 +1,1 @@
+F01 batch 1 gap coverage (homeResultRedesign §4b, exerciseExperience app wiring) tests passed

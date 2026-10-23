@@ -1,0 +1,126 @@
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/01-complete.json
+五次坐站紀錄重播：重現成功：每個判定幀與結束結果都一致
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+重播 299 幀、略過 0 幀、1 段判定
+  第 1 段（299 幀）紀錄：5 次｜completed｜總時間 11748 ms
+  第 1 段（299 幀）重播：5 次｜completed｜總時間 11748 ms
+exit=0
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/02-tampered-decision.json
+五次坐站紀錄重播：不一致：重播結果與紀錄不同
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+重播 299 幀、略過 0 幀、1 段判定
+  第 1 段（299 幀）紀錄：5 次｜completed｜總時間 11748 ms
+  第 1 段（299 幀）重播：5 次｜completed｜總時間 11748 ms
+第一個不一致：第 1 段 seq 249（判定幀 #247、t = 17368 ms、步驟 rep_counted）欄位 after.completedReps：紀錄 99 ≠ 重播 3
+exit=1
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/03-tampered-input.json
+五次坐站紀錄重播：不一致：重播結果與紀錄不同
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+重播 299 幀、略過 0 幀、1 段判定
+  第 1 段（299 幀）紀錄：5 次｜completed｜總時間 11748 ms
+  第 1 段（299 幀）重播：5 次｜completed｜總時間 11748 ms
+第一個不一致：第 1 段 seq 189（判定幀 #187、t = 13408 ms、步驟 standing_confirmed）欄位 after.repState：紀錄 "standing" ≠ 重播 "rising"
+exit=1
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/04-mid-run-start.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+⚠ 中途開始記錄：缺少判定開頭
+⚠ 沒有可從開頭重播的判定段落
+重播 0 幀、略過 99 幀、0 段判定
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/05-frame-gap.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+⚠ 判定幀序號不連續 1 處
+⚠ seq 252 判定幀序號跳號（預期 250，實際 255）
+⚠ 有 44 個判定幀無法從其所屬判定的開頭重播（中途開始或跳號）
+⚠ 最後一段判定沒有結束事件，無法比對結束狀態與總時間
+重播 250 幀、略過 44 幀、1 段判定
+  第 1 段（250 幀）紀錄：3 次｜未結束｜總時間 — ms
+  第 1 段（250 幀）重播：3 次｜未結束｜總時間 — ms
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/06-capacity-truncated.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+⚠ 容量截斷：略過 99 幀、0 個事件
+⚠ 最後一段判定沒有結束事件，無法比對結束狀態與總時間
+重播 200 幀、略過 0 幀、1 段判定
+  第 1 段（200 幀）紀錄：1 次｜未結束｜總時間 — ms
+  第 1 段（200 幀）重播：1 次｜未結束｜總時間 — ms
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/07-event-truncated.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+⚠ 容量截斷：略過 0 幀、14 個事件
+⚠ 最後一段判定沒有結束事件，無法比對結束狀態與總時間
+重播 299 幀、略過 0 幀、1 段判定
+  第 1 段（299 幀）紀錄：0 次｜未結束｜總時間 — ms
+  第 1 段（299 幀）重播：5 次｜completed｜總時間 11748 ms
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/08-format-1.0.json
+五次坐站紀錄重播：不支援：未重播
+格式 fa5x-frame-trace-1.0｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+✗ 不支援的格式版本：fa5x-frame-trace-1.0；支援 fa5x-frame-trace-1.1（1.0 沒有判定幀序號與開始／結束標記，無法確認完整性）
+exit=3
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/09-other-algorithm.json
+五次坐站紀錄重播：不支援：未重播
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.0｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+✗ 演算法版本不同：紀錄為 fa5x-assessment-1.0，目前判定器為 fa5x-assessment-1.1；不同版本的判定程式無法用來重現
+exit=3
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/10-user-cancelled.json
+五次坐站紀錄重播：重現成功：每個判定幀與結束結果都一致
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 user_cancelled
+重播 185 幀、略過 0 幀、1 段判定
+  第 1 段（185 幀）紀錄：1 次｜incomplete/user_cancelled｜總時間 — ms
+  第 1 段（185 幀）重播：1 次｜incomplete/user_cancelled｜總時間 — ms
+exit=0
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/11-manual-stop.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 manual_stop
+⚠ 手動停止記錄
+⚠ 最後一段判定沒有結束事件，無法比對結束狀態與總時間
+重播 260 幀、略過 0 幀、1 段判定
+  第 1 段（260 幀）紀錄：3 次｜未結束｜總時間 — ms
+  第 1 段（260 幀）重播：3 次｜未結束｜總時間 — ms
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/12-still-recording.json
+五次坐站紀錄重播：無法確認重現：已重播的部分一致，但紀錄不完整，不能宣稱重現成功
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 still_recording
+⚠ 匯出時仍在記錄中，紀錄可能未涵蓋結束
+⚠ 最後一段判定沒有結束事件，無法比對結束狀態與總時間
+重播 260 幀、略過 0 幀、1 段判定
+  第 1 段（260 幀）紀錄：3 次｜未結束｜總時間 — ms
+  第 1 段（260 幀）重播：3 次｜未結束｜總時間 — ms
+exit=2
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/13-tracking-lost-invalid.json
+五次坐站紀錄重播：重現成功：每個判定幀與結束結果都一致
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+重播 214 幀、略過 0 幀、1 段判定
+  第 1 段（214 幀）紀錄：1 次｜invalid/tracking_lost｜總時間 — ms
+  第 1 段（214 幀）重播：1 次｜invalid/tracking_lost｜總時間 — ms
+exit=0
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/14-frame-changed-invalid.json
+五次坐站紀錄重播：重現成功：每個判定幀與結束結果都一致
+格式 fa5x-frame-trace-1.1｜紀錄演算法 fa5x-assessment-1.1｜重播判定器 fa5x-assessment-1.1｜結束類型 run_finished
+重播 184 幀、略過 0 幀、1 段判定
+  第 1 段（184 幀）紀錄：1 次｜invalid/frame_changed｜總時間 — ms
+  第 1 段（184 幀）重播：1 次｜invalid/frame_changed｜總時間 — ms
+exit=0
+
+$ npm run -s replay:fa5x-trace -- docs/verification/fa5x-trace-replay/results/e2e-traces/15-not-json.json
+無法讀取或解析 docs/verification/fa5x-trace-replay/results/e2e-traces/15-not-json.json：Expected property name or '}' in JSON at position 2 (line 1 column 3)
+exit=3
+

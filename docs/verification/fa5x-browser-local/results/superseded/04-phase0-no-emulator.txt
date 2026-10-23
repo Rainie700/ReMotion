@@ -1,0 +1,9 @@
+$ APP_URL=http://localhost:5173/?emulator=1 node phase0-no-emulator.mjs   (emulators NOT running)
+PASS | P0-1 page blocked when emulators are unreachable | 無法連線本機 Firebase 模擬器（auth、firestore）。已停止：不會登入、不會讀寫資料，也不會改連正式環境。請啟動模擬器後重新整理。
+PASS | P0-2 本機測試資料 banner shown | 
+PASS | P0-3 no login form became usable behind the block | 
+PASS | P0-4 no request to any non-local host | 
+PASS | P0-5 no production cache keys written | remotion_emulator_collection_users
+
+PHASE0 PASS 5 FAIL 0
+exit=0

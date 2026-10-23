@@ -1,0 +1,18 @@
+import assert from "node:assert/strict";
+import {createBedRollingSession} from "../js/ai/exercises/bedRolling/session.js";
+import {calculateBedRollingScore} from "../js/ai/exercises/bedRolling/score.js";
+const s=createBedRollingSession({targetPerSide:1});
+const supine={bodyReady:true,shoulderWidthRatio:1,hipWidthRatio:1,leftKneeFlexionDeg:70,rightKneeFlexionDeg:5,noseOffset:0};
+const side=(noseOffset)=>({...supine,shoulderWidthRatio:.6,hipWidthRatio:.62,noseOffset});
+s.processFrame({timestamp:0,...supine});
+for(let t=100;t<=400;t+=100)s.processFrame({timestamp:t,...side(-.2)});
+let result=s.processFrame({timestamp:900,...supine});
+assert.equal(result.completedRep.direction,"left");
+assert.equal(result.summary.leftReps,1);
+for(let t=1000;t<=1300;t+=100)s.processFrame({timestamp:t,...side(.2)});
+result=s.processFrame({timestamp:1800,...supine});
+assert.equal(result.completedRep.direction,"right");
+assert.equal(result.summary.rightReps,1);
+assert.equal(result.summary.completed,true);
+assert.ok(calculateBedRollingScore(result.summary).score>=0);
+console.log("AD01 bed-rolling session tests passed");

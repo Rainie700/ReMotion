@@ -13,13 +13,45 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.auth.uid == userId;
       allow delete: if false;
     }
+    function relationDoc(relationId) {
+      return /databases/$(database)/documents/therapistPatientRelations/$(relationId);
+    }
+    // The signed-in user is the therapist of an ACCEPTED relation with data.patientId
+    // (data carries therapistId + relationId).
     function linked(data) {
       return data.therapistId == request.auth.uid
-        && exists(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId))
-        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.patientId == data.patientId
-        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.therapistId == request.auth.uid
-        && get(/databases/$(database)/documents/therapistPatientRelations/$(data.relationId)).data.status == 'accepted';
+        && exists(relationDoc(data.relationId))
+        && get(relationDoc(data.relationId)).data.patientId == data.patientId
+        && get(relationDoc(data.relationId)).data.therapistId == request.auth.uid
+        && get(relationDoc(data.relationId)).data.status == 'accepted';
     }
+
+    // ── Therapist ↔ patient relations ─────────────────────────────────────
+    // A relation can only be STARTED by the patient (invite code) — or by the
+    // therapist of an existing relation it just transferred (sourceRelationId).
+    // Either party may end it; only the patient may (re)activate it; the two
+    // parties never change. A third account can neither read nor write it.
+    function isTransfer(data) {
+      return ('sourceRelationId' in data) && data.sourceRelationId is string
+        && get(relationDoc(data.sourceRelationId)).data.therapistId == request.auth.uid
+        && get(relationDoc(data.sourceRelationId)).data.patientId == data.patientId
+        && get(relationDoc(data.sourceRelationId)).data.transferredToTherapistId == data.therapistId;
+    }
+    match /therapistPatientRelations/{id} {
+      allow read: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || resource.data.therapistId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.patientId is string && request.resource.data.therapistId is string
+        && request.resource.data.patientId != request.resource.data.therapistId
+        && ((request.resource.data.patientId == request.auth.uid) || isTransfer(request.resource.data));
+      allow update: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || resource.data.therapistId == request.auth.uid)
+        && request.resource.data.patientId == resource.data.patientId
+        && request.resource.data.therapistId == resource.data.therapistId
+        && (request.resource.data.status != 'accepted' || resource.data.status == 'accepted' || resource.data.patientId == request.auth.uid);
+      allow delete: if false;
+    }
+
     match /trackingCycles/{id} {
       allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
       allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid && request.resource.data.userId == request.auth.uid;
@@ -32,18 +64,150 @@ service cloud.firestore {
       allow update: if request.auth != null && linked(resource.data) && linked(request.resource.data) && request.resource.data.patientId == resource.data.patientId;
       allow delete: if false;
     }
-    // Data records are scoped in the client by patientId/therapistId and are
-    // loaded only after authentication. Cross-account clinical sharing needs
-    // a relation-aware server layer before these rules can be tightened.
+
+    // ── Recommendations (first plan, D5 next-stage proposals) ─────────────
+    // Written ONLY by the patient they belong to. A proposal accepted as a
+    // therapist-reviewed plan must carry exactly that review's items and match
+    // its basis (the patient's reported inputs / the rule) — a review of an
+    // older version, or of another patient, authorizes nothing. An accepted
+    // plan's items never change afterwards.
+    function claimsReview(next) {
+      return ('d5' in next) && next.d5 is map
+        && ('confirmation' in next.d5) && next.d5.confirmation is map
+        && ('therapistReviewId' in next.d5.confirmation) && next.d5.confirmation.therapistReviewId is string;
+    }
+    function reviewMatches(docId, next) {
+      let review = get(/databases/$(database)/documents/d5TherapistReviews/$(docId)).data;
+      let relation = get(relationDoc(review.relationId)).data;
+      return next.d5.confirmation.therapistReviewId == docId
+        && review.proposalId == docId
+        && review.patientId == request.auth.uid
+        && review.items == next.items
+        && review.basis.reassessmentId == next.d5.reassessmentId
+        && review.basis.currentLimitations == next.d5.currentLimitations
+        && review.basis.hasNewOrWorseningDiscomfort == next.d5.hasNewOrWorseningDiscomfort
+        && review.basis.decisionRuleId == next.d5.decisionRuleId
+        && relation.therapistId == review.therapistId
+        && relation.patientId == request.auth.uid
+        && relation.status == 'accepted';
+    }
+    // The same accepted, review-backed confirmation carried over unchanged (e.g. linking the next cycle).
+    function keepsAcceptedReview(docId) {
+      return resource != null && resource.data.status == 'accepted' && claimsReview(resource.data)
+        && request.resource.data.items == resource.data.items
+        && request.resource.data.d5.confirmation == resource.data.d5.confirmation;
+    }
+    match /recommendationResults/{id} {
+      // Read stays open to signed-in users: these docs carry no therapistId / relationId,
+      // so a linked therapist's read cannot be scoped here (see the report).
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.patientId == request.auth.uid
+        && (!claimsReview(request.resource.data) || reviewMatches(id, request.resource.data));
+      allow update: if request.auth != null
+        && resource.data.patientId == request.auth.uid
+        && request.resource.data.patientId == resource.data.patientId
+        && (resource.data.status != 'accepted' || request.resource.data.items == resource.data.items)
+        && (!claimsReview(request.resource.data) || keepsAcceptedReview(id) || reviewMatches(id, request.resource.data));
+      allow delete: if request.auth != null && resource.data.patientId == request.auth.uid;
+    }
+
+    // ── Therapist review of a next-stage proposal ─────────────────────────
+    // Only a therapist with an ACCEPTED relation to the proposal's patient may
+    // write it, only for that patient's not-yet-accepted proposal (doc id =
+    // proposal id). The patient can read it, never write it.
+    function reviewTargetsProposal(proposalId, data) {
+      let proposal = get(/databases/$(database)/documents/recommendationResults/$(proposalId)).data;
+      return data.id == proposalId && data.proposalId == proposalId
+        && proposal.patientId == data.patientId
+        && proposal.status != 'accepted';
+    }
+    match /d5TherapistReviews/{proposalId} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && linked(request.resource.data)
+        && reviewTargetsProposal(proposalId, request.resource.data);
+      allow update: if request.auth != null && linked(request.resource.data)
+        && request.resource.data.patientId == resource.data.patientId
+        && reviewTargetsProposal(proposalId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── Functional assessment sessions (5xSTS + shoulder) — 5xSTS batch A ──
+    // Design: docs/verification/fa5x-criteria-evidence/RESULT_USABILITY_DESIGN.md (第四版 A 批).
+    // Owner (patientId) reads / writes; a therapist reads only through a CURRENTLY
+    // accepted relation (linked() re-reads the relation document every time — the
+    // therapistId / relationId stamp on the session alone grants nothing).
+    // A stored measurement `result` never changes once set; `conditionReports` can
+    // only grow by ONE report per write, written by the owner, earlier reports
+    // unchanged; the demo flag cannot be set or changed by a client; no deletes.
+    // NOT VERIFIED until run on the emulator (scripts/fa5xSessionRulesCheck.mjs) —
+    // in particular the list-range comparison in sessionReportsAppendOnly().
+    function sessionStampOk(data) {
+      return (data.get('therapistId', '') == '' && data.get('relationId', '') == '')
+        || (data.get('relationId', '') is string && data.get('relationId', '') != ''
+          && exists(relationDoc(data.relationId))
+          && get(relationDoc(data.relationId)).data.patientId == data.patientId
+          && get(relationDoc(data.relationId)).data.therapistId == data.get('therapistId', '')
+          && get(relationDoc(data.relationId)).data.status == 'accepted');
+    }
+    function sessionReports(data) {
+      return data.get('conditionReports', []);
+    }
+    function validNewConditionReport(r) {
+      return r is map
+        && r.keys().hasOnly(['schemaVersion', 'armsUsed', 'physicalAssistance', 'chairHeightCm', 'sameChairAsBaseline', 'source', 'reportedBy', 'reportedAt'])
+        && r.keys().hasAll(['schemaVersion', 'armsUsed', 'physicalAssistance', 'sameChairAsBaseline', 'source', 'reportedBy', 'reportedAt'])
+        && r.schemaVersion == 'fa5x-condition-report-1'
+        && r.armsUsed in ['no', 'yes', 'unknown']
+        && r.physicalAssistance in ['no', 'yes', 'unknown']
+        && r.sameChairAsBaseline in ['yes', 'no', 'unknown', 'not_applicable']
+        && r.source in ['self_report', 'caregiver_report']
+        && r.reportedBy == request.auth.uid
+        && r.reportedAt is string
+        && (r.get('chairHeightCm', null) == null || r.get('chairHeightCm', null) is number);
+    }
+    function sessionReportsAppendOnly() {
+      let before = sessionReports(resource.data);
+      let after = sessionReports(request.resource.data);
+      return before is list && after is list
+        && (after == before
+          || (after.size() == before.size() + 1
+            && (before.size() == 0 || after[0:before.size()] == before)
+            && validNewConditionReport(after[before.size()])));
+    }
+    function sessionResultKept() {
+      return resource.data.get('result', null) == null
+        || request.resource.data.get('result', null) == resource.data.get('result', null);
+    }
+    match /functionalAssessmentSessions/{id} {
+      allow read: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null
+        && request.resource.data.patientId == request.auth.uid
+        && sessionStampOk(request.resource.data)
+        && !('demoSynthetic' in request.resource.data)
+        && sessionReports(request.resource.data) is list
+        && sessionReports(request.resource.data).size() == 0;
+      allow update: if request.auth != null
+        && resource.data.patientId == request.auth.uid
+        && request.resource.data.patientId == resource.data.patientId
+        && sessionResultKept()
+        && sessionReportsAppendOnly()
+        && request.resource.data.get('demoSynthetic', null) == resource.data.get('demoSynthetic', null)
+        && sessionStampOk(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Other data records are scoped in the client by patientId/therapistId and
+    // are loaded only after authentication. Cross-account clinical sharing for
+    // these needs a relation-aware layer before they can be tightened.
+    // (functionalAssessmentSessions left this list in 5xSTS batch A — it has its own rules above.)
     match /{collectionName}/{documentId} {
       allow read, create, update, delete: if request.auth != null
         && collectionName in [
-          'therapistPatientRelations',
           'schedules',
           'analysisRecords',
-          'patientAssessments',
-          'recommendationResults',
-          'functionalAssessmentSessions'
+          'patientAssessments'
         ];
     }
   }

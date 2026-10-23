@@ -7,6 +7,8 @@ import {
   F01_NEXT_CYCLE_SELECTION_RULES,
 } from "./f01ProgressionSpec.js";
 import { F01_GOALS } from "./f01RecommendationSpec.js";
+import { isCurrentFa5xMeasurement } from "./fa5xMeasurementCompatibility.js";
+import { getCompletedTrainingDaysStatus } from "./f01DailyTargets.js";
 import {
   F01_LIMITATIONS,
   MATCH_LEVEL,
@@ -119,10 +121,14 @@ export function classifyTrainingExposure(completedTrainingDays) {
   return state ? state.code : null;
 }
 
-/** Unique completedTrainingDates that are real Day 1-6 dates of the cycle. */
+/**
+ * Unique completedTrainingDates that are real Day 1-6 dates of the cycle.
+ * F01 batch 2 §3A — null for a new-version cycle whose measurement is pending
+ * (never 0): classifyTrainingExposure(null) is null, so the EXISTING rule R001
+ * applies. Only this input changes; the D5 rules are untouched.
+ */
 export function countCompletedTrainingDays(cycle) {
-  const dates = new Set((cycle && cycle.completedTrainingDates) || []);
-  return [...dates].filter((k) => isDateKey(k) && isTrainingDateInCycle(cycle, k)).length;
+  return getCompletedTrainingDaysStatus(cycle).days;
 }
 
 // ── Gate 2 inputs: limitations ──────────────────────────────────────────
@@ -581,11 +587,15 @@ export function measuredDateKeyOf(session) {
  * Same local date as the reassessment -> the reassessment may be reused as
  * the next cycle's baseline (Day 1 = its measured date). Any later date ->
  * requiresFreshBaseline: an old reassessment is never back-dated into a new Day 1.
+ * A reassessment measured with an older (non-current) 5xSTS measurement version
+ * is never reused either: the next cycle needs a fresh current-version baseline
+ * (js/data/fa5xMeasurementCompatibility.js).
  * `confirmationDateKey` must be the REAL local date of the confirmation.
  */
 export function deriveNextCycleHandoff({ sourceCycle, reassessment, confirmationDateKey }) {
   const reassessmentDateKey = reassessment && sourceCycle && reassessment.id === sourceCycle.reassessmentId ? measuredDateKeyOf(reassessment) : null;
-  const reuse = !!reassessmentDateKey && isDateKey(confirmationDateKey) && reassessmentDateKey === confirmationDateKey;
+  const reuse = !!reassessmentDateKey && isDateKey(confirmationDateKey) && reassessmentDateKey === confirmationDateKey
+    && isCurrentFa5xMeasurement(reassessment.result);
   if (!reuse) {
     return {
       baselineReuseAllowed: false,

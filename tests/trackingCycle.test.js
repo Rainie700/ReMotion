@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -28,7 +29,7 @@ const { TRACKING_STATUS: S } = T;
 function baseline(userId, { status = "completed", at = [2026, 8, 28, 14, 0], totalDurationMs = 8900 } = {}) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
   const measuredAt = new Date(...at).toISOString();
-  const result = { status, completedReps: status === "completed" ? 5 : 2, repCount: status === "completed" ? 5 : 2, totalDurationMs: status === "completed" ? totalDurationMs : null, measuredAt };
+  const result = { ...FA5X_M, status, completedReps: status === "completed" ? 5 : 2, repCount: status === "completed" ? 5 : 2, totalDurationMs: status === "completed" ? totalDurationMs : null, measuredAt };
   functionalAssessmentService.completeSession(s.id, { result });
   return functionalAssessmentService.getById(s.id);
 }

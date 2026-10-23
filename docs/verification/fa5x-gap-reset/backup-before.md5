@@ -1,0 +1,6 @@
+44ad2241e752305b8544a840e984a81c *./js/ai/exercises/sitToStand/assessmentConstants.js
+5fcbfa8346589864f5d6e1c53569b546 *./js/ai/exercises/sitToStand/assessmentSession.js
+0809f0f60e08505fc0c20a9832c82ba2 *./js/data/fa5xMeasurementCompatibility.js
+2764cb63a9e64255ae5c9d8f5f5d25d9 *./package.json
+3e237c2170f32ebbf8630ff3c02782f2 *./tests/fa5xMeasurementCompatibility.test.js
+da42ec03b6e8d4e08875e178dcc2f026 *./tests/fiveTimesSitToStandAssessment.test.js

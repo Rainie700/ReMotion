@@ -15,9 +15,11 @@
  *
  * Storage: writes go through createCollection(), i.e. localStorage + the
  * normal Firestore write-through when a user is signed in. trackingCycles is
- * an optional cloud collection (rules not deployed -> local only).
+ * an optional cloud collection; a failed cloud write of it is a setup failure
+ * (a cycle that exists only in one browser is lost to every other device and
+ * to the therapist), and the rules never let the client delete a cycle.
  */
-import { createCollection } from "../data/storageService.js";
+import { createCollection, storageService } from "../data/storageService.js";
 import { seedAnalysisRecords, seedSchedules } from "../data/seedData.js";
 import { withSeedRuntime } from "../utils/id.js";
 import { analysisService, ANALYSIS_RECORD_SOURCES } from "../data/analysisService.js";
@@ -49,6 +51,7 @@ import { gamificationEngine } from "../data/gamificationEngine.js";
 import { todayPlanService } from "../data/todayPlanAggregator.js";
 import {
   FA5X_ALGORITHM_VERSION, FA5X_THRESHOLD_VERSION, FA5X_TIMING_DEFINITION, FA5X_PARAMS, FA5X_RESULT_STATUS, FA5X_TARGET_REPS,
+  FA5X_GEOMETRY_COORDINATE_SPACE,
 } from "../ai/exercises/sitToStand/assessmentConstants.js";
 import { toLocalDateKey, getTrackingCycleViewState } from "../data/trackingCycle.js";
 import { waitForCloudWrites } from "../data/storageService.js";
@@ -91,7 +94,10 @@ const COLLECTIONS = [
   { name: "patientAssessments", owner: "patientId" },
 ];
 const collections = Object.fromEntries(COLLECTIONS.map((c) => [c.name, createCollection(c.name, c.seed)]));
-const isShowcaseId = (id) => typeof id === "string" && id.startsWith(SHOWCASE_ID_PREFIX);
+// The six-week history batch (scripts/demo/patient00History6w, ids "showcase_p00_<uid8>_h6_…") is NOT this
+// seed's: its audit / reset / re-seed must never count, remove or overwrite those records.
+export const isHistory6wId = (id) => typeof id === "string" && /^showcase_p00_[A-Za-z0-9]{1,8}_h6_/.test(id);
+const isShowcaseId = (id) => typeof id === "string" && id.startsWith(SHOWCASE_ID_PREFIX) && !isHistory6wId(id);
 const ownedBy = (c, uid) => (r) => r && (r[c.owner] === uid || r.patientId === uid);
 
 /** Only the patient00 demo account (a signed-in patient with that email) may be seeded / reset. */
@@ -349,8 +355,9 @@ function fiveXStsResult(totalDurationMs, measuredAtIso, repDurationsMs, onsetMs,
     timingDefinition: FA5X_TIMING_DEFINITION,
     algorithmVersion: FA5X_ALGORITHM_VERSION,
     thresholdVersion: FA5X_THRESHOLD_VERSION,
+    geometryCoordinateSpace: FA5X_GEOMETRY_COORDINATE_SPACE,
     parameters: { ...FA5X_PARAMS },
-    baseline: { hipY: 0.6124, shankLength: 0.1832, kneeAngleDeg: 92.4, trunkLeanDeg: 8.6 },
+    baseline: { hipY: 0.6124, shankLength: 0.1832, kneeAngleDeg: 92.4, trunkLeanDeg: 8.6, frameWidth: 1280, frameHeight: 720 },
     startCueAt: new Date(start).toISOString(),
     movementOnsetAt: new Date(start + onsetMs).toISOString(),
     measuredAt: measuredAtIso,
@@ -368,14 +375,20 @@ function recordFiveXSts(userId, result) {
  * Builds the showcase history. Idempotent: this seed's previous records are
  * removed first. Other records of the account are never touched unless they
  * are listed conflicts AND `clearConflicts` is true.
+ * A conflict in a collection the cloud cannot delete (`cloudDeleteBlocked`,
+ * e.g. trackingCycles while signed in) is never cleared: removing it only
+ * locally would bring it back on the next login, mixed into the showcase
+ * weeks. Such a conflict refuses the whole seed (nothing written).
  * @returns {{ ok: true, summary } | { error, conflicts? }}
  */
-export function seedPatient00ShowcaseData(user, { clearConflicts = false, goalId = SHOWCASE_PLAN.goalId } = {}) {
+export function seedPatient00ShowcaseData(user, { clearConflicts = false, goalId = SHOWCASE_PLAN.goalId, cloudDeleteBlocked = (name) => storageService.isCloudDeleteBlocked(name) } = {}) {
   const check = assertPatient00(user);
   if (check.error) return check;
   const uid = check.userId;
   const audit = auditPatient00Data(user);
   if (audit.conflicts.length && !clearConflicts) return { error: "conflicts", conflicts: audit.conflicts, audit };
+  const notRemovable = audit.conflicts.filter((c) => cloudDeleteBlocked(c.collection));
+  if (notRemovable.length) return { error: "conflicts_not_removable", conflicts: notRemovable, audit };
 
   const reset = resetPatient00ShowcaseData(user);
   const clearedConflicts = [];
@@ -592,23 +605,27 @@ export function patient00DemoChecklist(n) {
 /**
  * One-click recording demo (dev console): backs up and clears the listed
  * conflicts, runs the seed, waits for every cloud write to settle (so a reload
- * cannot lose them; trackingCycles stays local where its cloud rules are not
- * deployed), then verifies every demo screen value.
+ * cannot lose them), then verifies every demo screen value. Any failed cloud
+ * write — trackingCycles included — makes the setup fail: `localOnly` counts
+ * the cycles that exist only in this browser, and they are also in `failed`.
  * @returns {Promise<{ ok, checklist, backup, cloudWrites, seed } | { error }>}
  */
-export async function setupPatient00Demo(user, { todayKey = toLocalDateKey(new Date()) } = {}) {
+export async function setupPatient00Demo(user, { todayKey = toLocalDateKey(new Date()), cloudDeleteBlocked } = {}) {
   const check = assertPatient00(user);
   if (check.error) return check;
-  const seed = seedPatient00ShowcaseData(user, { clearConflicts: true });
+  const seed = seedPatient00ShowcaseData(user, { clearConflicts: true, ...(cloudDeleteBlocked ? { cloudDeleteBlocked } : {}) });
   if (!seed.ok) return seed;
   const backup = seed.clearedConflicts.map((c) => ({ collection: c.collection, id: c.id, why: c.why, record: c.record }));
   const cloud = await waitForCloudWrites();
   const cloudWrites = {
     total: cloud.total,
     localOnly: cloud.failed.filter((f) => f.name === "trackingCycles").length,
-    failed: cloud.failed.filter((f) => f.name !== "trackingCycles"),
+    failed: cloud.failed,
   };
   const narrative = auditPatient00DemoNarrative(user, { todayKey });
   const checklist = patient00DemoChecklist(narrative);
   return { ok: checklist.every((r) => r.pass) && cloudWrites.failed.length === 0, todayKey, checklist, backup, cloudWrites, therapist: seed.therapist, narrative };
 }
+
+// Record builders shared with scripts/demo/patient00History6w (same detector-faithful fields).
+export { DETECTOR_FIELDS, targetRepsFor, fiveXStsResult, recordFiveXSts };

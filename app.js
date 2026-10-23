@@ -1,5 +1,25 @@
 import { authService } from "./js/data/authService.js";
-import { storageService } from "./js/data/storageService.js";
+import { storageService, isLocalDemoStorage } from "./js/data/storageService.js";
+import { isEmulatorMode, checkEmulatorsReachable, EMULATOR_PROJECT_ID } from "./js/data/firebase.js";
+// 本機隔離展示 (dev server + ?localDemo=d5 only): separate storage prefix, no Firebase login, no cloud.
+const LOCAL_DEMO_MODE = isLocalDemoStorage();
+// 本機瀏覽器驗證 (dev server + localhost + ?emulator=1 only, js/data/firebase.js): Auth + Firestore on the
+// local emulators with a demo project id; its own local cache; a permanent 「本機測試資料」 banner.
+const EMULATOR_MODE = isEmulatorMode();
+if (EMULATOR_MODE && typeof document !== "undefined") {
+  const banner = document.createElement("div");
+  banner.id = "emulatorModeBanner";
+  banner.setAttribute("role", "status");
+  banner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10000;padding:4px 8px;background:#8a1c1c;color:#fff;font:600 12px/1.4 sans-serif;text-align:center;pointer-events:none;";
+  banner.textContent = `本機測試資料｜Firebase 模擬器（${EMULATOR_PROJECT_ID}）｜非正式資料`;
+  document.body.appendChild(banner);
+  // keep every page header visible BELOW the banner (same approach as #local-demo-bar)
+  document.body.classList.add("emulator-mode");
+  const fitBanner = () => document.body.style.setProperty("--emulator-banner-h", `${banner.offsetHeight}px`);
+  fitBanner();
+  window.addEventListener("resize", fitBanner);
+}
+let localDemoModule = null;
 import { scheduleService } from "./js/data/scheduleService.js";
 import { analysisService, ANALYSIS_RECORD_SOURCES, getRecordSource } from "./js/data/analysisService.js";
 import { gameService } from "./js/data/gameService.js";
@@ -7,7 +27,17 @@ import { exerciseService, resolvePoseAnalyzer, POSE_ANALYZER } from "./js/data/e
 import { userService } from "./js/data/userService.js";
 import { relationService } from "./js/data/relationService.js";
 import { generateId, nowIso } from "./js/utils/id.js";
-import { createWeeklySummary, getSavedWeeklySummary, confirmWeeklySummary } from "./js/services/llmWeeklySummaryService.js";
+import { getD5Arrangement, getD5Review, listD5ReviewsForPatient, listD5ReviewOptions, reviewD5Proposal } from "./js/data/d5TherapistReviewService.js";
+import { planFingerprint } from "./js/data/d5Arrangement.js";
+import { compareD5Weeks, describeD5ContentChange, explainD5Decision, describeD5Item, D5_DOSAGE_NOTE, describeDecisionSource, LLM_DRAFT_DECISION_LABEL } from "./js/ui/d5ProposalView.js";
+import { requestD5LlmDraft } from "./js/services/d5RecommendationDraftService.js";
+import { LLM_RECOMMENDATION_CONFIG } from "./js/config/llmRecommendationConfig.js";
+import { describeFa5xEvidence, describeD5Evidence, pickF01RecommendationForPage, describeTrainingVolume, describePlanVolume, formatPlanVolume, PLAN_VOLUME_SOURCE_NOTE, displayConditionText, explainF01Item, listF01OtherOptions, describeF01ListSize, F01_NOT_USED_IN_RANKING } from "./js/ui/f01RecommendationView.js";
+import { describeWeekArrangement } from "./js/ui/weekArrangementView.js";
+import { isDemoSynthetic, isSimulatedConfirmation, isSimulatedReview, demoSyntheticBadge, describeWeekSynthetic, syntheticWeeksText, DEMO_SYNTHETIC_TEXT, SIMULATED_CONFIRMATION_TEXT, SIMULATED_REVIEW_TEXT } from "./js/ui/demoSyntheticLabel.js";
+import { createWeeklySummary, getSavedWeeklySummary, confirmWeeklySummary, listWeeklySummariesForPatient } from "./js/services/llmWeeklySummaryService.js";
+import { getPublishedVersion, getPendingDraft, getDraftToken, isSummaryDocConsistent } from "./js/data/weeklySummaryVersions.js";
+import { buildSummaryCycleOptions, resolveSummaryCycleSelection, isSummaryForSelection, isSameSummaryTarget, buildConfirmedSummaryOptions, resolveConfirmedSummarySelection } from "./js/ui/weeklySummaryCycleSelection.js";
 import { SQUAT_THRESHOLDS, SQUAT_ANALYSIS_MODE, DEFAULT_SQUAT_REWARD_XP, SQUAT_REQUIRED_LANDMARKS } from "./js/ai/squatConstants.js";
 import { computeKneeAngles, computeTrunkLeanDeg, computeKneeValgusSuspected, hasFullLowerBody } from "./js/ai/poseMath.js";
 import { createDetectionStabilityTracker, DETECTION_DISPLAY_STATE } from "./js/ai/detectionStability.js";
@@ -173,8 +203,9 @@ import { createSitToStandSession } from "./js/ai/exercises/sitToStand/session.js
 import { LE05_QUALITY_ISSUE, LE05_QUALITY_ISSUE_LABELS, LE05_QUALITY_SUGGESTIONS } from "./js/ai/exercises/sitToStand/quality.js";
 import { calculateSitToStandScore, buildSitToStandRemark } from "./js/ai/exercises/sitToStand/score.js";
 import { FA5X_PARAMS, FA5X_TARGET_REPS, FA5X_PHASE, FA5X_RESULT_STATUS, FA5X_END_REASON, FA5X_REJECT_REASON, FA5X_PROMPTS, FA5X_REP_STATE_LABELS } from "./js/ai/exercises/sitToStand/assessmentConstants.js";
-import { extractFa5xFeatures } from "./js/ai/exercises/sitToStand/assessmentFeatures.js";
+import { extractFa5xFeatures, fa5xFrameAspectChanged } from "./js/ai/exercises/sitToStand/assessmentFeatures.js";
 import { createFiveTimesSitToStandAssessment } from "./js/ai/exercises/sitToStand/assessmentSession.js";
+import { createFa5xTraceRecorder } from "./js/ai/exercises/sitToStand/assessmentTrace.js";
 import { createFa5xVoiceGuard } from "./js/ai/exercises/sitToStand/assessmentVoice.js";
 import { createStandingPositionCheck, FA5X_POSITIONING_UX } from "./js/ai/exercises/sitToStand/assessmentPositioning.js";
 import { LE03_REQUIRED_LANDMARKS, LE03_THRESHOLDS, LE03_ANALYSIS_MODE, DEFAULT_LE03_REWARD_XP } from "./js/ai/exercises/bridge/constants.js";
@@ -270,10 +301,13 @@ import { F01_FUNCTIONAL_DOMAIN, FIVE_X_STS_TRAINING_GOAL, buildF01CandidatePool,
 import { generateF01GoalRecommendation, F01_LIMITATIONS, F01_TIME_OPTIONS, MATCH_LEVEL } from "./js/data/f01GoalRecommendation.js";
 import { F01_GOALS } from "./js/data/f01RecommendationSpec.js";
 import { trackingCycleService, REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE } from "./js/data/trackingCycleService.js";
+import { sameTargetSummary, F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays } from "./js/data/f01DailyTargets.js";
 import { trainingEventService, summarizeTrainingWeek, filterTrainingEventsBySource, normalizeTrainingEvent, buildCycleCompletionIndex, TRAINING_SOURCE_LABEL, resolveTrainingCompletion } from "./js/data/trainingEventService.js";
 import { functionalProgressService } from "./js/data/functionalProgressService.js";
 import { D5_DECISION, D5_DECISION_LABEL, CONFIRMATION_MODE, TRANSITION_TYPE, measuredDateKeyOf } from "./js/data/f01ProgressionDecision.js";
 import { describeTimeDifference } from "./js/data/trackingComparison.js";
+import { isCurrentFa5xMeasurement } from "./js/data/fa5xMeasurementCompatibility.js";
+import { describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL } from "./js/data/fa5xConditionReport.js";
 import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView } from "./js/data/trackingCycle.js";
 import { BODY_READINESS } from "./js/ai/poseMath.js";
 import { CAMERA_READY_LANDMARKS, SHOULDER_CAMERA_THRESHOLDS, SHOULDER_SIDE, SHOULDER_MEASUREMENT_LANDMARKS } from "./js/ai/exercises/shoulder/constants.js";
@@ -800,6 +834,7 @@ function buildTrainingHistoryEntry(record) {
 
   return {
     recordId: record.id,
+    demoSynthetic: isDemoSynthetic(record),
     exerciseId: record.exerciseId || null,
     exerciseName: resolveRecordExerciseName(record),
     completedAt: resolveRecordTimestamp(record),
@@ -1351,6 +1386,10 @@ const state = {
   selectedExerciseId: null,
   // which patient the therapist is currently viewing/acting on
   selectedPatientId: null,
+  summaryCycleSelection: null, // AI 週摘要 { patientId, cycleId }
+  patientSummarySelection: null, // 我的數據 復健師已確認的週摘要 { patientId, cycleId }
+  llmSummaryBusy: null, // { patientId, cycleId, kind: "generate" | "confirm" } while a summary call runs
+  llmSummaryError: null, // { patientId, cycleId, message } — shown only for that case + cycle
   // step-based auth flow: chooseMode -> chooseRole -> form -> registerSuccess
   authStep: "chooseMode",
   authMode: null, // 'login' | 'register'
@@ -1451,6 +1490,8 @@ const state = {
 };
 
 function setSession(user) {
+  // a summary choice never carries over to another account
+  if (!state.user || !user || state.user.id !== user.id) state.patientSummarySelection = null;
   state.user = user;
   state.route = determinePatientLandingRoute(user);
   state.tab = "home";
@@ -1459,7 +1500,13 @@ function setSession(user) {
 
 // Firebase decides session persistence across page reloads and devices. The
 // local collection cache is always refreshed before the app becomes visible.
-authService.subscribe(async (user) => {
+// Emulator mode: the reachability probe starts at boot; the auth callback waits for it and stops on
+// failure (no hydrate, no data operation). Auth is already bound to the local emulator, so there is
+// no path back to production either way.
+const emulatorGate = EMULATOR_MODE ? checkEmulatorsReachable() : Promise.resolve({ ok: true, failed: [] });
+if (EMULATOR_MODE) emulatorGate.then((r) => { if (!r.ok) showEmulatorUnavailable(r.failed); });
+if (!LOCAL_DEMO_MODE) authService.subscribe(async (user) => {
+  if (EMULATOR_MODE && !(await emulatorGate).ok) return;
   if (user) {
     // Registration deliberately displays its confirmation screen rather than
     // briefly opening the dashboard during Firebase's temporary session.
@@ -1477,10 +1524,21 @@ authService.subscribe(async (user) => {
   }
   storageService.clearCloudUser();
   state.user = null;
+  state.patientSummarySelection = null;
   if (state.authStep === "registerSuccess") return;
   state.route = "auth";
   render();
 });
+
+/** Emulator mode only: the emulators are not reachable — block the page; never fall back to production. */
+function showEmulatorUnavailable(failed) {
+  if (document.getElementById("emulatorUnavailable")) return;
+  const el = document.createElement("div");
+  el.id = "emulatorUnavailable";
+  el.style.cssText = "position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;padding:24px;background:#fff;color:#8a1c1c;font:600 16px/1.6 sans-serif;text-align:center;";
+  el.textContent = `無法連線本機 Firebase 模擬器（${failed.join("、")}）。已停止：不會登入、不會讀寫資料，也不會改連正式環境。請啟動模擬器後重新整理。`;
+  document.body.appendChild(el);
+}
 
 async function logout() {
   await authService.logout();
@@ -2053,6 +2111,16 @@ function startRecommendationFromFiveTimesSitToStand(functionalSessionId) {
   if (session.result && session.result.assessmentRole === NEXT_CYCLE_BASELINE_ROLE) {
     alert("這是下一週期的基準評估，訓練內容沿用已確認的下一階段建議，請回首頁查看追蹤狀態。");
     return switchTab("home");
+  }
+  // fa5x-assessment-1.1 — an older / unversioned measurement stays viewable but
+  // cannot become a NEW tracking baseline (js/data/fa5xMeasurementCompatibility.js).
+  // Re-linking the active cycle that already uses this baseline is still allowed.
+  if (!isCurrentFa5xMeasurement(session.result)) {
+    const active = trackingCycleService.getActiveTrackingCycle(session.patientId);
+    if (!active || active.baselineAssessmentId !== session.id) {
+      alert("這筆紀錄使用舊版量測方式，仍可查看，但不能作為新的追蹤基準。請以新版重新完成五次坐站評估。");
+      return goFiveTimesSitToStandAssessment();
+    }
   }
   goF01RecommendationSetup(session.id);
 }
@@ -3067,7 +3135,7 @@ function renderTrainingHistoryCard(entry) {
     <div class="history-card-image">${renderHistoryCardImage(entry)}</div>
     <div class="history-card-center">
       <b class="history-card-name">${entry.exerciseName}</b>
-      <div class="history-card-meta"><span class="source-tag-badge ${sourceBadgeClassFor(entry.sourceType)}">${entry.sourceLabel}</span>${entry.completed === false ? `<span class="history-incomplete-tag">未完成</span>` : ""}<span class="small">${formatRecordDateTime(entry.completedAt)}</span></div>
+      <div class="history-card-meta"><span class="source-tag-badge ${sourceBadgeClassFor(entry.sourceType)}">${entry.sourceLabel}</span>${entry.completed === false ? `<span class="history-incomplete-tag">未完成</span>` : ""}${entry.demoSynthetic ? `<span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span>` : ""}<span class="small">${formatRecordDateTime(entry.completedAt)}</span></div>
       ${factsHtml}
     </div>
     <div class="history-card-right">
@@ -3196,6 +3264,7 @@ function renderDataFunctionalSection(progress) {
         <div class="data-f01-head"><b>F01 下肢功能</b><span class="small">本週追蹤已完成</span></div>
         <div class="data-f01-compare"><span>初次 <b>${cur.comparison.baselineText}</b></span><span aria-hidden="true">→</span><span>本次 <b>${cur.comparison.reassessmentText}</b></span></div>
         <p class="small">${cur.comparison.differenceText}</p>
+        ${weekSyntheticNote(cur.cycle)}
         <button class="btn btn-light full" onclick="goTrackingComparison('${cur.cycle.id}')">查看前後比較</button>
       </div>`;
   } else {
@@ -3213,9 +3282,10 @@ function renderDataFunctionalSection(progress) {
         <div class="data-f01-facts">
           <div><span>目前週期</span><b>${dayText}</b></div>
           <div><span>目前基準</span><b>${sec(cur.baselineMs)}</b></div>
-          <div><span>本週完成</span><b>${cur.completedTrainingDays} 天</b></div>
+          <div><span>本週完成</span><b>${fmtF01TrainingDays(cur.completedTrainingDays)}</b></div>
           <div><span>再次評估</span><b>${formatDateKeyMonthDay(v.plannedReassessmentDateKey)}</b></div>
         </div>
+        ${weekSyntheticNote(cur.cycle)}
         ${prevHtml}
       </div>`;
   }
@@ -3225,6 +3295,7 @@ function renderDataFunctionalSection(progress) {
       <b class="small">五次坐站完成時間</b>
       <span class="small data-f01-trend-note">功能追蹤的初次與再次評估</span>
       ${renderF01DurationChart(series)}
+      ${cur && trackingCycleService.listTrackingCycles(cur.cycle.userId).some((c) => describeWeekSynthetic(c, (id) => functionalAssessmentService.getById(id)).any) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">部分評估為展示用合成資料，詳見追蹤歷程各週標示。</span></div>` : ""}
     </div>` : "";
   return `<h3 class="section-title">功能追蹤</h3>${cardHtml}${trendHtml}`;
 }
@@ -3238,12 +3309,82 @@ function renderF01DurationChart(series) {
   const span = max - min || 1;
   const xs = pts.map((_, i) => PAD + (i * (W - 2 * PAD)) / Math.max(1, pts.length - 1));
   const ys = values.map((v) => PAD + ((max - v) / span) * (H - 2 * PAD));
-  const d = xs.map((x, i) => `${i ? "L" : "M"} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
+  // 5xSTS batch A — the line is broken between points measured in different ways
+  // (series point.connectsToPrevious, functionalProgressService); every point stays shown.
+  const d = xs.map((x, i) => `${i && pts[i].connectsToPrevious ? "L" : "M"} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
   return `<svg class="data-f01-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="五次坐站完成時間：${pts.map((p) => `${formatDateKeyMonthDay(p.dateKey)} ${(p.totalDurationMs / 1000).toFixed(1)} 秒`).join("、")}">
       <path class="data-f01-trend-line" d="${d}" />
       ${xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3.5" />`).join("")}
     </svg>
     <div class="data-f01-trend-labels">${pts.map((p) => `<span><b>${(p.totalDurationMs / 1000).toFixed(1)} 秒</b>${formatDateKeyMonthDay(p.dateKey)}</span>`).join("")}</div>`;
+}
+
+/**
+ * 我的數據 — 復健師已確認的週摘要 (view only). Lists ONLY the signed-in
+ * patient's confirmed summaries that map to one of their timeline weeks
+ * (getTrackingTimeline: same 第 N 週 / dates); shows the stored patient
+ * version as saved — never generated, regenerated or confirmed here.
+ */
+function renderPatientConfirmedSummaries(patientId) {
+  const title = `<h3 class="section-title">復健師已確認的週摘要</h3>`;
+  const summaryLoad = storageService.getOptionalCloudLoadStatus("llmWeeklySummaries");
+  const cycleLoad = storageService.getOptionalCloudLoadStatus("trackingCycles");
+  if (summaryLoad === "loading" || cycleLoad === "loading") {
+    return `${title}<div class="card muted center patient-summary-state" data-state="loading">摘要載入中…</div>`;
+  }
+  const loadFailed = summaryLoad === "failed" || cycleLoad === "failed";
+  const { options, unmatchedCount } = buildConfirmedSummaryOptions({
+    patientId,
+    summaries: listWeeklySummariesForPatient(patientId),
+    weeks: functionalProgressService.getTrackingTimeline(patientId, getTrackingTodayKey()).weeks,
+  });
+  const failedWhat = summaryLoad === "failed" ? "摘要" : "追蹤週期";
+  const unmatchedNote = unmatchedCount
+    ? `<div class="small" style="color:#8a5b20;margin-top:6px;">有 ${unmatchedCount} 份已確認摘要找不到對應的追蹤週期，暫不顯示。</div>`
+    : "";
+  if (!options.length) {
+    if (loadFailed) {
+      return `${title}<div class="card patient-summary-state" data-state="failed"><b>摘要載入失敗</b><div class="small" style="color:#a33;margin-top:6px;">雲端${failedWhat}資料未能載入，目前無法確認是否有已確認的摘要。請確認網路後重新登入。</div>${unmatchedNote}</div>`;
+    }
+    return `${title}<div class="card patient-summary-state" data-state="empty"><b>尚無復健師已確認的週摘要</b><div class="small" style="margin-top:6px;">復健師確認摘要後，會顯示在這裡。</div>${unmatchedNote}</div>`;
+  }
+  const selection = resolveConfirmedSummarySelection({ patientId, options, selection: state.patientSummarySelection });
+  state.patientSummarySelection = selection;
+  const option = options.find((o) => o.cycleId === selection.cycleId);
+  const saved = option.published;
+  const u = saved.summary.userSummary;
+  const fromGemini = saved.source === "gemini";
+  const confirmedOn = saved.confirmedAt ? formatDateKeyMonthDay(toLocalDateKey(saved.confirmedAt)) : null;
+  const failNote = loadFailed
+    ? `<div class="small" style="color:#a33;margin-bottom:8px;">雲端${failedWhat}資料未能載入，以下僅為此裝置上已有的摘要，可能不完整。</div>`
+    : "";
+  return `${title}<div class="card llm-weekly-summary-card patient-summary-state" data-state="ready">
+    ${failNote}
+    <label class="small" style="display:block;margin-bottom:8px;">選擇週次
+      <select class="input" style="margin-top:4px;width:100%;" onchange="selectPatientSummaryCycle(this.value)" aria-label="選擇要查看的已確認週摘要">
+        ${options.map((o) => `<option value="${summaryText(o.cycleId)}" ${o.cycleId === selection.cycleId ? "selected" : ""}>${summaryText(o.label)}</option>`).join("")}
+      </select>
+    </label>
+    <div class="row" style="justify-content:space-between;"><b>${summaryText(option.label)}</b><span class="pill ${fromGemini ? "active-status" : "pending"}">${fromGemini ? "Gemini 整理" : "安全備用摘要"}</span></div>
+    <b>${summaryText(u.headline)}</b>
+    <p class="small">${summaryText(u.functionSummary)}</p>
+    <p class="small">${summaryText(u.trainingSummary)}</p>
+    <p class="small">${summaryText(u.nextPlanSummary)}</p>
+    ${weekSyntheticNote(trackingCycleService.getTrackingCycleById(option.cycleId))}
+    ${isSimulatedConfirmation(saved)
+      ? `<div class="small">✓ <span class="demo-synthetic-badge">${SIMULATED_CONFIRMATION_TEXT}</span>${confirmedOn ? `（${confirmedOn}）` : ""}</div>`
+      : `<div class="small">✓ 復健師已確認${confirmedOn ? `（${confirmedOn}）` : ""}</div>`}
+    <div class="small muted">${fromGemini ? "文字由 Gemini 依已驗證資料整理。" : "這份是系統依既有資料產生的安全備用摘要，不是 AI 模型生成的內容。"}內容僅整理既有資料，不是診斷或治療建議。</div>
+    ${unmatchedNote}
+  </div>`;
+}
+
+function selectPatientSummaryCycle(cycleId) {
+  const patientId = getCurrentPatientId();
+  if (patientId && state.user && state.user.id === patientId) {
+    state.patientSummarySelection = { patientId, cycleId };
+  }
+  render();
 }
 
 /**
@@ -3261,11 +3402,7 @@ function patientDataOverviewPage() {
   const progress = functionalProgressService.getFunctionalProgress(patientId, getTrackingTodayKey());
   const records = analysisService.getByPatientId(patientId);
   const trendPoints = collectQualityTrendPoints(records, 7);
-  const summaryCycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
-  const confirmedWeeklySummary = summaryCycle ? getSavedWeeklySummary(summaryCycle.id) : null;
-  const patientSummaryHtml = confirmedWeeklySummary && confirmedWeeklySummary.status === "confirmed"
-    ? `<h3 class="section-title">AI 本週摘要</h3><div class="card llm-weekly-summary-card"><b>${summaryText(confirmedWeeklySummary.summary.userSummary.headline)}</b><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.functionSummary)}</p><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.trainingSummary)}</p><p class="small">${summaryText(confirmedWeeklySummary.summary.userSummary.nextPlanSummary)}</p><div class="small muted">摘要已由復健師確認；內容僅整理既有資料，不是診斷或治療建議。</div></div>`
-    : "";
+  const patientSummaryHtml = renderPatientConfirmedSummaries(patientId);
 
   const header = `<div class="header"><h1 class="page-title">我的數據</h1><img class="icon" src="/images/data.png" alt="數據" /></div>`;
   const nav = renderDataSegmentedNav("overview");
@@ -3657,6 +3794,7 @@ function trainingRecordDetailPage() {
         <span class="source-tag-badge ${sourceBadgeClassFor(entry.sourceType)}">${entry.sourceLabel}</span>
       </div>
     </div>
+    ${entry.demoSynthetic ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">這筆訓練紀錄與 AI 姿勢分數為展示用合成資料，不是真實訓練。</span></div>` : ""}
     ${entry.xpEarned != null ? `<div class="record-detail-hero-xp"><img class="history-card-xp-icon" src="/images/gamification/xp_coin.png" alt="" />+${entry.xpEarned} XP</div>` : ""}
   </div>`;
   const detailHtml = entry.detailType === "squat"
@@ -4342,7 +4480,7 @@ function therapistCaseDetailPage() {
       const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER });
       return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
     })();
-    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId);
+    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId);
     bodyHtml = `
       <h3 class="section-title">今日復健狀況</h3>
       <div class="card"><div class="small">今日課表完成 <b>${cs.todayDone} / ${cs.todayTotal}</b>${lastCompleted ? `｜最近完成：${lastCompleted.exerciseName}` : ""}</div></div>
@@ -4353,6 +4491,7 @@ function therapistCaseDetailPage() {
           <div><span class="small">訓練天數</span><b>${weekly.activeDays} 天</b></div>
           <div><span class="small">平均 AI 姿勢分數</span><b>${avgScore != null ? avgScore : "—"}</b></div>
         </div>
+        ${records.some(isDemoSynthetic) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">此個案有 ${records.filter(isDemoSynthetic).length} 筆展示用合成訓練紀錄，平均 AI 姿勢分數已包含這些紀錄。</span></div>` : ""}
       </div>
       <div class="card patient-data-trend-card">${renderQualityTrendChart(trend)}</div>
       ${weeklySummaryHtml}
@@ -4423,58 +4562,394 @@ function summaryText(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
+/** The patient's F01 cycles as AI 週摘要 options (same 第 N 週 / dates as the 追蹤歷程 timeline). */
+function getCaseSummaryCycleOptions(patientId) {
+  if (!patientId) return [];
+  return buildSummaryCycleOptions(functionalProgressService.getTrackingTimeline(patientId, getTrackingTodayKey()).weeks);
+}
+
+const WEEKLY_SUMMARY_ERROR_TEXT = {
+  not_authorized: "您目前沒有此個案的管理權限，無法處理摘要。",
+  summary_sync_failed: "摘要尚未成功同步到雲端，已保留原本的內容；請確認網路與 Firestore 規則後重試。",
+  draft_changed: "畫面上的草稿已不是最新內容，請確認後再按一次。",
+  no_pending_draft: "目前沒有待確認的草稿。",
+  summary_cycle_mismatch: "摘要與週期資料不一致，已停止操作。",
+  summary_owner_mismatch: "此週期已存的摘要不屬於目前個案，已停止操作。",
+};
+
 function renderTherapistWeeklySummary(patientId) {
-  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
-  if (!cycle) return `<h3 class="section-title">AI 週摘要</h3><div class="card muted center">建立 F01 追蹤週期後即可產生摘要。</div>`;
-  const saved = getSavedWeeklySummary(cycle.id);
-  if (state.llmSummaryLoadingCycleId === cycle.id) {
-    return `<h3 class="section-title">AI 週摘要</h3><div class="card"><b>正在整理已驗證資料…</b><div class="small">若模型暫時無法使用，系統會自動顯示安全備用摘要。</div></div>`;
+  const title = `<h3 class="section-title">AI 週摘要</h3>`;
+  const cycleLoad = storageService.getOptionalCloudLoadStatus("trackingCycles");
+  const summaryLoad = storageService.getOptionalCloudLoadStatus("llmWeeklySummaries");
+  const options = getCaseSummaryCycleOptions(patientId);
+  if (!options.length) {
+    if (cycleLoad === "failed") {
+      return `${title}<div class="card"><b>追蹤週期資料載入失敗</b><div class="small" style="color:#a33;margin-top:6px;">雲端的 F01 追蹤週期未能載入，目前無法判斷此個案是否已有週期。請確認網路後重新登入再試。</div></div>`;
+    }
+    return `${title}<div class="card muted center">此個案尚未建立 F01 追蹤週期，建立後即可產生摘要。</div>`;
   }
-  if (!saved) {
-    return `<h3 class="section-title">AI 週摘要</h3><div class="card"><b>把本週評估與訓練紀錄整理成摘要</b><div class="small" style="margin-top:6px;">只傳送去識別化的已驗證數據，不傳姓名、影像或原始姿勢座標。</div>${state.llmSummaryError ? `<div class="small" style="color:#a33;margin-top:6px;">${summaryText(state.llmSummaryError)}</div>` : ""}<button class="btn btn-primary full" style="margin-top:10px;" onclick="generateCaseWeeklySummary()">產生 AI 週摘要</button></div>`;
+  const selection = resolveSummaryCycleSelection({ patientId, options, selection: state.summaryCycleSelection });
+  state.summaryCycleSelection = selection;
+  const option = options.find((o) => o.cycleId === selection.cycleId);
+  const weekText = `第 ${option.weekNumber} 週`;
+  const busy = state.llmSummaryBusy;
+  const busyThis = isSameSummaryTarget(busy, selection);
+  const disabled = busy ? "disabled" : "";
+  const selector = `<label class="small" style="display:block;margin-bottom:8px;">選擇追蹤週期
+      <select class="input llm-summary-cycle-select" style="margin-top:4px;width:100%;" onchange="selectCaseSummaryCycle(this.value)" ${disabled} aria-label="選擇 AI 週摘要的追蹤週期">
+        ${options.slice().reverse().map((o) => `<option value="${summaryText(o.cycleId)}" ${o.cycleId === selection.cycleId ? "selected" : ""}>${summaryText(o.label)}</option>`).join("")}
+      </select>
+    </label>`;
+  const notes = [];
+  if (cycleLoad === "failed" || summaryLoad === "failed") {
+    notes.push(`<div class="small" style="color:#a33;margin-bottom:8px;">雲端${summaryLoad === "failed" ? "摘要" : "追蹤週期"}資料未能載入，以下僅為此裝置上的資料；「尚未產生」不代表雲端沒有摘要。請確認網路後重新登入。</div>`);
   }
-  const s = saved.summary.professionalSummary;
-  const badge = saved.status === "confirmed" ? "已確認" : "待復健師確認";
-  const source = saved.source === "gemini" ? "Gemini 整理" : "安全備用摘要";
-  return `<h3 class="section-title">AI 週摘要</h3><div class="card llm-weekly-summary-card">
-    <div class="row" style="justify-content:space-between;"><b>${badge}</b><span class="pill ${saved.status === "confirmed" ? "active-status" : "pending"}">${source}</span></div>
+  if (busy && busy.patientId !== patientId) {
+    notes.push(`<div class="small muted" style="margin-bottom:8px;">另一位個案的摘要仍在處理中，完成後才能切換週期、產生或確認摘要。</div>`);
+  }
+  const error = isSameSummaryTarget(state.llmSummaryError, selection) ? state.llmSummaryError.message : null;
+  const errorHtml = error ? `<div class="small" style="color:#a33;margin-top:6px;">${summaryText(error)}</div>` : "";
+  const head = `${selector}${notes.join("")}`;
+
+  const stored = getSavedWeeklySummary(selection.cycleId);
+  const saved = isSummaryForSelection(stored, selection) && isSummaryDocConsistent(stored) ? stored : null;
+  const published = saved ? getPublishedVersion(saved) : null;
+  const draft = saved ? getPendingDraft(saved) : null;
+  if (busyThis && busy.kind === "generate") {
+    return `${title}<div class="card">${head}${published ? renderSummaryVersionBlock(published, { heading: `${weekText}｜目前已確認版本（患者可見）`, confirmed: true, cycleId: selection.cycleId }) : ""}<b>正在產生${weekText}的新草稿…</b><div class="small">若模型暫時無法使用，系統會自動改用安全備用摘要。${published ? "完成前，患者仍看到上方的已確認版本。" : ""}</div></div>`;
+  }
+  if (!published && !draft) {
+    const mismatch = stored ? `<div class="small" style="color:#a33;margin-top:6px;">此週期已存的摘要不屬於目前個案，已略過顯示。</div>` : "";
+    return `${title}<div class="card">${head}<b>${weekText}尚未產生摘要</b><div class="small" style="margin-top:6px;">將${weekText}（${formatDateKeyMonthDay(option.startDateKey)}–${formatDateKeyMonthDay(option.endDateKey)}）的評估與訓練紀錄整理成摘要。只傳送去識別化的已驗證數據，不傳姓名、影像或原始姿勢座標。</div>${mismatch}${errorHtml}<button class="btn btn-primary full" style="margin-top:10px;" onclick="generateCaseWeeklySummary('${summaryText(selection.cycleId)}')" ${disabled}>產生${weekText} AI 摘要</button></div>${renderWeekArrangementBlock(patientId, selection.cycleId)}`;
+  }
+  const confirming = busyThis && busy.kind === "confirm";
+  const cycleArg = summaryText(selection.cycleId);
+  const draftBlock = draft
+    ? `<div class="llm-summary-draft" style="margin-top:${published ? "14px" : "0"};${published ? "padding-top:12px;border-top:1px dashed #ccc;" : ""}">
+        ${renderSummaryVersionBlock(draft, { heading: `${weekText}｜${published ? "待確認新草稿（患者看不到）" : "待復健師確認（患者看不到）"}`, confirmed: false, cycleId: selection.cycleId })}
+        <button class="btn btn-primary full" style="margin-top:8px;" onclick="confirmCaseWeeklySummary('${cycleArg}', '${summaryText(getDraftToken(draft))}')" ${disabled}>${confirming ? "確認中…" : published ? "確認此新草稿並取代已確認版本" : `確認${weekText}摘要`}</button>
+      </div>`
+    : "";
+  return `${title}<div class="card llm-weekly-summary-card">
+    ${head}
+    ${published ? renderSummaryVersionBlock(published, { heading: `${weekText}｜目前已確認版本（患者可見）`, confirmed: true, cycleId: selection.cycleId }) : ""}
+    ${draftBlock}
+    <div class="small muted" style="margin-top:8px;">此摘要僅整理系統既有資料，不是診斷或治療建議。</div>
+    ${errorHtml}
+    <button class="btn btn-light full" style="margin-top:10px;" onclick="generateCaseWeeklySummary('${cycleArg}')" ${disabled}>${draft ? "重新產生草稿" : "產生新草稿"}</button>
+  </div>
+  ${renderWeekArrangementBlock(patientId, selection.cycleId)}`;
+}
+
+/** One summary version (published snapshot or draft) with its OWN source label — never another version's. */
+function renderSummaryVersionBlock(version, { heading, confirmed, cycleId = null }) {
+  const s = version.summary.professionalSummary;
+  const fromGemini = version.source === "gemini";
+  const confirmedOn = confirmed && version.confirmedAt ? formatDateKeyMonthDay(toLocalDateKey(version.confirmedAt)) : null;
+  const simulated = confirmed && isSimulatedConfirmation(version);
+  return `<div class="row" style="justify-content:space-between;"><b>${heading}</b><span class="pill ${confirmed ? "active-status" : "pending"}">${fromGemini ? "Gemini 整理" : "安全備用摘要"}</span></div>
+    ${weekSyntheticNote(cycleId ? trackingCycleService.getTrackingCycleById(cycleId) : null)}
+    ${confirmedOn ? (simulated ? `<div class="small">✓ <span class="demo-synthetic-badge">${SIMULATED_CONFIRMATION_TEXT}</span> ${confirmedOn}</div>` : `<div class="small">✓ 復健師確認於 ${confirmedOn}</div>`) : ""}
     <p class="small"><b>功能：</b>${summaryText(s.functionSummary)}</p>
     <p class="small"><b>訓練：</b>${summaryText(s.trainingSummary)}</p>
     <p class="small"><b>計畫：</b>${summaryText(s.planSummary)}</p>
-    ${(saved.summary.attentionNotes || []).map((n) => `<div class="small" style="color:#8a5b20;">注意：${summaryText(n)}</div>`).join("")}
-    <div class="small muted">此摘要僅整理系統既有資料，不是診斷或治療建議。</div>
-    <div class="row" style="margin-top:10px;">
-      <button class="btn btn-light" style="flex:1" onclick="generateCaseWeeklySummary()">重新產生</button>
-      ${saved.status === "confirmed" ? "" : `<button class="btn btn-primary" style="flex:1" onclick="confirmCaseWeeklySummary()">確認摘要</button>`}
-    </div>
-  </div>`;
+    ${(version.summary.attentionNotes || []).map((n) => `<div class="small" style="color:#8a5b20;">注意：${summaryText(n)}</div>`).join("")}`;
 }
 
-async function generateCaseWeeklySummary() {
+function selectCaseSummaryCycle(cycleId) {
   const patientId = state.selectedPatientId;
-  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
-  if (!cycle) return alert("此個案尚未建立 F01 追蹤週期。");
-  state.llmSummaryLoadingCycleId = cycle.id;
+  if (!state.llmSummaryBusy && getCaseSummaryCycleOptions(patientId).some((o) => o.cycleId === cycleId)) {
+    state.summaryCycleSelection = { patientId, cycleId };
+  }
+  render();
+}
+
+/** The { patientId, cycleId } an action button names — only if it is the current case's current selection and the cycle is that patient's. */
+function resolveCaseSummaryTarget(cycleId) {
+  const patientId = state.selectedPatientId;
+  const selection = state.summaryCycleSelection;
+  if (!patientId || !state.user || !selection || selection.patientId !== patientId || selection.cycleId !== cycleId) return null;
+  const cycle = trackingCycleService.getTrackingCycleById(cycleId);
+  if (!cycle || cycle.userId !== patientId) return null;
+  if (!getCaseSummaryCycleOptions(patientId).some((o) => o.cycleId === cycleId)) return null;
+  return { patientId, cycleId };
+}
+
+async function generateCaseWeeklySummary(cycleId) {
+  if (state.llmSummaryBusy) return;
+  const target = resolveCaseSummaryTarget(cycleId);
+  if (!target) {
+    alert("所選週期與目前個案不符，請重新選擇週期。");
+    return render();
+  }
+  const therapistId = state.user.id;
+  state.llmSummaryBusy = { ...target, kind: "generate" };
   state.llmSummaryError = null;
   render();
   try {
-    await createWeeklySummary({ patientId, cycleId: cycle.id, therapistId: state.user.id });
+    await createWeeklySummary({ patientId: target.patientId, cycleId: target.cycleId, therapistId });
   } catch (error) {
-    state.llmSummaryError = "目前無法建立摘要，請確認此週期已有可用的評估資料。";
+    const code = error && error.message;
+    state.llmSummaryError = { ...target, message: WEEKLY_SUMMARY_ERROR_TEXT[code] || "目前無法建立摘要，請確認此週期已有可用的評估資料。" };
   } finally {
-    state.llmSummaryLoadingCycleId = null;
+    if (isSameSummaryTarget(state.llmSummaryBusy, target)) state.llmSummaryBusy = null;
     render();
   }
 }
 
-async function confirmCaseWeeklySummary() {
-  const patientId = state.selectedPatientId;
-  const cycle = trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId);
-  if (!cycle) return;
-  try { await confirmWeeklySummary(cycle.id, state.user.id); }
-  catch { alert("摘要尚未成功同步，請確認網路與 Firestore 規則後重試。"); }
+async function confirmCaseWeeklySummary(cycleId, draftToken) {
+  if (state.llmSummaryBusy) return;
+  const target = resolveCaseSummaryTarget(cycleId);
+  if (!target) {
+    alert("所選週期與目前個案不符，請重新選擇週期。");
+    return render();
+  }
+  const stored = getSavedWeeklySummary(target.cycleId);
+  const draft = isSummaryForSelection(stored, target) ? getPendingDraft(stored) : null;
+  if (!draft || !draftToken || getDraftToken(draft) !== draftToken) {
+    state.llmSummaryError = { ...target, message: "畫面上的草稿已不是最新內容，請確認後再按一次。" };
+    return render();
+  }
+  const therapistId = state.user.id;
+  state.llmSummaryBusy = { ...target, kind: "confirm" };
+  state.llmSummaryError = null;
+  render();
+  try {
+    await confirmWeeklySummary(target.cycleId, therapistId, draftToken);
+  } catch (error) {
+    const code = error && error.message;
+    state.llmSummaryError = { ...target, message: WEEKLY_SUMMARY_ERROR_TEXT[code] || "摘要尚未成功確認，請稍後重試。" };
+  } finally {
+    if (isSameSummaryTarget(state.llmSummaryBusy, target)) state.llmSummaryBusy = null;
+    render();
+  }
+}
+
+/**
+ * 復健師個案頁 — 下一階段建議待檢視. Proposals of THIS patient whose actual
+ * arrangement needs a person (js/data/d5Arrangement.js). The therapist sees
+ * last week's plan, the rule's judgement and inputs, the patient's report and
+ * what is pending, then confirms one exact plan (reviewD5Proposal). Amounts are
+ * never pre-filled: an empty field keeps the exercise's catalog default.
+ */
+const D5_REVIEW_ERROR_TEXT = {
+  proposal_changed: "患者在你檢視期間更新了狀況確認，內容已變更，請重新檢視。",
+  review_reason_required: "請填寫調整理由。",
+  review_exercise_not_allowed: "有動作不在可選範圍（同目標、且未命中目前的排除規則）。",
+  review_duplicate_exercise: "同一個動作不能重複安排。",
+  review_dose_invalid: "組數、次數或秒數需為正整數，且需符合該動作的計量方式。",
+  review_items_empty: "至少需要安排 1 個動作。",
+  review_too_many_items: "最多安排 3 個動作。",
+  review_plan_conflict: "安排中仍有動作命中目前的排除規則。",
+  review_sync_failed: "確認尚未同步到雲端，已保留原本內容；請確認網路後重試。",
+  proposal_already_accepted: "患者已接受這份建議，無法再修改。",
+  not_authorized: "你沒有這位個案的管理權限。",
+  review_not_needed: "這份建議目前不需要復健師檢視。",
+  // F01 batch 2 §3C
+  review_counting_basis_required: "有動作尚未選擇計量方式（每側或合計）；填寫次數時，或動作資料沒有說明計量方式時必填。",
+  review_counting_basis_unsupported: "選擇的計量方式不是這個動作的偵測所支援的方式。",
+};
+
+function d5ReviewVolumeText(exerciseId, dose) {
+  return formatPlanVolume(describePlanVolume(exerciseService.getById(exerciseId), dose)) || "動作資料未提供訓練量";
+}
+
+function renderTherapistD5Reviews(patientId) {
+  const therapistId = state.user && state.user.id;
+  const list = listD5ReviewsForPatient({ therapistId, patientId, completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+  if (!list.length) return "";
+  return `<h3 class="section-title">下一階段建議待檢視</h3>${list.map(renderD5ReviewCard).join("")}`;
+}
+
+function renderD5ReviewCard(entry) {
+  const { proposal, loadError, ctx, arrangement } = entry;
+  if (loadError) {
+    return `<div class="card d5-review-card"><b>無法顯示這份下一階段建議</b><p class="small">${d5ErrorText(loadError)}（此裝置缺少對應的追蹤週期或評估紀錄，無法核對內容）</p></div>`;
+  }
+  const d5 = proposal.d5;
+  const plan = (items) => `<ol class="d5-ex-list">${items.map((it) => `<li>${d5ExerciseName(it.exerciseId)}<span class="small">｜${d5ReviewVolumeText(it.exerciseId, it.dose)}</span></li>`).join("")}</ol>`;
+  const limits = (d5.currentLimitations || []).map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
+  const rv = arrangement.review;
+  const draft = state.d5ReviewDraft && state.d5ReviewDraft.proposalId === proposal.id ? state.d5ReviewDraft : null;
+  const err = state.d5ReviewError && state.d5ReviewError.proposalId === proposal.id ? state.d5ReviewError.message : null;
+  const statusText = arrangement.status === "reviewed" ? `已確認（${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))}），等待患者接受` : "待復健師檢視";
+  return `<div class="card d5-review-card">
+    <div class="row" style="justify-content:space-between;"><b>規則判定：${arrangement.ruleLabel}</b><span class="pill ${arrangement.status === "reviewed" ? "active-status" : "pending"}">${statusText}</span></div>
+    <b class="fa5x-section-title">上一週安排</b>${plan(ctx.recommendation.items)}
+    <b class="fa5x-section-title">目前的下一週內容</b>${plan(proposal.items || [])}
+    <b class="fa5x-section-title">觸發原因</b>
+    <ul class="d5-decision-basis">${explainD5Decision(d5).map((l) => `<li>${l}</li>`).join("")}</ul>
+    <div class="small">患者回報：${d5.hasNewOrWorseningDiscomfort ? "有新的或加重的不適" : "沒有新的或加重的不適"}；目前勾選：${limits.length ? limits.join("、") : "沒有"}</div>
+    ${d5.discomfortNote ? `<div class="small">患者補充說明：${escapeD5Text(d5.discomfortNote)}</div>` : ""}
+    <b class="fa5x-section-title">待處理項目</b>
+    <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${r.text}</li>`).join("")}${arrangement.staleReview ? "<li>先前的確認是針對舊版內容；內容已變更，需要重新檢視。</li>" : ""}${arrangement.status === "reviewed" ? "<li>已確認，等待患者接受。</li>" : ""}</ul>
+    <div class="small">決策來源：${describeDecisionSource(arrangement)}</div>
+    ${arrangement.draft ? renderD5DraftDetails(arrangement.draft) : ""}
+    ${rv ? `<div class="small">上次確認理由：${escapeD5Text(rv.reason)}</div>` : ""}
+    ${err ? `<div class="small" style="color:#a33;margin-top:6px;">${err}</div>` : ""}
+    ${draft ? renderD5ReviewForm(proposal, draft) : `<button class="btn btn-primary full" style="margin-top:10px;" onclick="startD5Review('${proposal.id}')" ${state.d5ReviewBusy ? "disabled" : ""}>${arrangement.status === "reviewed" ? "重新檢視" : "檢視並確認下一週安排"}</button>`}
+  </div>`;
+}
+
+const D5_NOT_OFFERED_TEXT = { spec_status_pending: "規格狀態 Pending，尚未確認", spec_status_draft: "規格狀態 Draft，尚未確認", already_in_plan: "已在目前清單中", excluded_by_limitation: "命中目前的排除規則", not_in_catalog: "動作資料庫沒有此動作" };
+
+/** The LLM draft as proposed and validated: decision, each change with its spec row, cited reasons, versions. */
+function renderD5DraftDetails(draft) {
+  const plan = draft.plan;
+  const TT = { progression: "進階轉換", regression: "退階轉換", same_goal_replacement: "同目標替換" };
+  return `<div class="d5-llm-draft">
+    <b class="fa5x-section-title">LLM 推薦草稿｜判定：${LLM_DRAFT_DECISION_LABEL[plan.decision] || "—"}</b>
+    <ul class="d5-decision-basis">
+      ${plan.changes.length ? plan.changes.map((c) => `<li>${d5ExerciseName(c.fromExerciseId)} → ${d5ExerciseName(c.toExerciseId)}（${TT[c.transitionType] || c.transitionType}；規格狀態 ${escapeD5Text(c.specStatus)}，${escapeD5Text(c.evidenceType)}${c.sourceUrl ? `；來源 ${escapeD5Text(c.sourceUrl)}` : ""}）</li>`).join("") : "<li>動作不變</li>"}
+    </ul>
+    <ul class="d5-decision-basis">${plan.reasons.map((r) => `<li>${escapeD5Text(r.text)}<span class="small">（依據：${r.factIds.map(escapeD5Text).join("、")}）</span></li>`).join("")}</ul>
+    <div class="small"><b>合法選項（${draft.legalPlanCount} 種安排${draft.choiceSpace === "single_option" ? "，沒有選擇空間" : ""}）</b>：維持原動作${(draft.candidates && draft.candidates.options || []).map((o) => `；${d5ExerciseName(o.fromExerciseId)} → ${d5ExerciseName(o.toExerciseId)}（${TT[o.transitionType] || o.transitionType}，${escapeD5Text(o.specStatus)}）`).join("")}</div>
+    ${(draft.candidates && draft.candidates.notOffered || []).length ? `<div class="small"><b>不提供</b>：${draft.candidates.notOffered.map((n) => `${d5ExerciseName(n.fromExerciseId)} → ${d5ExerciseName(n.toExerciseId)}（${D5_NOT_OFFERED_TEXT[n.why] || escapeD5Text(n.why)}）`).join("；")}</div>` : ""}
+    <div class="small">來源：${draft.provider === "gemini" ? "Gemini" : "展示用模擬回應，非真實 Gemini"}</div>
+    <div class="small muted">規格的 Confirmed 不等於專業人員已確認此個案的安排。模型 ${escapeD5Text(draft.model || "—")}｜提示 ${escapeD5Text(draft.promptVersion)}｜輸入 ${escapeD5Text(draft.inputId)}｜候選 ${escapeD5Text(draft.candidateSetId)}｜允許判定 ${draft.allowedDecisions.map((d) => LLM_DRAFT_DECISION_LABEL[d]).join("／")}</div>
+  </div>`;
+}
+
+function renderD5ReviewForm(proposal, draft) {
+  const options = listD5ReviewOptions(proposal);
+  const busy = state.d5ReviewBusy === proposal.id;
+  const dis = busy ? "disabled" : "";
+  const rows = draft.items.map((it, idx) => {
+    const opt = options.find((o) => o.exerciseId === it.exerciseId) || null;
+    const raw = exerciseService.getById(it.exerciseId) || {};
+    const metric = opt && opt.measurementType === "duration"
+      ? `<input type="number" min="1" style="flex:1" placeholder="秒數（預設 ${raw.defaultDurationSeconds ?? "—"}）" value="${it.durationSeconds ?? ""}" oninput="updateD5ReviewItem(${idx}, 'durationSeconds', this.value)" ${dis} />`
+      : opt && opt.measurementType === "repetition"
+        ? `<input type="number" min="1" style="flex:1" placeholder="次數（預設 ${raw.defaultRepetitions ?? "—"}）" value="${it.repetitions ?? ""}" oninput="updateD5ReviewItem(${idx}, 'repetitions', this.value)" ${dis} />`
+        : "";
+    return `<div class="d5-review-row-edit">
+      <select class="input" onchange="updateD5ReviewItem(${idx}, 'exerciseId', this.value)" ${dis}>
+        ${opt ? "" : `<option value="" selected>請選擇動作</option>`}
+        ${options.map((o) => `<option value="${o.exerciseId}" ${o.exerciseId === it.exerciseId ? "selected" : ""}>${o.exerciseName}</option>`).join("")}
+      </select>
+      <div class="row" style="gap:6px;margin-top:6px;">
+        <input type="number" min="1" style="flex:1" placeholder="組數（預設 ${raw.defaultSets ?? "—"}）" value="${it.sets ?? ""}" oninput="updateD5ReviewItem(${idx}, 'sets', this.value)" ${dis} />
+        ${metric}
+        ${draft.items.length > 1 ? `<button class="btn btn-light" onclick="removeD5ReviewItem(${idx})" ${dis}>移除</button>` : ""}
+      </div>
+      ${renderD5ReviewCountingControl(opt, it, idx, dis)}
+    </div>`;
+  }).join("");
+  const canAdd = draft.items.length < 3 && options.some((o) => !draft.items.some((it) => it.exerciseId === o.exerciseId));
+  return `<div class="d5-review-form">
+    <b class="fa5x-section-title">確認下一週安排</b>
+    <p class="small fa5x-muted">只能選擇同一訓練目標、且未命中目前排除規則的動作（未命中不代表已確認安全）。訓練量留空＝沿用動作資料的預設量，系統不會替你填入數值。</p>
+    ${rows}
+    ${canAdd ? `<button class="btn btn-light full" style="margin-top:6px;" onclick="addD5ReviewItem()" ${dis}>新增動作</button>` : ""}
+    <textarea class="input" style="margin-top:8px;width:100%;min-height:70px;" placeholder="調整理由（必填）" oninput="updateD5ReviewReason(this.value)" ${dis}>${escapeD5Text(draft.reason || "")}</textarea>
+    <div class="row" style="margin-top:8px;gap:8px;">
+      <button class="btn btn-light" style="flex:1" onclick="cancelD5Review()" ${dis}>取消</button>
+      <button class="btn btn-primary" style="flex:1" onclick="submitD5Review()" ${dis}>${busy ? "確認中…" : "確認這份安排"}</button>
+    </div>
+  </div>`;
+}
+
+/** F01 batch 2 §3C — counting-basis control: only the options the detector supports; single option = shown fixed. */
+const F01_COUNTING_LABEL = { total: "合計（左右合計次數）", per_side: "每側（左右各自達到次數）" };
+function renderD5ReviewCountingControl(opt, it, idx, dis) {
+  const options = (opt && opt.countingOptions) || [];
+  if (!options.length) return "";
+  // An exercise without a source / catalog counting basis (F01-19): the choice is this plan's setting, not a source finding.
+  const sourceNote = opt.countingBasisRequiredWithoutReps
+    ? `<div class="small fa5x-muted" style="margin-top:4px;">此動作的資料來源沒有說明每側或合計；這裡的選擇是本次安排的設定，不代表已有來源依據。</div>`
+    : "";
+  if (options.length === 1) return `<div class="small fa5x-muted" style="margin-top:4px;">計量方式：${F01_COUNTING_LABEL[options[0]]}（此動作的偵測只支援這一種）</div>${sourceNote}`;
+  const hint = opt.countingBasisRequiredWithoutReps ? "（必填）" : "（填寫次數時必填）";
+  return `<select class="input" style="margin-top:6px;" onchange="updateD5ReviewItem(${idx}, 'countingBasis', this.value)" ${dis}>
+      <option value="" ${it.countingBasis ? "" : "selected"}>計量方式：請選擇${hint}</option>
+      ${options.map((c) => `<option value="${c}" ${it.countingBasis === c ? "selected" : ""}>${F01_COUNTING_LABEL[c]}</option>`).join("")}
+    </select>${sourceNote}`;
+}
+
+function startD5Review(proposalId) {
+  if (state.d5ReviewBusy) return;
+  const proposal = recommendationService.getById(proposalId);
+  if (!proposal || proposal.patientId !== state.selectedPatientId) return render();
+  state.d5ReviewDraft = {
+    proposalId,
+    patientId: proposal.patientId,
+    fingerprint: planFingerprint(proposal),
+    // the current arrangement; amounts only where a therapist already set one — never pre-filled defaults
+    // countingBasis only when one was already saved explicitly (batch 2) — never back-filled
+    items: (getD5Arrangement(proposal, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION }).planItems || []).map((it) => ({ exerciseId: it.exerciseId, sets: it.dose ? it.dose.sets : null, repetitions: it.dose ? it.dose.repetitions : null, durationSeconds: it.dose ? it.dose.durationSeconds : null, countingBasis: it.dose ? it.dose.countingBasis || null : null })),
+    reason: "",
+  };
+  state.d5ReviewError = null;
   render();
 }
+
+function updateD5ReviewItem(idx, field, value) {
+  const d = state.d5ReviewDraft;
+  if (!d || state.d5ReviewBusy || !d.items[idx]) return;
+  if (field === "exerciseId") {
+    d.items[idx] = { exerciseId: value, sets: null, repetitions: null, durationSeconds: null, countingBasis: null }; // a new exercise starts from its own default
+    return render();
+  }
+  d.items[idx][field] = value === "" ? null : value;
+}
+
+function addD5ReviewItem() {
+  const d = state.d5ReviewDraft;
+  if (!d || state.d5ReviewBusy || d.items.length >= 3) return;
+  const proposal = recommendationService.getById(d.proposalId);
+  const next = listD5ReviewOptions(proposal).find((o) => !d.items.some((it) => it.exerciseId === o.exerciseId));
+  if (next) d.items.push({ exerciseId: next.exerciseId, sets: null, repetitions: null, durationSeconds: null, countingBasis: null });
+  render();
+}
+
+function removeD5ReviewItem(idx) {
+  const d = state.d5ReviewDraft;
+  if (!d || state.d5ReviewBusy || d.items.length <= 1) return;
+  d.items.splice(idx, 1);
+  render();
+}
+
+function updateD5ReviewReason(value) {
+  if (state.d5ReviewDraft && !state.d5ReviewBusy) state.d5ReviewDraft.reason = value;
+}
+
+function cancelD5Review() {
+  if (state.d5ReviewBusy) return;
+  state.d5ReviewDraft = null;
+  state.d5ReviewError = null;
+  render();
+}
+
+async function submitD5Review() {
+  const d = state.d5ReviewDraft;
+  if (!d || state.d5ReviewBusy || d.patientId !== state.selectedPatientId) return;
+  state.d5ReviewBusy = d.proposalId;
+  state.d5ReviewError = null;
+  render();
+  try {
+    // F01 batch 2 §3C — a single supported counting option is the one shown fixed on the form; otherwise the therapist's choice.
+    const options = listD5ReviewOptions(recommendationService.getById(d.proposalId));
+    const items = d.items.map((it) => {
+      const opt = options.find((o) => o.exerciseId === it.exerciseId);
+      const single = opt && (opt.countingOptions || []).length === 1 ? opt.countingOptions[0] : null;
+      return { ...it, countingBasis: it.countingBasis || single };
+    });
+    const res = await reviewD5Proposal({ proposalId: d.proposalId, therapistId: state.user.id, items, reason: d.reason, expectedFingerprint: d.fingerprint }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    if (res.error) state.d5ReviewError = { proposalId: d.proposalId, message: D5_REVIEW_ERROR_TEXT[res.error] || d5ErrorText(res.error) };
+    else state.d5ReviewDraft = null;
+  } finally {
+    state.d5ReviewBusy = null;
+    render();
+  }
+}
+
+window.startD5Review = startD5Review;
+window.updateD5ReviewItem = updateD5ReviewItem;
+window.addD5ReviewItem = addD5ReviewItem;
+window.removeD5ReviewItem = removeD5ReviewItem;
+window.updateD5ReviewReason = updateD5ReviewReason;
+window.cancelD5Review = cancelD5Review;
+window.submitD5Review = submitD5Review;
 
 function setCaseDetailTab(t) {
   state.caseDetailTab = t;
@@ -4963,6 +5438,8 @@ function goCaseDetail(patientId, tab) {
     alert("您沒有管理此患者的權限。");
     return goCaseList();
   }
+  // AI 週摘要 — a cycle chosen for another case is never carried over.
+  if (state.selectedPatientId !== patientId || (state.summaryCycleSelection && state.summaryCycleSelection.patientId !== patientId)) state.summaryCycleSelection = null;
   state.selectedPatientId = patientId;
   state.relationActionType = null;
   state.relationActionReason = null;
@@ -5116,6 +5593,8 @@ window.goCaseDetail = goCaseDetail;
 window.goCaseDetailPlan = goCaseDetailPlan;
 window.generateCaseWeeklySummary = generateCaseWeeklySummary;
 window.confirmCaseWeeklySummary = confirmCaseWeeklySummary;
+window.selectCaseSummaryCycle = selectCaseSummaryCycle;
+window.selectPatientSummaryCycle = selectPatientSummaryCycle;
 window.goAssignPlan = goAssignPlan;
 window.setTherapistHomeView = setTherapistHomeView;
 window.setCaseDetailTab = setCaseDetailTab;
@@ -5237,11 +5716,18 @@ function renderTodayRemotionTask(item, plan, dayPlan, compact = false) {
   const catalog = item.exerciseId ? exerciseService.getNormalizedById(item.exerciseId) : null;
   const ri = item.recommendationItem || {};
   const name = ri.exerciseName || (catalog && catalog.name) || item.exerciseId;
-  const dose = todayTaskDoseText({
-    reps: ri.suggestedReps ?? (catalog && catalog.reps),
-    seconds: ri.suggestedDuration ?? (catalog && catalog.duration),
-    sets: ri.suggestedSets ?? (catalog && catalog.sets),
-  });
+  // F01 plan item: the SAME wording and per-field source labels as the plan / comparison / training pages
+  // (a therapist-typed field, else the catalog default — labelled 復健師設定 / 動作預設). Older plans keep their suggested amounts.
+  const dose = plan.kind === TODAY_PLAN_REMOTION_KIND.F01_CYCLE
+    ? formatPlanVolume(describePlanVolume(catalog ? {
+      measurementType: catalog.reps ? "repetition" : catalog.duration ? "duration" : null,
+      defaultSets: catalog.sets, defaultRepetitions: catalog.reps, defaultDurationSeconds: catalog.duration,
+    } : null, ri.dose))
+    : todayTaskDoseText({
+      reps: ri.suggestedReps ?? (catalog && catalog.reps),
+      seconds: ri.suggestedDuration ?? (catalog && catalog.duration),
+      sets: ri.suggestedSets ?? (catalog && catalog.sets),
+    });
   const planId = plan.kind === TODAY_PLAN_REMOTION_KIND.F01_CYCLE ? plan.cycleId : plan.recommendationId;
   const args = `'${plan.kind}', '${planId}', '${item.exerciseId}'`;
   return renderTodayTaskCard({
@@ -5403,19 +5889,118 @@ function getSelectedScheduleExercise() {
  * self-practice since there's no single "the" completion to lock — a
  * patient can repeat it anytime.
  */
+/**
+ * Therapist-set amount of this exercise in the F01 plan being trained (opened from that plan), or null.
+ * F01 batch 1 (docs/specs/f01-batch1-daily-target-snapshot-spec.md, 4.2) — inside a formal
+ * F01 training whose day has a FROZEN target, the frozen values are returned instead (both
+ * fields filled, so getExercisePageContext never falls back to the live catalog default),
+ * with `frozenTarget` carrying the per-field sources for the label.
+ */
+function f01PlanDoseFor(exerciseId) {
+  if (state.navigationOrigin !== "f01Recommendation" || !state.f01RecommendationId) return null;
+  const ctx = state.f01TrainingContext;
+  if (ctx && ctx.exerciseId === exerciseId && ctx.recommendationId === state.f01RecommendationId) {
+    const frozen = trackingCycleService.getFrozenDailyTarget({ cycleId: ctx.cycleId, userId: ctx.userId, dateKey: ctx.planDateKey || toLocalDateKey(new Date()), exerciseId });
+    if (frozen) return { sets: frozen.sets.value, repetitions: frozen.repsPerSet.value, durationSeconds: null, frozenTarget: frozen };
+  }
+  const rec = recommendationService.getById(state.f01RecommendationId);
+  if (!rec || rec.patientId !== getCurrentPatientId()) return null;
+  const item = (rec.items || []).find((it) => it.exerciseId === exerciseId);
+  return item && item.dose ? item.dose : null;
+}
+
+/**
+ * F01 batch 2 (docs/specs/f01-batch2-completion-alignment-design.md) — the frozen detector
+ * configuration ({ targetReps } or { targetPerSide }) of a FORMAL training in a new-version
+ * cycle, or null. Every other training (self practice, therapist schedule, old-version cycle,
+ * unfrozen day) gets null and keeps its detector's existing formula.
+ */
+function f01FormalDetectorConfig(exerciseId) {
+  if (!isF01FormalTrainingContext()) return null;
+  const ctx = state.f01TrainingContext;
+  if (ctx.exerciseId !== exerciseId) return null;
+  return trackingCycleService.getF01FormalDetectorConfig({ cycleId: ctx.cycleId, userId: ctx.userId, dateKey: ctx.planDateKey || toLocalDateKey(new Date()), exerciseId });
+}
+const f01FormalTargetReps = (exerciseId, fallback) => { const c = f01FormalDetectorConfig(exerciseId); return c && c.targetReps != null ? c.targetReps : fallback; };
+const f01FormalTargetPerSide = (exerciseId, fallback) => { const c = f01FormalDetectorConfig(exerciseId); return c && c.targetPerSide != null ? c.targetPerSide : fallback; };
+
+/**
+ * F01 batch 2 (decision D) — per-side progress of a FORMAL per-side training: each side against the
+ * frozen per-side target, the ring at the weaker side; the left+right total is shown only as a
+ * count, never as the completion threshold. No-op unless the session reports targetPerSide, so
+ * self practice / therapist schedules / old-version cycles render exactly as before.
+ */
+const F01_PER_SIDE_VIEW = {
+  kn03: { counterId: "kn03RepCounter", valueId: "kn03RepCounterValue", ringId: "kn03RepRingProgress", totalStatId: "kn03TotalReps", leftId: "kn03LeftReps", rightId: "kn03RightReps" },
+  cr05: { counterId: "cr05RepCounter", valueId: "cr05RepCounterValue", ringId: "cr05RepRingProgress", totalStatId: "cr05TotalReps", leftId: "cr05LeftReps", rightId: "cr05RightReps" },
+  hp04: { counterId: "hp04Counter", valueId: "hp04Total", ringId: "hp04Ring", totalStatId: "hp04StatTotal", leftId: "hp04Left", rightId: "hp04Right", combinedSides: true },
+  hp05: { counterId: "hp05Counter", valueId: "hp05Total", ringId: "hp05Ring", totalStatId: "hp05StatTotal", leftId: "hp05Left", rightId: "hp05Right", combinedSides: true },
+  hp06: { counterId: "hp06Counter", valueId: "hp06Total", ringId: "hp06Ring", totalStatId: "hp06StatTotal", leftId: "hp06Left", rightId: "hp06Right", combinedSides: true },
+  ak08: { counterId: "ak08Counter", valueId: "ak08Total", ringId: "ak08Ring", totalStatId: "ak08Reps", sidesId: "ak08Sides" },
+};
+function showF01PerSideProgress(view, s) {
+  const per = s && s.targetPerSide;
+  if (!view || !per) return;
+  const l = s.leftReps || 0, r = s.rightReps || 0;
+  const el = (id) => (id ? document.getElementById(id) : null);
+  const set = (id, t) => { const e = el(id); if (e && e.textContent !== t) e.textContent = t; };
+  const counter = el(view.counterId);
+  const sep = counter && counter.querySelector(".squat-rep-counter-sep");
+  if (sep && sep.textContent !== `/ 每側 ${per}`) sep.textContent = `/ 每側 ${per}`;
+  set(view.valueId, String(Math.min(l, r)));
+  const ring = el(view.ringId);
+  if (ring) ring.style.strokeDashoffset = String(188.5 * (1 - calculateProgressRatio(Math.min(l, r), per)));
+  const total = el(view.totalStatId);
+  if (total && total.parentElement && !total.parentElement.dataset.f01PerSide) {
+    total.parentElement.dataset.f01PerSide = "1";
+    total.parentElement.innerHTML = `<span id="${view.totalStatId}">${s.totalReps || 0}</span><span class="small">（左右合計，不作為完成門檻）</span>`;
+  } else set(view.totalStatId, String(s.totalReps || 0));
+  if (view.sidesId) set(view.sidesId, `左 ${l} / ${per}｜右 ${r} / ${per}`);
+  if (view.leftId && view.rightId) {
+    const left = el(view.leftId);
+    if (view.combinedSides && left && left.parentElement && !left.parentElement.dataset.f01PerSide) {
+      left.parentElement.dataset.f01PerSide = "1";
+      left.parentElement.innerHTML = `左 <span id="${view.leftId}"></span>｜右 <span id="${view.rightId}"></span>`;
+    }
+    set(view.leftId, `${l} / ${per}`);
+    set(view.rightId, `${r} / ${per}`);
+  }
+}
+
+/** Opened from the F01 plan: the amount line says which field is therapist-set and which is the catalog default. */
+function withF01PlanDoseLabel(model, ex) {
+  if (!model || !ex || state.navigationOrigin !== "f01Recommendation" || state.exerciseContext !== "self_practice") return model;
+  const dose = f01PlanDoseFor(ex.exerciseId);
+  const frozen = dose && dose.frozenTarget;
+  // F01 batch 1 — a frozen target is labelled from the sources stored at freeze time, never from the live catalog.
+  const byTherapist = (f) => f.source === "therapist_dose";
+  const volume = frozen
+    ? describePlanVolume(
+      { measurementType: frozen.measurementType, defaultSets: byTherapist(frozen.sets) ? null : frozen.sets.value, defaultRepetitions: byTherapist(frozen.repsPerSet) ? null : frozen.repsPerSet.value },
+      { sets: byTherapist(frozen.sets) ? frozen.sets.value : null, repetitions: byTherapist(frozen.repsPerSet) ? frozen.repsPerSet.value : null },
+    )
+    : describePlanVolume(exerciseService.getById(ex.exerciseId), dose);
+  let text = formatPlanVolume(volume);
+  // F01 batch 1 (4.2 step 5) — a formal training on a day without frozen targets says so.
+  const ctx = state.f01TrainingContext;
+  if (text && ctx && ctx.exerciseId === ex.exerciseId && ctx.targetRef && ctx.targetRef !== "frozen") text += "（今日目標未凍結）";
+  return text ? { ...model, dosage: { ...model.dosage, text } } : model;
+}
+
 function getExercisePageContext() {
   if (state.exerciseContext === "self_practice") {
     const catalog = exerciseService.getById(state.selectedExerciseId);
     if (!catalog) return null;
+    const planDose = f01PlanDoseFor(catalog.exercise_id) || {};
     return {
       mode: "self_practice",
       schedule: null,
       ex: {
         exerciseId: catalog.exercise_id,
         exerciseName: catalog.exercise_name,
-        sets: catalog.defaultSets,
-        repetitions: catalog.measurementType === "repetition" ? catalog.defaultRepetitions : null,
-        durationSeconds: catalog.measurementType === "duration" ? catalog.defaultDurationSeconds : null,
+        sets: planDose.sets || catalog.defaultSets,
+        repetitions: catalog.measurementType === "repetition" ? planDose.repetitions || catalog.defaultRepetitions : null,
+        durationSeconds: catalog.measurementType === "duration" ? planDose.durationSeconds || catalog.defaultDurationSeconds : null,
         status: "pending",
         rewardXp: catalog.rewardXp,
         analysisRecordId: null,
@@ -5968,6 +6553,7 @@ const FA5X_END_REASON_TEXT = {
   [FA5X_END_REASON.START_POSITION_NOT_SEATED]: { reason: "開始計時時不是坐姿。", tip: "請先坐好，聽到「開始」後再起身。" },
   [FA5X_END_REASON.TIMEOUT]: { reason: "超過評估時間，仍未完成 5 次。", tip: null },
   [FA5X_END_REASON.USER_CANCELLED]: { reason: "評估提前結束。", tip: null },
+  [FA5X_END_REASON.FRAME_CHANGED]: { reason: "測試過程中畫面方向或比例改變，無法沿用開始前的坐姿基準。", tip: "請固定手機方向，重新調整拍攝位置後再進行評估。" },
 };
 
 /**
@@ -6007,6 +6593,69 @@ function fa5xResultBackAction(session) {
   }
   if (role === NEXT_CYCLE_BASELINE_ROLE) return "switchTab('home')";
   return state.fa5xResultOrigin === "home" ? "switchTab('home')" : "goF01LowerLimbHome()";
+}
+
+/**
+ * 5xSTS batch A — 測試條件 card on a completed result: the latest user-reported
+ * conditions with every open issue, plus the append-only report form for the
+ * session's own patient. Display only: nothing here decides comparison or
+ * recommendation use (batch B), and nothing here touches the stored measurement.
+ * The form never pre-selects an answer; an unanswered question is saved as 不確定.
+ */
+function renderFa5xConditionSection(session, info) {
+  const latest = info.latest;
+  const issues = info.issues.map((code) => FA5X_CONDITION_ISSUE_TEXT[code] || code);
+  const reportedLine = latest
+    ? `${FA5X_CONDITION_LABEL.source[latest.source] || "回報來源無法辨識"}｜${info.conditionText}${latest.reportedAt ? `｜${fmtFa5xDate(latest.reportedAt)}` : ""}${info.reportCount > 1 ? `（共 ${info.reportCount} 次回報，以最新一次為準）` : ""}`
+    : "尚未回報";
+  const role = session.result ? session.result.assessmentRole : null;
+  const askSameChair = role === REASSESSMENT_ROLE || role === NEXT_CYCLE_BASELINE_ROLE;
+  const radios = (name, options) => options.map(([value, label]) => `<label class="fa5x-cond-option"><input type="radio" name="${name}" value="${value}" /> ${label}</label>`).join("");
+  const form = getCurrentPatientId() === session.patientId
+    ? `<details class="fa5x-cond-form"${latest ? "" : " open"}>
+        <summary>${latest ? "補充或更正測試條件" : "確認測試條件"}</summary>
+        <p class="small">請依實際情況回答。不確定可以選「不確定」，沒有回答的題目也會記為不確定。新的回答會另外保存，先前的回答不會被刪除。</p>
+        <fieldset class="fa5x-cond-q"><legend>起身時有沒有用手撐椅面、扶手、膝蓋或其他物品？</legend>${radios("fa5xCondArms", [["no", "沒有"], ["yes", "有"], ["unknown", "不確定"]])}</fieldset>
+        <fieldset class="fa5x-cond-q"><legend>測試時有沒有人扶你或協助你？</legend>${radios("fa5xCondAssist", [["no", "沒有"], ["yes", "有"], ["unknown", "不確定"]])}</fieldset>
+        ${askSameChair ? `<fieldset class="fa5x-cond-q" data-same-chair="1"><legend>和初次評估使用同一張椅子嗎？</legend>${radios("fa5xCondSameChair", [["yes", "是"], ["no", "不是"], ["unknown", "不確定"]])}</fieldset>` : ""}
+        <label class="small fa5x-cond-q">椅子高度（公分，可不填）<input id="fa5xCondChairCm" type="number" inputmode="decimal" min="20" max="90" step="0.5" /></label>
+        <fieldset class="fa5x-cond-q"><legend>由誰回答？</legend>${radios("fa5xCondSource", [["self_report", "本人"], ["caregiver_report", "家人或照顧者代答"]])}</fieldset>
+        <button class="btn btn-light full" onclick="submitFa5xConditionReport('${session.id}')">儲存測試條件</button>
+      </details>`
+    : "";
+  return `<div class="card fa5x-condition-card">
+      <b class="fa5x-section-title">測試條件（使用者回報）</b>
+      <p class="small">${reportedLine}</p>
+      ${issues.length ? `<ul class="small fa5x-cond-issues">${issues.map((t) => `<li>${t}</li>`).join("")}</ul>` : ""}
+      <p class="small fa5x-muted">測試條件由使用者回報，系統沒有驗證；回報不會改變上方的量測結果。</p>
+      ${form}
+    </div>`;
+}
+
+/** Reads the 測試條件 form and APPENDS one report (unanswered -> 不確定; who answered must be chosen). */
+function submitFa5xConditionReport(sessionId) {
+  const picked = (name) => {
+    const el = document.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : null;
+  };
+  const source = picked("fa5xCondSource");
+  if (!source) return alert("請選擇由誰回答。");
+  const chairRaw = (document.getElementById("fa5xCondChairCm") || {}).value;
+  const chairHeightCm = chairRaw === undefined || String(chairRaw).trim() === "" ? null : Number(chairRaw);
+  if (chairHeightCm !== null && !Number.isFinite(chairHeightCm)) return alert("椅子高度請填數字，或留空。");
+  const answers = {
+    armsUsed: picked("fa5xCondArms") || "unknown",
+    physicalAssistance: picked("fa5xCondAssist") || "unknown",
+    sameChairAsBaseline: document.querySelector('[data-same-chair="1"]') ? picked("fa5xCondSameChair") || "unknown" : "not_applicable",
+    chairHeightCm,
+    source,
+  };
+  const res = functionalAssessmentService.appendFa5xConditionReport(sessionId, answers, { reportedBy: getCurrentPatientId() });
+  if (res.error) {
+    const text = { invalid_chair_height: "椅子高度需介於 20 到 90 公分之間，或留空。", reporter_not_owner: "只能由受測者本人的帳號回報。" }[res.error];
+    return alert(text || "無法儲存測試條件，請再試一次。");
+  }
+  render();
 }
 
 /**
@@ -6100,11 +6749,22 @@ function fiveTimesSitToStandResultPage() {
   const reLinked = !!(reCycle && reCycle.reassessmentId === session.id);
   // Explanation row (icon + title + one sentence) — descriptive only, no judgement.
   const seconds = (result.totalDurationMs / 1000).toFixed(1);
+  const conditionInfo = describeFa5xConditions(session); // batch A: reported test conditions (display only)
+  // fa5x-12-browser: a standalone result while ANOTHER 7-day cycle is still in progress cannot start a
+  // new cycle (createOrGetTrackingCycle -> another_active_cycle; no end-cycle feature). Say so up front,
+  // matching what actually happens; the existing 查看訓練建議 still works and does not change that cycle.
+  const activeCycle = !isReassessment && !isNextBaseline ? trackingCycleService.getActiveTrackingCycle(session.patientId) : null;
+  const activeCycleNote = activeCycle && activeCycle.baselineAssessmentId !== session.id
+    ? `<p class="small fa5x-muted fa5x-active-cycle-note">你目前有進行中的 7 日追蹤（開始於 ${formatDateKeyMonthDay(activeCycle.cycleStartDateKey)}），這次結果會保留，但不會建立新的追蹤；查看訓練建議也不會改變目前的追蹤。要以新的評估開始新追蹤，需先完成目前追蹤的再次評估（預計 ${formatDateKeyMonthDay(activeCycle.plannedReassessmentDateKey)} 起），再重新進行一次五次坐站。</p>`
+    : "";
+  // Result wording fix (docs/verification/fa5x-result-wording/): no sentence promises that these
+  // seconds WILL be used for a later comparison — whether two runs can be compared depends on the
+  // test conditions and the measurement version (decided elsewhere; nothing here changes that logic).
   const note = isReassessment
-    ? { title: reLinked ? "再次評估已完成" : "評估已完成", text: reLinked ? "這次結果已記錄在同一個 7 日追蹤中，可以和初次評估比較。" : "這次結果已保存，但沒有記錄為追蹤週期的再次評估（該週期可能已完成）。" }
+    ? { title: reLinked ? "再次評估已完成" : "評估已完成", text: reLinked ? "這次結果已記錄在同一個 7 日追蹤中。已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" : "這次結果已保存，但沒有記錄為追蹤週期的再次評估（該週期可能已完成）。" }
     : isNextBaseline
-      ? { title: "下一週期基準評估已完成", text: `${seconds} 秒會作為下一週期的比較起點。` }
-      : { title: "本次評估已完成", text: `本次 5 次坐站已完成，${seconds} 秒將作為後續再次評估時的比較依據。` };
+      ? { title: "下一週期基準評估已完成", text: "已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" }
+      : { title: "本次評估已完成", text: "已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" };
   // Phase D5 — a completed next-cycle baseline starts the confirmed next cycle (never Phase C).
   const nextCycle = isNextBaseline ? trackingCycleService.getNextTrackingCycle(patientId, result.sourceCycleId) : null;
   const nextCycleLinked = !!(nextCycle && nextCycle.baselineAssessmentId === session.id);
@@ -6134,6 +6794,7 @@ function fiveTimesSitToStandResultPage() {
       <img class="fa5x-next-illustration" src="/images/exercise/exercise_plan.png" alt="" />
       <b class="fa5x-next-title">下一步｜安排訓練</b>
       <p class="small">選擇你目前想加強的方向，取得適合的居家訓練建議。</p>
+      ${activeCycleNote}
       <button class="btn btn-primary full fa5x-next-cta" onclick="startRecommendationFromFiveTimesSitToStand('${session.id}')">查看訓練建議 →</button>
       <button class="fa5x-text-link" onclick="goF01LowerLimbHome()">返回 F01 下肢功能</button>
     </div>`;
@@ -6149,9 +6810,11 @@ function fiveTimesSitToStandResultPage() {
       <span class="fa5x-status-chip completed">✓ 已完成 ${completedReps} / ${FA5X_TARGET_REPS}</span>
       <div class="fa5x-hero-value">${(result.totalDurationMs / 1000).toFixed(1)}<span>秒</span></div>
       <div class="fa5x-hero-label">完成五次坐站所需時間</div>
+      <div class="small fa5x-condition-label">${conditionInfo.timeLabel}${conditionInfo.issues.length ? `｜${conditionInfo.issues.map((c) => FA5X_CONDITION_ISSUE_TEXT[c] || c).join("、")}` : ""}</div>
       <div class="small fa5x-date">${dateText}</div>
       ${legacyNote}
     </div>
+    ${renderFa5xConditionSection(session, conditionInfo)}
     ${repDurations.length ? `<div class="card fa5x-record-card">
       <b class="fa5x-section-title">本次完成紀錄</b>
       <div class="fa5x-done-marks" role="img" aria-label="連續完成 ${completedReps} 次完整坐站">${doneMarksHtml}</div>
@@ -6186,6 +6849,8 @@ let fa5xAssessment = null, fa5xCameraController = null, fa5xCanvasCtx = null, fa
 let fa5xTimerRaf = null, fa5xFinalized = false, fa5xPatientId = null, fa5xStartCueAt = null, fa5xRejectedUntil = 0;
 let fa5xStage = "stand", fa5xPositionCheck = null, fa5xStandKey = null, fa5xSitStageAt = null, fa5xPanelKind = null;
 let fa5xLastFramingSpoken = null, fa5xFlashTimer = null, fa5xAudioCtx = null;
+/** Video size the current camera set-up was done on (first valid frame of step 1); a different aspect / orientation before 開始 redoes the set-up. */
+let fa5xSetupFrame = null;
 /** Phase D2 — { cycleId, baselineAssessmentId } when THIS run was started from the tracking card's 「進行再次評估」 and validated; else null (normal assessment). */
 let fa5xRunContext = null;
 /** Phase D5 — { proposalId, sourceCycleId } when THIS run is the fresh baseline of an accepted D5 proposal's next cycle; else null. */
@@ -6194,6 +6859,8 @@ let fa5xNextBaselineRun = null;
 const LE05_CONTEXT_MODE = { TRAINING: "training", ASSESSMENT_5XSTS: "assessment_5xsts" };
 /** Development-only numbers panel: add ?fa5xDebug=1 to the URL (same convention as ?shoulderDev=1). */
 const FA5X_DEBUG = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("fa5xDebug") === "1";
+/** Dev-only frame trace (assessmentTrace.js): exists only after 「開始記錄」 on a ?fa5xDebug=1 page; memory only, manual download. */
+let fa5xTrace = null, fa5xTraceFrame = null, fa5xTraceDockTimer = null;
 const FA5X_REJECT_TEXT = {
   [FA5X_REJECT_REASON.NOT_FULLY_STANDING]: FA5X_PROMPTS.NOT_FULLY_STANDING.text,
   [FA5X_REJECT_REASON.NOT_FULLY_SEATED]: FA5X_PROMPTS.NOT_FULLY_SEATED.text,
@@ -6241,6 +6908,7 @@ function goFiveTimesSitToStandDetection() {
   fa5xSitStageAt = null;
   fa5xPanelKind = null;
   fa5xLastFramingSpoken = null;
+  fa5xSetupFrame = null;
   fa5xFinalized = false;
   fa5xStartCueAt = null;
   fa5xRejectedUntil = 0;
@@ -6252,6 +6920,7 @@ function goFiveTimesSitToStandDetection() {
   state.route = "fiveTimesSitToStandDetection";
   render();
   setFa5xPanel("stand");
+  if (FA5X_DEBUG) { fa5xTraceSessionStarted(); renderFa5xTraceDock(); }
   beginFa5xCameraSession();
 }
 
@@ -6434,11 +7103,24 @@ function stopFa5xTimer() { if (fa5xTimerRaf != null) cancelAnimationFrame(fa5xTi
 function handleFa5xFrame(l, time) {
   if (state.route !== "fiveTimesSitToStandDetection" || !fa5xAssessment || fa5xFinalized) return;
   drawFa5xSkeleton(l);
-  const features = extractFa5xFeatures(l, FA5X_PARAMS);
+  // Landmarks are normalized to the video frame MediaPipe ran on; its size makes
+  // the geometry (angles, shank length) aspect-correct. Read per frame (rotation /
+  // renegotiated resolution); 0 before metadata -> features report no geometry.
+  const v = document.getElementById("fa5xVideo");
+  const features = extractFa5xFeatures(l, FA5X_PARAMS, { frameWidth: v ? v.videoWidth : null, frameHeight: v ? v.videoHeight : null });
+  if (FA5X_DEBUG) fa5xTraceFrame = fa5xTraceActive() ? { landmarks: l, frameWidth: v ? v.videoWidth : null, frameHeight: v ? v.videoHeight : null } : null;
+  if (fa5xSetupFrame == null && features.frameSizeValid) fa5xSetupFrame = { frameWidth: features.frameWidth, frameHeight: features.frameHeight };
+  else if (fa5xFrameAspectChanged(fa5xSetupFrame, features)) {
+    // Before 開始 the set-up is redone on the new image; during the timed test
+    // the session itself ends the run as invalid (FA5X_END_REASON.FRAME_CHANGED).
+    const phase = fa5xAssessment.getSnapshot().phase;
+    if (phase !== FA5X_PHASE.RUNNING && phase !== FA5X_PHASE.FINISHED) return restartFa5xSetup(time);
+  }
 
   if (fa5xStage === "stand") {
     // Step 1 — standing framing only; the assessment session is not fed yet.
     const r = fa5xPositionCheck.update(features, time);
+    if (FA5X_DEBUG && fa5xTraceActive()) fa5xTrace.recordFrame("stand", { t: time, features, diag: { step: "standing_position_check", ...r }, events: r.done ? [{ type: "stand_stage_done" }] : [] }, fa5xTraceFrame || {});
     setFa5xPanel("stand");
     if (r.key !== fa5xStandKey) {
       fa5xStandKey = r.key;
@@ -6460,6 +7142,22 @@ function handleFa5xFrame(l, time) {
   applyFa5xSnapshot(snap, time, features);
 }
 
+/** Video aspect / orientation changed before 開始: standing framing (step 1) and the seated baseline are both redone on the new image. */
+function restartFa5xSetup(time) {
+  fa5xAssessment = createFiveTimesSitToStandAssessment();
+  if (FA5X_DEBUG) fa5xTraceSessionRestarted(time);
+  fa5xPositionCheck = createStandingPositionCheck();
+  fa5xStage = "stand";
+  fa5xStandKey = "FRAME_CHANGED";
+  fa5xSitStageAt = null;
+  fa5xLastFramingSpoken = null;
+  fa5xSetupFrame = null;
+  fa5xShow("fa5xCountdown", false);
+  setFa5xPanel("stand");
+  setFa5xStatus(FA5X_PROMPTS.FRAME_CHANGED.text, "warn");
+  fa5xSpeak("FRAME_CHANGED", time);
+}
+
 function applyFa5xSnapshot(snap, time, features = null) {
   const inSitGrace = fa5xSitStageAt != null && time - fa5xSitStageAt < FA5X_POSITIONING_UX.SIT_DOWN_GRACE_MS;
   let finished = null;
@@ -6479,6 +7177,8 @@ function applyFa5xSnapshot(snap, time, features = null) {
       if (c) { c.classList.toggle("complete", e.count >= FA5X_TARGET_REPS); c.classList.remove("pulse"); void c.offsetWidth; c.classList.add("pulse"); }
       showFa5xRepFlash(e.count);
       playFa5xDing(e.count >= FA5X_TARGET_REPS);
+    } else if (e.type === "frame_changed") {
+      return restartFa5xSetup(time);
     } else if (e.type === "rejected") {
       fa5xRejectedUntil = time + 2500;
     } else if (e.type === "finished") finished = e.result;
@@ -6524,7 +7224,7 @@ function applyFa5xSnapshot(snap, time, features = null) {
   if (FA5X_DEBUG) {
     const f = features || {};
     const n = (v, d = 2) => (v == null ? "—" : Number(v).toFixed(d));
-    fa5xSetText("fa5xDebug", `phase=${phase} rep=${snap.repState || "—"} prompt=${snap.prompt} | hipΔ=${n(snap.displacement)} knee=${n(f.kneeAngle, 0)} trunk=${n(f.trunkLeanDeg, 0)} shank=${n(f.shankLength, 3)} | lost=${snap.trackingLossCount} rejected=${snap.lastRejection ? snap.lastRejection.reason : "—"}`);
+    fa5xSetText("fa5xDebug", `phase=${phase} rep=${snap.repState || "—"} prompt=${snap.prompt} | hipΔ=${n(snap.displacement)} knee=${n(f.kneeAngle, 0)} trunk=${n(f.trunkLeanDeg, 0)} shank=${n(f.shankLength, 3)} frame=${f.frameSizeValid === false ? "invalid" : `${f.frameWidth}x${f.frameHeight}`} | lost=${snap.trackingLossCount} rejected=${snap.lastRejection ? snap.lastRejection.reason : "—"}`);
   }
 
   if (finished) finalizeFa5xAssessment(finished);
@@ -6539,6 +7239,7 @@ function finalizeFa5xAssessment(result) {
   fa5xFinalized = true;
   stopFa5xTimer();
   stopFa5xCamera();
+  if (FA5X_DEBUG) fa5xTraceEnded(result.failureReason === FA5X_END_REASON.USER_CANCELLED ? "user_cancelled" : "run_finished", { status: result.status, failureReason: result.failureReason, invalidReason: result.invalidReason });
   const wallNow = Date.now(), perfNow = performance.now();
   const toIso = (perfT) => (perfT == null ? null : new Date(wallNow - (perfNow - perfT)).toISOString());
   const { startCueTimestamp, ...rest } = result;
@@ -6603,8 +7304,138 @@ function exitFiveTimesSitToStandDetection() {
   stopFa5xCamera();
   if (fa5xFlashTimer) clearTimeout(fa5xFlashTimer);
   try { if (squatSpeechSupported) window.speechSynthesis.cancel(); } catch (e) { /* optional */ }
+  if (FA5X_DEBUG) fa5xTraceEnded("detection_exit", { phase: fa5xAssessment ? fa5xAssessment.getSnapshot().phase : null, stage: fa5xStage });
   fa5xAssessment = null;
   goFiveTimesSitToStandAssessment();
+}
+
+// ── Dev-only 5xSTS frame trace (?fa5xDebug=1 + 「開始記錄」) ────────────────
+// Nothing below runs without ?fa5xDebug=1, and nothing is collected until the
+// developer presses 「開始記錄」. Memory only; 「下載 JSON」 is the only way out.
+// The recorder never feeds anything back into counting, timing or the result.
+
+/** True only on the debug page while a developer-started recording is running. */
+function fa5xTraceActive() { return FA5X_DEBUG && fa5xTrace != null && fa5xTrace.status().recording; }
+
+/** Session -> recorder. The session builds its per-frame decision trace only while a listener is attached. */
+function fa5xTraceAttach(session) {
+  if (!session) return;
+  session.setTraceListener(fa5xTraceActive() ? (entry) => { if (fa5xTraceActive()) fa5xTrace.recordFrame("assess", entry, entry.kind === "frame" ? fa5xTraceFrame || {} : {}); } : null);
+}
+
+/** A new detection run while a recording is running (e.g. started on another page): log it and attach to the fresh session. */
+function fa5xTraceSessionStarted() {
+  if (!fa5xTraceActive()) return;
+  fa5xTrace.recordEvent("detection_start", { reassessment: fa5xRunContext != null, nextCycleBaseline: fa5xNextBaselineRun != null }, performance.now());
+  fa5xTraceAttach(fa5xAssessment);
+}
+
+function fa5xTraceSessionRestarted(time) {
+  if (!fa5xTraceActive()) return;
+  fa5xTrace.recordEvent("setup_restart", { reason: "frame_aspect_changed", frameWidth: fa5xTraceFrame?.frameWidth ?? null, frameHeight: fa5xTraceFrame?.frameHeight ?? null }, time);
+  fa5xTraceAttach(fa5xAssessment);
+}
+
+/**
+ * Run ended: "run_finished" (session ended on its own), "user_cancelled" (結束評估 during the test)
+ * or "detection_exit" (返回 before 開始, no result). Logs it and stops with that end type; the data stays for download.
+ */
+function fa5xTraceEnded(type, data) {
+  if (!fa5xTraceActive()) return;
+  fa5xTrace.recordEvent(type, data, performance.now());
+  stopFa5xTrace(type);
+}
+
+function startFa5xTrace() {
+  if (!FA5X_DEBUG) return;
+  if (fa5xTraceActive()) fa5xTrace.stop("manual_stop");
+  const onDetection = state.route === "fiveTimesSitToStandDetection" && fa5xAssessment != null && !fa5xFinalized;
+  // Where the recording starts. The recorder also checks the session's own frame index, so a
+  // start in the middle of the seated check / countdown / timed test is always marked incomplete.
+  const startContext = {
+    route: state.route,
+    stage: onDetection ? fa5xStage : null,
+    phase: onDetection ? fa5xAssessment.getSnapshot().phase : null,
+    standCheckStarted: onDetection && fa5xStage === "stand" && fa5xStandKey != null,
+    finalized: fa5xFinalized,
+  };
+  fa5xTrace = createFa5xTraceRecorder({ startContext });
+  fa5xTrace.recordEvent("trace_started", startContext, performance.now());
+  fa5xTraceAttach(fa5xAssessment);
+  updateFa5xTraceDock();
+}
+
+function stopFa5xTrace(reason = "manual_stop") {
+  if (!FA5X_DEBUG || !fa5xTrace) return;
+  if (fa5xTraceActive()) {
+    fa5xTrace.recordEvent("trace_stopped", { reason }, performance.now());
+    fa5xTrace.stop(reason);
+  }
+  if (fa5xAssessment) fa5xAssessment.setTraceListener(null);
+  fa5xTraceFrame = null;
+  updateFa5xTraceDock();
+}
+
+function clearFa5xTrace() {
+  if (!FA5X_DEBUG) return;
+  stopFa5xTrace("cleared");
+  fa5xTrace = null;
+  updateFa5xTraceDock();
+}
+
+/** Manual download only (Blob in this browser; nothing is sent anywhere). */
+function downloadFa5xTrace() {
+  if (!FA5X_DEBUG || !fa5xTrace) return;
+  const data = fa5xTrace.buildExport();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  a.download = `fa5x-frame-trace-${String(data.recording.startedAt).replace(/[:.]/g, "-")}${data.complete ? "" : "-incomplete"}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/** Floating dev dock on <body> (outside #app), so the recording can still be downloaded after the app opens the result page. */
+function renderFa5xTraceDock() {
+  if (!FA5X_DEBUG || typeof document === "undefined") return;
+  let dock = document.getElementById("fa5xTraceDock");
+  if (!dock) {
+    dock = document.createElement("div");
+    dock.id = "fa5xTraceDock";
+    dock.style.cssText = "position:fixed;right:8px;bottom:8px;z-index:9999;max-width:320px;padding:8px 10px;border-radius:8px;background:rgba(20,20,20,.88);color:#fff;font:12px/1.4 monospace;";
+    dock.innerHTML = `<div><b>5xSTS 逐幀紀錄（開發用）</b></div>
+      <div id="fa5xTraceStatus" style="margin:4px 0;"></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button type="button" onclick="startFa5xTrace()">開始記錄</button>
+        <button type="button" onclick="stopFa5xTrace()">停止</button>
+        <button type="button" onclick="downloadFa5xTrace()">下載 JSON</button>
+        <button type="button" onclick="clearFa5xTrace()">清除</button>
+      </div>
+      <div style="margin-top:4px;opacity:.75;">僅存於本機記憶體；重新整理即消失；不會上傳。</div>`;
+    document.body.appendChild(dock);
+  }
+  if (fa5xTraceDockTimer == null) fa5xTraceDockTimer = setInterval(updateFa5xTraceDock, 500);
+  updateFa5xTraceDock();
+}
+
+function updateFa5xTraceDock() {
+  if (!FA5X_DEBUG || typeof document === "undefined") return;
+  const el = document.getElementById("fa5xTraceStatus");
+  if (!el) return;
+  if (!fa5xTrace) { el.textContent = "未記錄（按「開始記錄」才會收集）"; el.style.color = ""; return; }
+  const s = fa5xTrace.status();
+  const head = `${s.recording ? "● 記錄中" : "已停止"}　${s.frames} / ${s.maxFrames} 幀、${s.events} 事件${s.hasResult ? "、含結果" : ""}`;
+  const END_TEXT = { run_finished: "正常結束", user_cancelled: "使用者取消", manual_stop: "手動停止記錄", detection_exit: "未開始即離開", cleared: "已清除", still_recording: "" };
+  const warn = [
+    s.startedMidRun ? "⚠ 中途開始記錄：缺少判定開頭，無法完整重播" : null,
+    s.frameIndexGaps ? `⚠ 判定幀不連續 ${s.frameIndexGaps} 處` : null,
+    s.truncated ? `⚠ 紀錄不完整：超過容量上限，已略過 ${s.droppedFrames} 幀、${s.droppedEvents} 事件` : null,
+  ].filter(Boolean);
+  const end = END_TEXT[s.endType] ? `（${END_TEXT[s.endType]}）` : "";
+  el.textContent = [head + end, ...warn].join("\n");
+  el.style.whiteSpace = "pre-line";
+  el.style.color = s.complete ? "" : "#ffb4a8";
 }
 
 function goFunctionalChangeTrend() {
@@ -9488,7 +10319,7 @@ function exerciseDetailPage() {
       .sort((a, b) => new Date(b.completedAt || b.createdAt || 0) - new Date(a.completedAt || a.createdAt || 0))[0] || null;
   }
   const analysisResultHtml = latestRecord ? renderAnalysisResultSection(latestRecord, ex) : "";
-  const model = buildExerciseExperience(catalog, { planItem: ex });
+  const model = withF01PlanDoseLabel(buildExerciseExperience(catalog, { planItem: ex }), ex);
 
   if (feedback) {
     exerciseResultMode = true;
@@ -9655,7 +10486,7 @@ function detectionPrepPage() {
 
   // Core Mobile UX — one-viewport preparation; the analyzer's own notice is
   // kept, folded under 「注意事項與 AI 說明」.
-  return renderPreparationView(buildExerciseExperience(catalog, { planItem: ex }), {
+  return renderPreparationView(withF01PlanDoseLabel(buildExerciseExperience(catalog, { planItem: ex }), ex), {
     backFn,
     moreHtml: analysisNoticeHtml,
     ctaHtml: `<button class="btn btn-primary full exp-cta" onclick="openCameraPlaceholder()">開啟鏡頭</button>${hasPoseAnalyzer ? "" : `<button class="btn btn-light full" onclick="openUploadPlaceholder()">上傳影片</button>`}`,
@@ -9853,7 +10684,7 @@ function goSquatDetection() {
     exerciseName: ex.exerciseName,
     patientId: state.user.id,
     therapistId: mode === "assigned" ? schedule.therapistId : (activeRelation ? activeRelation.therapistId : null),
-    targetReps: calculateSquatTargetReps(ex),
+    targetReps: f01FormalTargetReps(ex.exerciseId, calculateSquatTargetReps(ex)),
     rewardXp: ex.rewardXp || DEFAULT_SQUAT_REWARD_XP,
   };
   squatSessionFinalized = false;
@@ -12251,7 +13082,7 @@ function goCr05Detection() {
     exerciseName: ex.exerciseName,
     patientId: state.user.id,
     therapistId: mode === "assigned" ? schedule.therapistId : (activeRelation ? activeRelation.therapistId : null),
-    targetReps: calculateSquatTargetReps(ex),
+    targetReps: f01FormalTargetReps(ex.exerciseId, calculateSquatTargetReps(ex)), targetPerSide: f01FormalTargetPerSide(ex.exerciseId, null),
     rewardXp: ex.rewardXp || DEFAULT_CR05_REWARD_XP,
   };
   cr05TargetReached = false;
@@ -12310,7 +13141,8 @@ function beginCr05CameraSession() {
   if (!videoEl || !canvasEl || !cr05SessionMeta) return;
   stopCr05Camera();
   cr05CanvasCtx = canvasEl.getContext("2d");
-  cr05SessionTracker = createSeatedKneeRaiseSession({ targetReps: cr05SessionMeta.targetReps });
+  cr05SessionTracker = createSeatedKneeRaiseSession({ targetReps: cr05SessionMeta.targetReps, targetPerSide: cr05SessionMeta.targetPerSide });
+  showF01PerSideProgress(F01_PER_SIDE_VIEW.cr05, cr05SessionTracker.getSummary());
   cr05DetectionStability = createDetectionStabilityTracker(
     { ...SQUAT_THRESHOLDS, MIN_VISIBILITY: CR05_THRESHOLDS.MIN_VISIBILITY },
     CR05_REQUIRED_LANDMARKS,
@@ -12431,6 +13263,7 @@ function handleCr05Frame(landmarks, timestamp) {
   }
   setCr05Text("cr05LeftReps", String(summary.leftReps));
   setCr05Text("cr05RightReps", String(summary.rightReps));
+  showF01PerSideProgress(F01_PER_SIDE_VIEW.cr05, summary);
   setCr05Text("cr05LiveScore", summary.totalReps ? String(calculateSeatedKneeRaiseScore(summary).score) : "--");
   if (!bodyReady) {
     setCr05Text("cr05Feedback", "請調整位置，讓肩膀、髖部與雙膝完整入鏡");
@@ -12561,7 +13394,7 @@ function goKn03Detection() {
   const { mode, schedule, ex } = context;
   if (mode === "assigned" && ex.status === "completed") return goExerciseDetail(schedule.id, state.selectedExerciseIndex);
   const relation = mode === "self_practice" ? relationService.findAcceptedByPatientId(state.user.id)[0] : null;
-  kn03SessionMeta = { mode, navigationOrigin: state.navigationOrigin, scheduleId: mode === "assigned" ? schedule.id : null, exerciseIndex: mode === "assigned" ? state.selectedExerciseIndex : null, exerciseId: ex.exerciseId, exerciseName: ex.exerciseName, patientId: state.user.id, therapistId: mode === "assigned" ? schedule.therapistId : (relation ? relation.therapistId : null), targetReps: calculateSquatTargetReps(ex), rewardXp: ex.rewardXp || DEFAULT_KN03_REWARD_XP };
+  kn03SessionMeta = { mode, navigationOrigin: state.navigationOrigin, scheduleId: mode === "assigned" ? schedule.id : null, exerciseIndex: mode === "assigned" ? state.selectedExerciseIndex : null, exerciseId: ex.exerciseId, exerciseName: ex.exerciseName, patientId: state.user.id, therapistId: mode === "assigned" ? schedule.therapistId : (relation ? relation.therapistId : null), targetReps: f01FormalTargetReps(ex.exerciseId, calculateSquatTargetReps(ex)), targetPerSide: f01FormalTargetPerSide(ex.exerciseId, null), rewardXp: ex.rewardXp || DEFAULT_KN03_REWARD_XP };
   kn03TargetReached = false;
   kn03SessionFinalized = false;
   state.route = "kn03Detection";
@@ -12592,7 +13425,8 @@ function beginKn03CameraSession() {
   const isFlexion = kn03SessionMeta.exerciseId === "F01-07";
   const isTke = kn03SessionMeta.exerciseId === "F01-05";
   const thresholds = isTke ? { ...KN03_THRESHOLDS, NEUTRAL_KNEE_ANGLE_MAX_DEG: 165, REP_START_KNEE_ANGLE_MIN_DEG: 166, CANDIDATE_TOP_KNEE_ANGLE_MIN_DEG: 174, TARGET_EXTENSION_KNEE_ANGLE_MIN_DEG: 174, MIN_REP_DURATION_MS: 900 } : KN03_THRESHOLDS;
-  kn03SessionTracker = createSeatedKneeExtensionSession({ targetReps: kn03SessionMeta.targetReps, thresholds, motion: isFlexion ? "flexion" : "extension" });
+  kn03SessionTracker = createSeatedKneeExtensionSession({ targetReps: kn03SessionMeta.targetReps, targetPerSide: kn03SessionMeta.targetPerSide, thresholds, motion: isFlexion ? "flexion" : "extension" });
+  showF01PerSideProgress(F01_PER_SIDE_VIEW.kn03, kn03SessionTracker.getSummary());
   kn03DetectionStability = createDetectionStabilityTracker({ ...SQUAT_THRESHOLDS, MIN_VISIBILITY: KN03_THRESHOLDS.MIN_VISIBILITY }, KN03_REQUIRED_LANDMARKS);
   kn03CameraController = createSquatCameraController({ videoEl, onStatus: handleKn03CameraStatus, onFrame: handleKn03Frame, onFatalError: handleKn03FatalError });
   kn03CameraController.start();
@@ -12631,7 +13465,7 @@ function handleKn03Frame(landmarks, timestamp) {
   setKn03Text("kn03LeftAngle", metrics.leftKneeAngle == null ? "--" : `${Math.round(metrics.leftKneeAngle)}°`); setKn03Text("kn03RightAngle", metrics.rightKneeAngle == null ? "--" : `${Math.round(metrics.rightKneeAngle)}°`); setKn03Text("kn03TrunkLean", metrics.trunkLeanDeg == null ? "--" : `${Math.round(metrics.trunkLeanDeg)}°`);
   const bodyReady = !!landmarks && hasFullLowerBody(landmarks, KN03_THRESHOLDS, KN03_REQUIRED_LANDMARKS);
   const result = kn03SessionTracker.processFrame({ timestamp, ...metrics, bodyReady }); const s = result.summary;
-  setKn03Text("kn03TotalReps", String(s.totalReps)); setKn03Text("kn03RepCounterValue", String(s.totalReps)); setKn03Text("kn03LeftReps", String(s.leftReps)); setKn03Text("kn03RightReps", String(s.rightReps)); setKn03Text("kn03LiveScore", s.totalReps ? String(calculateSeatedKneeExtensionScore(s).score) : "--"); updateKn03Ring(s.totalReps, s.targetReps);
+  setKn03Text("kn03TotalReps", String(s.totalReps)); setKn03Text("kn03RepCounterValue", String(s.totalReps)); setKn03Text("kn03LeftReps", String(s.leftReps)); setKn03Text("kn03RightReps", String(s.rightReps)); setKn03Text("kn03LiveScore", s.totalReps ? String(calculateSeatedKneeExtensionScore(s).score) : "--"); updateKn03Ring(s.totalReps, s.targetReps); showF01PerSideProgress(F01_PER_SIDE_VIEW.kn03, s);
   if (result.completedReps.length) { const counter = document.getElementById("kn03RepCounter"); if (counter) { counter.classList.toggle("complete", s.completed); counter.classList.remove("pulse"); void counter.offsetWidth; counter.classList.add("pulse"); } const issue = result.completedReps.at(-1).issues[0], flexion = kn03SessionMeta?.exerciseId === "F01-07"; setKn03Text("kn03Feedback", issue && !flexion ? KN03_QUALITY_ISSUE_LABELS[issue] : flexion ? "很好，腳跟沿地面控制回位後換腳" : "很好，放下小腿後換另一腳"); }
   else if (!bodyReady) setKn03Text("kn03Feedback", "請讓肩膀、髖部、雙膝與腳踝完整入鏡"); else if (metrics.trunkLeanDeg > KN03_THRESHOLDS.TRUNK_LEAN_MAX_DEG) setKn03Text("kn03Feedback", "上半身盡量保持直立"); else setKn03Text("kn03Feedback", kn03SessionMeta?.exerciseId === "F01-07" ? "腳跟貼地，左右腳輪流向後滑動" : kn03SessionMeta?.exerciseId === "F01-05" ? "膝蓋平穩伸直到中立位，不要用力鎖死" : "左右腳輪流伸直膝蓋");
   if (s.completed) { kn03TargetReached = true; stopKn03Camera(); const overlay = document.getElementById("kn03StatusOverlay"); if (overlay) overlay.textContent = "訓練次數已完成！請儲存結果"; const button = document.getElementById("kn03FinishBtn"); if (button) button.textContent = "儲存並查看結果"; }
@@ -12652,7 +13486,7 @@ function finalizeKn03Training() { if (!kn03SessionTracker || !kn03SessionTracker
 function exitKn03Detection() { stopKn03Camera(); const meta = kn03SessionMeta; kn03SessionTracker = null; kn03SessionMeta = null; navigateAfterSquat(meta); }
 
 let le05SessionMeta=null,le05CameraController=null,le05CanvasCtx=null,le05DetectionStability=null,le05SessionTracker=null,le05TargetReached=false,le05SessionFinalized=false;
-function goLe05Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le05SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:calculateSquatTargetReps(ex),rewardXp:ex.rewardXp||DEFAULT_LE05_REWARD_XP};le05TargetReached=false;le05SessionFinalized=false;state.route="le05Detection";render();beginLe05CameraSession();}
+function goLe05Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le05SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:f01FormalTargetReps(ex.exerciseId,calculateSquatTargetReps(ex)),rewardXp:ex.rewardXp||DEFAULT_LE05_REWARD_XP};le05TargetReached=false;le05SessionFinalized=false;state.route="le05Detection";render();beginLe05CameraSession();}
 function le05DetectionPage(){const m=le05SessionMeta||{exerciseName:"坐站",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitLe05Detection()">返回</button><b>AI 坐站偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div><h2 style="margin:10px 0 4px;">${m.exerciseName}</h2><div class="small" style="margin-bottom:10px;">使用穩固椅子，雙腳踩穩；完整站起後再慢慢坐下，並讓全身入鏡。</div><div class="squat-camera-wrap"><video id="le05Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="le05OverlayCanvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="le05RepCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72" width="72" height="72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="le05RepRingProgress" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="le05RepCounterValue">0</span><span class="squat-rep-counter-sep">/ ${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="le05ReadinessDot"></span><span id="le05ReadinessText">尚未偵測</span></div><div class="squat-status-overlay" id="le05StatusOverlay">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px;"><div class="stat"><span class="small">完成次數</span><b><span id="le05TotalReps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">動作狀態</span><b id="le05MotionState">坐姿</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="le05LiveScore">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px;"><div class="small">追蹤狀態：<b id="le05Readiness">--</b></div><div class="small">平均膝角度：<b id="le05KneeAngle">--</b>　軀幹傾斜：<b id="le05TrunkLean">--</b></div><div class="small">即時提醒：<b id="le05Feedback">請坐好並保持全身入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888;">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="le05FinishBtn" onclick="finalizeLe05Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitLe05Detection()">放棄本次訓練</button>`;}
 function beginLe05CameraSession(){const v=document.getElementById("le05Video"),c=document.getElementById("le05OverlayCanvas");if(!v||!c||!le05SessionMeta)return;stopLe05Camera();le05CanvasCtx=c.getContext("2d");le05SessionTracker=createSitToStandSession({targetReps:le05SessionMeta.targetReps});le05DetectionStability=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:LE05_THRESHOLDS.MIN_VISIBILITY},LE05_REQUIRED_LANDMARKS);le05CameraController=createSquatCameraController({videoEl:v,onStatus:handleLe05Status,onFrame:handleLe05Frame,onFatalError:m=>{const e=document.getElementById("le05StatusOverlay");if(e)e.textContent=m;}});le05CameraController.start();}
 function handleLe05Status(s){const e=document.getElementById("le05StatusOverlay");if(!e)return;e.textContent=s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":s==="ready"?"":e.textContent;}
@@ -12666,7 +13500,7 @@ function persistLe05Session(){if(le05SessionFinalized||!le05SessionMeta||!le05Se
 function finalizeLe05Training(){if(!le05SessionTracker||!le05SessionTracker.getSummary().totalReps){alert("尚未偵測到完整動作，請至少完成一次後再儲存。");return;}stopLe05Camera();const m=le05SessionMeta;if(persistLe05Session()){le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}}
 function exitLe05Detection(){stopLe05Camera();const m=le05SessionMeta;le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}
 let le03SessionMeta=null,le03CameraController=null,le03CanvasCtx=null,le03DetectionStability=null,le03SessionTracker=null,le03TargetReached=false,le03SessionFinalized=false;
-function goLe03Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le03SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:calculateSquatTargetReps(ex),rewardXp:ex.rewardXp||DEFAULT_LE03_REWARD_XP};le03TargetReached=false;le03SessionFinalized=false;state.route="le03Detection";render();beginLe03CameraSession();}
+function goLe03Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le03SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:f01FormalTargetReps(ex.exerciseId,calculateSquatTargetReps(ex)),rewardXp:ex.rewardXp||DEFAULT_LE03_REWARD_XP};le03TargetReached=false;le03SessionFinalized=false;state.route="le03Detection";render();beginLe03CameraSession();}
 function le03DetectionPage(){const m=le03SessionMeta||{exerciseName:"橋式",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitLe03Detection()">返回</button><b>AI 橋式偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div><h2 style="margin:10px 0 4px;">${m.exerciseName}</h2><div class="small" style="margin-bottom:10px;">側面或斜側面拍攝；屈膝踩穩，抬臀至肩、髖、膝接近一直線後慢慢放下。</div><div class="squat-camera-wrap"><video id="le03Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="le03OverlayCanvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="le03RepCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72" width="72" height="72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="le03RepRingProgress" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="le03RepCounterValue">0</span><span class="squat-rep-counter-sep">/ ${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="le03ReadinessDot"></span><span id="le03ReadinessText">尚未偵測</span></div><div class="squat-status-overlay" id="le03StatusOverlay">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px;"><div class="stat"><span class="small">完成次數</span><b><span id="le03TotalReps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">動作狀態</span><b id="le03MotionState">墊面</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="le03LiveScore">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px;"><div class="small">追蹤狀態：<b id="le03Readiness">--</b></div><div class="small">平均髖角度：<b id="le03HipAngle">--</b>　左右差異：<b id="le03Asymmetry">--</b></div><div class="small">即時提醒：<b id="le03Feedback">請躺好並保持肩膀、髖部與膝蓋入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888;">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="le03FinishBtn" onclick="finalizeLe03Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitLe03Detection()">放棄本次訓練</button>`;}
 function beginLe03CameraSession(){const v=document.getElementById("le03Video"),c=document.getElementById("le03OverlayCanvas");if(!v||!c||!le03SessionMeta)return;stopLe03Camera();le03CanvasCtx=c.getContext("2d");le03SessionTracker=createBridgeSession({targetReps:le03SessionMeta.targetReps});le03DetectionStability=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:LE03_THRESHOLDS.MIN_VISIBILITY},LE03_REQUIRED_LANDMARKS);le03CameraController=createSquatCameraController({videoEl:v,onStatus:s=>{const e=document.getElementById("le03StatusOverlay");if(e)e.textContent=s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":s==="ready"?"":e.textContent;},onFrame:handleLe03Frame,onFatalError:m=>{const e=document.getElementById("le03StatusOverlay");if(e)e.textContent=m;}});le03CameraController.start();}
 function drawLe03Skeleton(l){const c=document.getElementById("le03OverlayCanvas"),v=document.getElementById("le03Video");if(!c||!le03CanvasCtx)return;if(v&&v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight;}const x=le03CanvasCtx;if(!c.width)return;x.clearRect(0,0,c.width,c.height);if(!l)return;x.strokeStyle="#7ea866";x.fillStyle="#5f8d49";x.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b||(a.visibility!=null&&a.visibility<LE03_THRESHOLDS.MIN_VISIBILITY)||(b.visibility!=null&&b.visibility<LE03_THRESHOLDS.MIN_VISIBILITY))return;x.beginPath();x.moveTo(a.x*c.width,a.y*c.height);x.lineTo(b.x*c.width,b.y*c.height);x.stroke();});l.forEach(p=>{if(!p||(p.visibility!=null&&p.visibility<LE03_THRESHOLDS.MIN_VISIBILITY))return;x.beginPath();x.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);x.fill();});}
@@ -12782,7 +13616,8 @@ function goRecommendationExerciseDetail(exerciseId, fromTrainingTab = false) {
 function trainingRecordOptions() {
   if (state.navigationOrigin === "f01Recommendation") {
     const c = state.f01TrainingContext;
-    if (c) return { executionContext: { sourceType: "remotion", sourceSubtype: "f01_cycle", trackingCycleId: c.cycleId, recommendationId: c.recommendationId, exerciseId: c.exerciseId, userId: c.userId } };
+    // F01 batch 1 (spec 3.5 / 4.4) — the plan date and real start time confirmed by the final check.
+    if (c) return { executionContext: { sourceType: "remotion", sourceSubtype: "f01_cycle", trackingCycleId: c.cycleId, recommendationId: c.recommendationId, exerciseId: c.exerciseId, userId: c.userId, planDateKey: c.planDateKey || null, trainingStartedAt: c.trainingStartedAt || null } };
     const r = state.f01RecommendationExecution;
     if (r) return { executionContext: { sourceType: "remotion", sourceSubtype: "f01_recommendation", recommendationId: r.recommendationId, exerciseId: r.exerciseId, userId: r.userId } };
   }
@@ -12793,7 +13628,106 @@ function trainingRecordOptions() {
   return {};
 }
 
+// ── F01 batch 1 — formal start: preparation stage + final check ──────────
+// Spec: docs/specs/f01-batch1-daily-target-snapshot-spec.md (待實作、待驗證), 4.2–4.5.
+
+/** A formal F01 training of the selected exercise (armed from the active cycle's own plan). */
+function isF01FormalTrainingContext() {
+  const c = state.f01TrainingContext;
+  return !!c && state.navigationOrigin === "f01Recommendation" && state.exerciseContext === "self_practice" && c.exerciseId === state.selectedExerciseId;
+}
+
+const F01_FORMAL_BLOCK_TEXT = {
+  outside_training_days: "今天不是本週期的訓練日（第 1–6 天），這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  cycle_completed: "這個訓練週期已結束，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  cycle_already_completed: "這個訓練週期已結束，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  exercise_not_in_daily_plan: "這個動作不在今天的訓練安排中，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  recommendation_mismatch: "這個動作不在今天的訓練安排中，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  recommendation_not_found: "這個動作不在今天的訓練安排中，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  recommendation_has_no_exercises: "這個動作不在今天的訓練安排中，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  // F01 batch 2 §3A — exception guards (§3D normally prevents such plans from taking effect)
+  counting_basis_pending: "這個動作的計量方式（每側或合計）尚待確認，本週暫不列入正式完成判定，這次不會開始正式訓練。如需練習，請另外從自主練習開始。",
+  completion_target_unknown: "無法確認今日訓練目標與完成規則，本次不會開始正式訓練。",
+  default: "無法確認今日訓練目標，本次不會開始正式訓練。",
+};
+
+/** F01 batch 2 §3A — completed training days for display: unknown (null) reads 「待確認」, never 0 / null / 未完成. */
+function fmtF01TrainingDays(n) {
+  return Number.isInteger(n) ? `${n} 天` : "待確認（計量方式未定）";
+}
+
+/** F01 batch 2 — names of the plan items without an executable counting definition, for an explanation line. */
+function countingGapText(undefinedItems) {
+  const names = (undefinedItems || []).map((g) => (exerciseService.getNormalizedById(g.exerciseId) || {}).name || g.exerciseId);
+  return names.length ? `（${names.join("、")}）` : "";
+}
+
+/**
+ * Spec 4.5 — a formal entry that cannot start returns to the plan page with
+ * the reason. It is never turned into self practice: the context is dropped
+ * and nothing is recorded; self practice is a separate choice of the user.
+ */
+function returnToF01PlanForFormalBlock(error) {
+  const ctx = state.f01TrainingContext;
+  const recommendationId = (ctx && ctx.recommendationId) || state.f01RecommendationId || null;
+  state.f01TrainingContext = null;
+  alert(F01_FORMAL_BLOCK_TEXT[error] || F01_FORMAL_BLOCK_TEXT.default);
+  goF01RecommendationResult(recommendationId);
+}
+
+/**
+ * Spec 4.2 — preparation stage: today must be a formal training day for this
+ * exercise; a day without a snapshot is frozen now ("formal_start", one
+ * write). The plan date, target reference and the summary shown on the
+ * preparation page are kept in the context for the final check.
+ */
+function prepareF01FormalTrainingTarget() {
+  const ctx = state.f01TrainingContext;
+  const res = trackingCycleService.prepareF01FormalTraining({ cycleId: ctx.cycleId, userId: ctx.userId, recommendationId: ctx.recommendationId, exerciseId: ctx.exerciseId, dateKey: toLocalDateKey(new Date()) });
+  if (res.error) return { ok: false, error: res.error };
+  ctx.planDateKey = res.planDateKey;
+  ctx.targetRef = res.targetRef;
+  ctx.displayedTarget = res.targetSummary;
+  ctx.trainingStartedAt = null;
+  return { ok: true };
+}
+
+/**
+ * Spec 4.3 — final check right before a detector starts. Same date, context
+ * still valid, and the target equal to what the preparation page showed;
+ * otherwise the detector does NOT start: the preparation stage runs again
+ * for the current date, the page is re-shown and the user confirms by
+ * pressing 開啟鏡頭 again. Returns true only when the detector may start.
+ */
+function passF01FinalCheck() {
+  const ctx = state.f01TrainingContext;
+  let changed = null;
+  if (!ctx.planDateKey || ctx.planDateKey !== toLocalDateKey(new Date())) changed = "date";
+  else {
+    const now = trackingCycleService.getF01FormalTargetSummary({ cycleId: ctx.cycleId, userId: ctx.userId, recommendationId: ctx.recommendationId, exerciseId: ctx.exerciseId, dateKey: ctx.planDateKey });
+    if (now.error === "no_daily_snapshot") changed = "target";
+    else if (now.error) { returnToF01PlanForFormalBlock(now.error); return false; }
+    else if (!sameTargetSummary(now.targetSummary, ctx.displayedTarget)) changed = "target";
+  }
+  if (changed) {
+    const prep = prepareF01FormalTrainingTarget();
+    if (!prep.ok) { returnToF01PlanForFormalBlock(prep.error); return false; }
+    state.route = "detectionPrep";
+    render();
+    alert(changed === "date" ? "日期已變更，已改依今天的安排。請確認今日目標後再開啟鏡頭。" : "今日目標已更新，請確認後再開啟鏡頭。");
+    return false;
+  }
+  ctx.trainingStartedAt = nowIso();
+  return true;
+}
+
 function goDetectionPrep() {
+  // F01 batch 1 (spec 4.2) — preparation stage of a formal F01 training: the
+  // day's target is frozen / read BEFORE anything below resolves the amount.
+  if (isF01FormalTrainingContext()) {
+    const prep = prepareF01FormalTrainingTarget();
+    if (!prep.ok) return returnToF01PlanForFormalBlock(prep.error);
+  }
   // Pure navigation only in this phase — no schedule/analysisRecord/XP
   // side effects happen until real detection is wired up in a later phase.
   const context = getExercisePageContext();
@@ -12939,8 +13873,10 @@ window.goF01DirectTraining = goF01DirectTraining;
 window.goSarcopeniaScreening = goSarcopeniaScreening;
 window.goFiveTimesSitToStandAssessment = goFiveTimesSitToStandAssessment;
 window.goFiveTimesSitToStandResult = goFiveTimesSitToStandResult;
+window.submitFa5xConditionReport = submitFa5xConditionReport;
 window.goFiveTimesSitToStandDetection = goFiveTimesSitToStandDetection;
 window.exitFiveTimesSitToStandDetection = exitFiveTimesSitToStandDetection;
+if (FA5X_DEBUG) Object.assign(window, { startFa5xTrace, stopFa5xTrace, downloadFa5xTrace, clearFa5xTrace });
 window.goFunctionalChangeTrend = goFunctionalChangeTrend;
 window.selectFunctionalAssessmentBodyRegion = selectFunctionalAssessmentBodyRegion;
 window.goSelfRehabEntry = goSelfRehabEntry;
@@ -13076,11 +14012,11 @@ const genericBeforeSh03=renderGenericRecordDetail;renderGenericRecordDetail=func
 
 let hp04Meta,hp04Cam,hp04Ctx,hp04Stable,hp04Tracker,hp04Done=false;
 function hp04Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp04Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp04Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:calculateSquatTargetReps(x),rewardXp:x.rewardXp||DEFAULT_HP04_REWARD_XP};hp04Done=false;state.route="hp04Detection";render();beginHp04Camera();}
+function goHp04Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp04Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,calculateSquatTargetReps(x)),targetPerSide:f01FormalTargetPerSide(x.exerciseId,null),rewardXp:x.rewardXp||DEFAULT_HP04_REWARD_XP};hp04Done=false;state.route="hp04Detection";render();beginHp04Camera();}
 function hp04DetectionPage(){const m=hp04Meta||{exerciseName:"側躺髖外展",targetReps:10};return '<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp04Detection()">返回</button><b>AI 側躺髖外展偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>'+m.exerciseName+'</h2><div class="small" style="margin-bottom:10px">側躺、上側腿伸直且腳尖朝前；將腿抬起約 30°～45°後慢慢放回，並保持骨盆穩定。</div><div class="squat-camera-wrap"><video id="hp04Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp04Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp04Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp04Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp04Total">0</span><span class="squat-rep-counter-sep">/ '+m.targetReps+'</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp04Dot"></span><span id="hp04ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp04Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="hp04StatTotal">0</span> / '+m.targetReps+'</b></div><div class="stat"><span class="small">左 / 右</span><b><span id="hp04Left">0</span> / <span id="hp04Right">0</span></b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp04Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp04Ready">--</b></div><div class="small">左髖角度：<b id="hp04LeftHip">--</b>　右髖角度：<b id="hp04RightHip">--</b></div><div class="small">骨盆／身體翻轉：<b id="hp04Roll">--</b></div><div class="small">即時提醒：<b id="hp04Feedback">請側躺並保持全身入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="hp04Finish" onclick="finalizeHp04Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp04Detection()">放棄本次訓練</button>';}
-function beginHp04Camera(){const v=document.getElementById("hp04Video"),c=document.getElementById("hp04Canvas");if(!v||!c)return;stopHp04Camera();hp04Ctx=c.getContext("2d");hp04Tracker=createSideLegRaiseSession({targetReps:hp04Meta.targetReps,thresholds:HP04_THRESHOLDS});hp04Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP04_THRESHOLDS.MIN_VISIBILITY},HP04_REQUIRED_LANDMARKS);hp04Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp04Set("hp04Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp04Frame,onFatalError:m=>hp04Set("hp04Status",m)});hp04Cam.start();}
+function beginHp04Camera(){const v=document.getElementById("hp04Video"),c=document.getElementById("hp04Canvas");if(!v||!c)return;stopHp04Camera();hp04Ctx=c.getContext("2d");hp04Tracker=createSideLegRaiseSession({targetReps:hp04Meta.targetReps,targetPerSide:hp04Meta.targetPerSide,thresholds:HP04_THRESHOLDS});showF01PerSideProgress(F01_PER_SIDE_VIEW.hp04,hp04Tracker.getSummary());hp04Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP04_THRESHOLDS.MIN_VISIBILITY},HP04_REQUIRED_LANDMARKS);hp04Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp04Set("hp04Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp04Frame,onFatalError:m=>hp04Set("hp04Status",m)});hp04Cam.start();}
 function drawHp04(l){const c=document.getElementById("hp04Canvas"),v=document.getElementById("hp04Video");if(!c||!hp04Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp04Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp04Ctx.strokeStyle="#7ea866";hp04Ctx.fillStyle="#5f8d49";hp04Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp04Ctx.beginPath();hp04Ctx.moveTo(a.x*c.width,a.y*c.height);hp04Ctx.lineTo(b.x*c.width,b.y*c.height);hp04Ctx.stroke()});l.forEach(p=>{if(!p)return;hp04Ctx.beginPath();hp04Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp04Ctx.fill()});}
-function handleHp04Frame(l,time){if(state.route!=="hp04Detection"||!hp04Stable||!hp04Tracker||hp04Done)return;drawHp04(l);const d=hp04Stable.update(l,time),m=computeSideLegRaiseMetrics(l,HP04_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,HP04_THRESHOLDS,HP04_REQUIRED_LANDMARKS),r=hp04Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp04Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp04Set("hp04ReadyText",ready?"已偵測到全身，可以開始髖外展":"請保持肩、髖、膝與腳踝入鏡");hp04Set("hp04Ready",d.displayState);hp04Set("hp04Total",s.totalReps);hp04Set("hp04StatTotal",s.totalReps);hp04Set("hp04Left",s.leftReps);hp04Set("hp04Right",s.rightReps);hp04Set("hp04LeftHip",m.leftHipAngle==null?"--":Math.round(m.leftHipAngle)+"°");hp04Set("hp04RightHip",m.rightHipAngle==null?"--":Math.round(m.rightHipAngle)+"°");hp04Set("hp04Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp04Set("hp04Score",s.totalReps?calculateHipAbductionScore(s).score:"--");const ring=document.getElementById("hp04Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));if(r.completedReps.length){const rep=r.completedReps.at(-1),issue=rep.issues[0],counter=document.getElementById("hp04Counter");hp04Set("hp04Feedback",issue?HP04_ISSUE_LABELS[issue]:(rep.side==="left"?"左":"右")+"腿角度與控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp04Set("hp04Feedback","請讓肩、髖、膝與腳踝完整入鏡");else if(m.bodyRollDeg>HP04_THRESHOLDS.BODY_ROLL_MAX_DEG)hp04Set("hp04Feedback","收緊核心，固定骨盆避免向後翻");else hp04Set("hp04Feedback","上側腿伸直，腳尖朝前，緩慢抬至 30°～45°");if(s.completed){hp04Done=true;stopHp04Camera();hp04Set("hp04Status","訓練次數已完成！請儲存結果");hp04Set("hp04Finish","儲存並查看結果");document.getElementById("hp04Counter")?.classList.add("complete");}}
+function handleHp04Frame(l,time){if(state.route!=="hp04Detection"||!hp04Stable||!hp04Tracker||hp04Done)return;drawHp04(l);const d=hp04Stable.update(l,time),m=computeSideLegRaiseMetrics(l,HP04_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,HP04_THRESHOLDS,HP04_REQUIRED_LANDMARKS),r=hp04Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp04Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp04Set("hp04ReadyText",ready?"已偵測到全身，可以開始髖外展":"請保持肩、髖、膝與腳踝入鏡");hp04Set("hp04Ready",d.displayState);hp04Set("hp04Total",s.totalReps);hp04Set("hp04StatTotal",s.totalReps);hp04Set("hp04Left",s.leftReps);hp04Set("hp04Right",s.rightReps);hp04Set("hp04LeftHip",m.leftHipAngle==null?"--":Math.round(m.leftHipAngle)+"°");hp04Set("hp04RightHip",m.rightHipAngle==null?"--":Math.round(m.rightHipAngle)+"°");hp04Set("hp04Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp04Set("hp04Score",s.totalReps?calculateHipAbductionScore(s).score:"--");const ring=document.getElementById("hp04Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));showF01PerSideProgress(F01_PER_SIDE_VIEW.hp04,s);if(r.completedReps.length){const rep=r.completedReps.at(-1),issue=rep.issues[0],counter=document.getElementById("hp04Counter");hp04Set("hp04Feedback",issue?HP04_ISSUE_LABELS[issue]:(rep.side==="left"?"左":"右")+"腿角度與控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp04Set("hp04Feedback","請讓肩、髖、膝與腳踝完整入鏡");else if(m.bodyRollDeg>HP04_THRESHOLDS.BODY_ROLL_MAX_DEG)hp04Set("hp04Feedback","收緊核心，固定骨盆避免向後翻");else hp04Set("hp04Feedback","上側腿伸直，腳尖朝前，緩慢抬至 30°～45°");if(s.completed){hp04Done=true;stopHp04Camera();hp04Set("hp04Status","訓練次數已完成！請儲存結果");hp04Set("hp04Finish","儲存並查看結果");document.getElementById("hp04Counter")?.classList.add("complete");}}
 function stopHp04Camera(){hp04Cam?.stop();hp04Cam=null;hp04Ctx=null;hp04Stable=null;}
 function persistHp04(){if(!hp04Meta||!hp04Tracker)return false;const m=hp04Meta,s=hp04Tracker.getSummary(),assigned=m.mode==="assigned",schedule=assigned?scheduleService.getById(m.scheduleId):null,q=calculateHipAbductionScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:schedule?.id||null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:HP04_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score:q.score,overallScore:q.score,quality:q.quality,remark:buildHipAbductionRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(schedule)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});return true;}
 function finalizeHp04Training(){if(!hp04Tracker?.getSummary().totalReps)return alert("尚未偵測到完整動作，請至少完成一次後再儲存。");stopHp04Camera();const m=hp04Meta;if(persistHp04()){hp04Tracker=null;hp04Meta=null;navigateAfterSquat(m);}}
@@ -13094,11 +14030,11 @@ const genericBeforeHp04=renderGenericRecordDetail;renderGenericRecordDetail=func
 
 let hp05Meta,hp05Cam,hp05Ctx,hp05Stable,hp05Tracker,hp05Done=false;
 function hp05Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp05Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp05Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:calculateSquatTargetReps(x),rewardXp:x.rewardXp||DEFAULT_HP05_REWARD_XP};hp05Done=false;state.route="hp05Detection";render();beginHp05Camera();}
+function goHp05Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp05Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,calculateSquatTargetReps(x)),targetPerSide:f01FormalTargetPerSide(x.exerciseId,null),rewardXp:x.rewardXp||DEFAULT_HP05_REWARD_XP};hp05Done=false;state.route="hp05Detection";render();beginHp05Camera();}
 function hp05DetectionPage(){const m=hp05Meta||{exerciseName:"側躺髖內收",targetReps:10};return '<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp05Detection()">返回</button><b>AI 側躺髖內收偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>'+m.exerciseName+'</h2><div class="small" style="margin-bottom:10px">上側腿屈膝跨放前方，下側腿保持伸直；將下側腿抬起約 20°～30°後慢慢放回。</div><div class="squat-camera-wrap"><video id="hp05Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp05Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp05Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp05Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp05Total">0</span><span class="squat-rep-counter-sep">/ '+m.targetReps+'</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp05Dot"></span><span id="hp05ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp05Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="hp05StatTotal">0</span> / '+m.targetReps+'</b></div><div class="stat"><span class="small">左 / 右</span><b><span id="hp05Left">0</span> / <span id="hp05Right">0</span></b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp05Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp05Ready">--</b></div><div class="small">左髖角度：<b id="hp05LeftHip">--</b>　右髖角度：<b id="hp05RightHip">--</b></div><div class="small">骨盆／身體晃動：<b id="hp05Roll">--</b></div><div class="small">即時提醒：<b id="hp05Feedback">請側躺並保持全身入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="hp05Finish" onclick="finalizeHp05Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp05Detection()">放棄本次訓練</button>';}
-function beginHp05Camera(){const v=document.getElementById("hp05Video"),c=document.getElementById("hp05Canvas");if(!v||!c)return;stopHp05Camera();hp05Ctx=c.getContext("2d");hp05Tracker=createSideLegRaiseSession({targetReps:hp05Meta.targetReps,thresholds:HP05_THRESHOLDS});hp05Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP05_THRESHOLDS.MIN_VISIBILITY},HP05_REQUIRED_LANDMARKS);hp05Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp05Set("hp05Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp05Frame,onFatalError:m=>hp05Set("hp05Status",m)});hp05Cam.start();}
+function beginHp05Camera(){const v=document.getElementById("hp05Video"),c=document.getElementById("hp05Canvas");if(!v||!c)return;stopHp05Camera();hp05Ctx=c.getContext("2d");hp05Tracker=createSideLegRaiseSession({targetReps:hp05Meta.targetReps,targetPerSide:hp05Meta.targetPerSide,thresholds:HP05_THRESHOLDS});showF01PerSideProgress(F01_PER_SIDE_VIEW.hp05,hp05Tracker.getSummary());hp05Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP05_THRESHOLDS.MIN_VISIBILITY},HP05_REQUIRED_LANDMARKS);hp05Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp05Set("hp05Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp05Frame,onFatalError:m=>hp05Set("hp05Status",m)});hp05Cam.start();}
 function drawHp05(l){const c=document.getElementById("hp05Canvas"),v=document.getElementById("hp05Video");if(!c||!hp05Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp05Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp05Ctx.strokeStyle="#7ea866";hp05Ctx.fillStyle="#5f8d49";hp05Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp05Ctx.beginPath();hp05Ctx.moveTo(a.x*c.width,a.y*c.height);hp05Ctx.lineTo(b.x*c.width,b.y*c.height);hp05Ctx.stroke()});l.forEach(p=>{if(!p)return;hp05Ctx.beginPath();hp05Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp05Ctx.fill()});}
-function handleHp05Frame(l,time){if(state.route!=="hp05Detection"||!hp05Stable||!hp05Tracker||hp05Done)return;drawHp05(l);const d=hp05Stable.update(l,time),m=computeSideLegRaiseMetrics(l,HP05_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,HP05_THRESHOLDS,HP05_REQUIRED_LANDMARKS),r=hp05Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp05Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp05Set("hp05ReadyText",ready?"已偵測到全身，可以開始髖內收":"請保持肩、髖、膝與腳踝入鏡");hp05Set("hp05Ready",d.displayState);hp05Set("hp05Total",s.totalReps);hp05Set("hp05StatTotal",s.totalReps);hp05Set("hp05Left",s.leftReps);hp05Set("hp05Right",s.rightReps);hp05Set("hp05LeftHip",m.leftHipAngle==null?"--":Math.round(m.leftHipAngle)+"°");hp05Set("hp05RightHip",m.rightHipAngle==null?"--":Math.round(m.rightHipAngle)+"°");hp05Set("hp05Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp05Set("hp05Score",s.totalReps?calculateHipAdductionScore(s).score:"--");const ring=document.getElementById("hp05Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));if(r.completedReps.length){const rep=r.completedReps.at(-1),issue=rep.issues[0],counter=document.getElementById("hp05Counter");hp05Set("hp05Feedback",issue?HP05_ISSUE_LABELS[issue]:(rep.side==="left"?"左":"右")+"腿內收角度與控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp05Set("hp05Feedback","請讓肩、髖、膝與腳踝完整入鏡");else if(m.bodyRollDeg>HP05_THRESHOLDS.BODY_ROLL_MAX_DEG)hp05Set("hp05Feedback","固定骨盆，避免身體前後晃動");else hp05Set("hp05Feedback","下側腿保持伸直，緩慢抬至 20°～30°");if(s.completed){hp05Done=true;stopHp05Camera();hp05Set("hp05Status","訓練次數已完成！請儲存結果");hp05Set("hp05Finish","儲存並查看結果");document.getElementById("hp05Counter")?.classList.add("complete");}}
+function handleHp05Frame(l,time){if(state.route!=="hp05Detection"||!hp05Stable||!hp05Tracker||hp05Done)return;drawHp05(l);const d=hp05Stable.update(l,time),m=computeSideLegRaiseMetrics(l,HP05_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,HP05_THRESHOLDS,HP05_REQUIRED_LANDMARKS),r=hp05Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp05Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp05Set("hp05ReadyText",ready?"已偵測到全身，可以開始髖內收":"請保持肩、髖、膝與腳踝入鏡");hp05Set("hp05Ready",d.displayState);hp05Set("hp05Total",s.totalReps);hp05Set("hp05StatTotal",s.totalReps);hp05Set("hp05Left",s.leftReps);hp05Set("hp05Right",s.rightReps);hp05Set("hp05LeftHip",m.leftHipAngle==null?"--":Math.round(m.leftHipAngle)+"°");hp05Set("hp05RightHip",m.rightHipAngle==null?"--":Math.round(m.rightHipAngle)+"°");hp05Set("hp05Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp05Set("hp05Score",s.totalReps?calculateHipAdductionScore(s).score:"--");const ring=document.getElementById("hp05Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));showF01PerSideProgress(F01_PER_SIDE_VIEW.hp05,s);if(r.completedReps.length){const rep=r.completedReps.at(-1),issue=rep.issues[0],counter=document.getElementById("hp05Counter");hp05Set("hp05Feedback",issue?HP05_ISSUE_LABELS[issue]:(rep.side==="left"?"左":"右")+"腿內收角度與控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp05Set("hp05Feedback","請讓肩、髖、膝與腳踝完整入鏡");else if(m.bodyRollDeg>HP05_THRESHOLDS.BODY_ROLL_MAX_DEG)hp05Set("hp05Feedback","固定骨盆，避免身體前後晃動");else hp05Set("hp05Feedback","下側腿保持伸直，緩慢抬至 20°～30°");if(s.completed){hp05Done=true;stopHp05Camera();hp05Set("hp05Status","訓練次數已完成！請儲存結果");hp05Set("hp05Finish","儲存並查看結果");document.getElementById("hp05Counter")?.classList.add("complete");}}
 function stopHp05Camera(){hp05Cam?.stop();hp05Cam=null;hp05Ctx=null;hp05Stable=null;}
 function persistHp05(){if(!hp05Meta||!hp05Tracker)return false;const m=hp05Meta,s=hp05Tracker.getSummary(),assigned=m.mode==="assigned",schedule=assigned?scheduleService.getById(m.scheduleId):null,q=calculateHipAdductionScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:schedule?.id||null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:HP05_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score:q.score,overallScore:q.score,quality:q.quality,remark:buildHipAdductionRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(schedule)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});return true;}
 function finalizeHp05Training(){if(!hp05Tracker?.getSummary().totalReps)return alert("尚未偵測到完整動作，請至少完成一次後再儲存。");stopHp05Camera();const m=hp05Meta;if(persistHp05()){hp05Tracker=null;hp05Meta=null;navigateAfterSquat(m);}}
@@ -13111,11 +14047,11 @@ const historyBeforeHp05=buildTrainingHistoryEntry;buildTrainingHistoryEntry=func
 const genericBeforeHp05=renderGenericRecordDetail;renderGenericRecordDetail=function(record,entry){return record.analysisMode===HP05_ANALYSIS_MODE?renderLe04RecordDetail(record):genericBeforeHp05(record,entry);};
 
 let hp06Meta,hp06Cam,hp06Ctx,hp06Stable,hp06Tracker,hp06Done=false;function hp06Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp06Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp06Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:calculateSquatTargetReps(x),rewardXp:x.rewardXp||DEFAULT_HP06_REWARD_XP};hp06Done=false;state.route="hp06Detection";render();beginHp06Camera();}
+function goHp06Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;hp06Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,calculateSquatTargetReps(x)),targetPerSide:f01FormalTargetPerSide(x.exerciseId,null),rewardXp:x.rewardXp||DEFAULT_HP06_REWARD_XP};hp06Done=false;state.route="hp06Detection";render();beginHp06Camera();}
 function hp06DetectionPage(){const m=hp06Meta||{exerciseName:"蚌殼式",targetReps:10};return '<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp06Detection()">返回</button><b>AI 蚌殼式偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>'+m.exerciseName+'</h2><div class="small" style="margin-bottom:10px">側躺、雙膝彎曲約 90°且雙腳併攏；保持腳接觸，將上側膝蓋打開後慢慢放回。</div><div class="squat-camera-wrap"><video id="hp06Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp06Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp06Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp06Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp06Total">0</span><span class="squat-rep-counter-sep">/ '+m.targetReps+'</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp06Dot"></span><span id="hp06ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp06Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="hp06StatTotal">0</span> / '+m.targetReps+'</b></div><div class="stat"><span class="small">左 / 右</span><b><span id="hp06Left">0</span> / <span id="hp06Right">0</span></b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp06Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp06Ready">--</b></div><div class="small">膝蓋打開：<b id="hp06Open">--</b>　雙腳分離：<b id="hp06Feet">--</b></div><div class="small">骨盆／身體翻轉：<b id="hp06Roll">--</b></div><div class="small">即時提醒：<b id="hp06Feedback">請側躺並保持肩、髖、膝與腳踝入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888">位移與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="hp06Finish" onclick="finalizeHp06Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp06Detection()">放棄本次訓練</button>';}
-function beginHp06Camera(){const v=document.getElementById("hp06Video"),c=document.getElementById("hp06Canvas");if(!v||!c)return;stopHp06Camera();hp06Ctx=c.getContext("2d");hp06Tracker=createClamshellSession({targetReps:hp06Meta.targetReps});hp06Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP06_THRESHOLDS.MIN_VISIBILITY},HP06_REQUIRED_LANDMARKS);hp06Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp06Set("hp06Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp06Frame,onFatalError:m=>hp06Set("hp06Status",m)});hp06Cam.start();}
+function beginHp06Camera(){const v=document.getElementById("hp06Video"),c=document.getElementById("hp06Canvas");if(!v||!c)return;stopHp06Camera();hp06Ctx=c.getContext("2d");hp06Tracker=createClamshellSession({targetReps:hp06Meta.targetReps,targetPerSide:hp06Meta.targetPerSide});showF01PerSideProgress(F01_PER_SIDE_VIEW.hp06,hp06Tracker.getSummary());hp06Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP06_THRESHOLDS.MIN_VISIBILITY},HP06_REQUIRED_LANDMARKS);hp06Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp06Set("hp06Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp06Frame,onFatalError:m=>hp06Set("hp06Status",m)});hp06Cam.start();}
 function drawHp06(l){const c=document.getElementById("hp06Canvas"),v=document.getElementById("hp06Video");if(!c||!hp06Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp06Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp06Ctx.strokeStyle="#7ea866";hp06Ctx.fillStyle="#5f8d49";hp06Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp06Ctx.beginPath();hp06Ctx.moveTo(a.x*c.width,a.y*c.height);hp06Ctx.lineTo(b.x*c.width,b.y*c.height);hp06Ctx.stroke()});l.forEach(p=>{if(!p)return;hp06Ctx.beginPath();hp06Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp06Ctx.fill()});}
-function handleHp06Frame(l,time){if(state.route!=="hp06Detection"||!hp06Stable||!hp06Tracker||hp06Done)return;drawHp06(l);const d=hp06Stable.update(l,time),m=computeClamshellMetrics(l,HP06_THRESHOLDS),ready=!!l&&HP06_REQUIRED_LANDMARKS.every(i=>l[i]&&(l[i].visibility==null||l[i].visibility>=HP06_THRESHOLDS.MIN_VISIBILITY)),r=hp06Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp06Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp06Set("hp06ReadyText",ready?"已偵測到身體，可以開始蚌殼式":"請保持肩、髖、膝與腳踝入鏡");hp06Set("hp06Ready",d.displayState);hp06Set("hp06Total",s.totalReps);hp06Set("hp06StatTotal",s.totalReps);hp06Set("hp06Left",s.leftReps);hp06Set("hp06Right",s.rightReps);hp06Set("hp06Open",r.openRatio==null?"--":(Math.max(0,r.openRatio)*100).toFixed(1)+"%");hp06Set("hp06Feet",m.feetSeparationRatio==null?"--":(m.feetSeparationRatio*100).toFixed(1)+"%");hp06Set("hp06Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp06Set("hp06Score",s.totalReps?calculateClamshellScore(s).score:"--");const ring=document.getElementById("hp06Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));if(r.repCompleted){const issue=r.completedRep.issues[0],counter=document.getElementById("hp06Counter");hp06Set("hp06Feedback",issue?HP06_ISSUE_LABELS[issue]:"很好，膝蓋開合且骨盆穩定");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp06Set("hp06Feedback","請保持肩、髖、膝與腳踝完整入鏡");else if(m.feetSeparationRatio>HP06_THRESHOLDS.FEET_SEPARATION_MAX_RATIO)hp06Set("hp06Feedback","雙腳保持接觸，只打開上側膝蓋");else if(m.bodyRollDeg>HP06_THRESHOLDS.BODY_ROLL_MAX_DEG)hp06Set("hp06Feedback","固定骨盆，避免身體向後翻");else hp06Set("hp06Feedback","雙腳併攏，緩慢打開上側膝蓋");if(s.completed){hp06Done=true;stopHp06Camera();hp06Set("hp06Status","訓練次數已完成！請儲存結果");hp06Set("hp06Finish","儲存並查看結果");document.getElementById("hp06Counter")?.classList.add("complete");}}
+function handleHp06Frame(l,time){if(state.route!=="hp06Detection"||!hp06Stable||!hp06Tracker||hp06Done)return;drawHp06(l);const d=hp06Stable.update(l,time),m=computeClamshellMetrics(l,HP06_THRESHOLDS),ready=!!l&&HP06_REQUIRED_LANDMARKS.every(i=>l[i]&&(l[i].visibility==null||l[i].visibility>=HP06_THRESHOLDS.MIN_VISIBILITY)),r=hp06Tracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=r.summary,dot=document.getElementById("hp06Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");hp06Set("hp06ReadyText",ready?"已偵測到身體，可以開始蚌殼式":"請保持肩、髖、膝與腳踝入鏡");hp06Set("hp06Ready",d.displayState);hp06Set("hp06Total",s.totalReps);hp06Set("hp06StatTotal",s.totalReps);hp06Set("hp06Left",s.leftReps);hp06Set("hp06Right",s.rightReps);hp06Set("hp06Open",r.openRatio==null?"--":(Math.max(0,r.openRatio)*100).toFixed(1)+"%");hp06Set("hp06Feet",m.feetSeparationRatio==null?"--":(m.feetSeparationRatio*100).toFixed(1)+"%");hp06Set("hp06Roll",m.bodyRollDeg==null?"--":Math.round(m.bodyRollDeg)+"°");hp06Set("hp06Score",s.totalReps?calculateClamshellScore(s).score:"--");const ring=document.getElementById("hp06Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));showF01PerSideProgress(F01_PER_SIDE_VIEW.hp06,s);if(r.repCompleted){const issue=r.completedRep.issues[0],counter=document.getElementById("hp06Counter");hp06Set("hp06Feedback",issue?HP06_ISSUE_LABELS[issue]:"很好，膝蓋開合且骨盆穩定");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else if(!ready)hp06Set("hp06Feedback","請保持肩、髖、膝與腳踝完整入鏡");else if(m.feetSeparationRatio>HP06_THRESHOLDS.FEET_SEPARATION_MAX_RATIO)hp06Set("hp06Feedback","雙腳保持接觸，只打開上側膝蓋");else if(m.bodyRollDeg>HP06_THRESHOLDS.BODY_ROLL_MAX_DEG)hp06Set("hp06Feedback","固定骨盆，避免身體向後翻");else hp06Set("hp06Feedback","雙腳併攏，緩慢打開上側膝蓋");if(s.completed){hp06Done=true;stopHp06Camera();hp06Set("hp06Status","訓練次數已完成！請儲存結果");hp06Set("hp06Finish","儲存並查看結果");document.getElementById("hp06Counter")?.classList.add("complete");}}
 function stopHp06Camera(){hp06Cam?.stop();hp06Cam=null;hp06Ctx=null;hp06Stable=null;}function persistHp06(){if(!hp06Meta||!hp06Tracker)return false;const m=hp06Meta,s=hp06Tracker.getSummary(),assigned=m.mode==="assigned",schedule=assigned?scheduleService.getById(m.scheduleId):null,q=calculateClamshellScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:schedule?.id||null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:HP06_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score:q.score,overallScore:q.score,quality:q.quality,remark:buildClamshellRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(schedule)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});return true;}function finalizeHp06Training(){if(!hp06Tracker?.getSummary().totalReps)return alert("尚未偵測到完整動作，請至少完成一次後再儲存。");stopHp06Camera();const m=hp06Meta;if(persistHp06()){hp06Tracker=null;hp06Meta=null;navigateAfterSquat(m);}}function exitHp06Detection(){stopHp06Camera();const m=hp06Meta;hp06Tracker=null;hp06Meta=null;navigateAfterSquat(m);}
 const renderBeforeHp06=render;render=function(){if(state.route==="hp06Detection"){app.innerHTML=phone(hp06DetectionPage(),true);attachImageFallbacks(app)}else renderBeforeHp06();};const cameraBeforeHp06=openCameraPlaceholder;openCameraPlaceholder=function(){const c=getExercisePageContext(),a=c&&(resolvePoseAnalyzer(c.catalog)||resolvePoseAnalyzer(c.ex));return a===POSE_ANALYZER.HP06_CLAMSHELL?goHp06Detection():cameraBeforeHp06();};window.openCameraPlaceholder=openCameraPlaceholder;window.goHp06Detection=goHp06Detection;window.exitHp06Detection=exitHp06Detection;window.finalizeHp06Training=finalizeHp06Training;
 const resultBeforeHp06=renderAnalysisResultSection;renderAnalysisResultSection=function(record,ex){return record.analysisMode===HP06_ANALYSIS_MODE?renderLe04AnalysisResult(record):resultBeforeHp06(record,ex);};const historyBeforeHp06=buildTrainingHistoryEntry;buildTrainingHistoryEntry=function(record){const e=historyBeforeHp06(record);if(record.analysisMode===HP06_ANALYSIS_MODE)e.summaryLabel=(record.totalReps||0)+" / "+(record.targetReps||0)+" 次｜AI 姿勢分數 "+(record.score??record.overallScore??"—")+" 分";return e;};const genericBeforeHp06=renderGenericRecordDetail;renderGenericRecordDetail=function(record,entry){return record.analysisMode===HP06_ANALYSIS_MODE?renderLe04RecordDetail(record):genericBeforeHp06(record,entry);};
@@ -13338,7 +14274,7 @@ const renderBeforeSh07=render;render=function(){if(state.route==="sh07Detection"
 
 let hp01Meta,hp01Cam,hp01Ctx,hp01Stable,hp01Tracker,hp01Done=false;
 function hp01Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp01Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=Math.max(1,Number(x.repetitions??x.targetReps)||10);hp01Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP01_REWARD_XP};hp01Done=false;state.route="hp01Detection";render();beginHp01Camera();}
+function goHp01Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=f01FormalTargetPerSide(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||10));hp01Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP01_REWARD_XP};hp01Done=false;state.route="hp01Detection";render();beginHp01Camera();}
 function hp01DetectionPage(){const m=hp01Meta||{exerciseName:"仰躺直腿抬腿",targetPerSide:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp01Detection()">返回</button><b>AI 髖關節直腿抬腿</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">側面或斜側面拍攝。單腿保持伸直，緩慢抬至約 30°～45°，頂端停留約 2 秒後控制放下；左右各 ${m.targetPerSide} 次。</div><div class="squat-camera-wrap"><video id="hp01Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp01Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp01Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp01Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp01Total">0</span><span class="squat-rep-counter-sep">/${m.targetPerSide*2}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp01Dot"></span><span id="hp01ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp01Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">左腿</span><b><span id="hp01Left">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">右腿</span><b><span id="hp01Right">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp01Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp01Ready">--</b></div><div class="small">左髖：<b id="hp01LeftHip">--</b>　右髖：<b id="hp01RightHip">--</b></div><div class="small">左膝：<b id="hp01LeftKnee">--</b>　右膝：<b id="hp01RightKnee">--</b></div><div class="small">即時提醒：<b id="hp01Feedback">請仰躺並讓肩、髖、膝與腳踝完整入鏡</b></div></div><button class="btn btn-primary full" id="hp01Finish" onclick="finalizeHp01Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp01Detection()">放棄本次訓練</button>`;}
 function beginHp01Camera(){const v=document.getElementById("hp01Video"),c=document.getElementById("hp01Canvas");if(!v||!c)return;stopHp01Camera();hp01Ctx=c.getContext("2d");hp01Tracker=createHipStraightLegRaiseSession({targetPerSide:hp01Meta.targetPerSide,thresholds:HP01_THRESHOLDS});hp01Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP01_THRESHOLDS.MIN_VISIBILITY},HP01_REQUIRED_LANDMARKS);hp01Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp01Set("hp01Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp01Frame,onFatalError:m=>hp01Set("hp01Status",m)});hp01Cam.start();}
 function drawHp01(l){const c=document.getElementById("hp01Canvas"),v=document.getElementById("hp01Video");if(!c||!hp01Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp01Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp01Ctx.strokeStyle="#7ea866";hp01Ctx.fillStyle="#5f8d49";hp01Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp01Ctx.beginPath();hp01Ctx.moveTo(a.x*c.width,a.y*c.height);hp01Ctx.lineTo(b.x*c.width,b.y*c.height);hp01Ctx.stroke()});l.forEach(p=>{if(!p)return;hp01Ctx.beginPath();hp01Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp01Ctx.fill()});}
@@ -13352,7 +14288,7 @@ const renderBeforeHp01=render;render=function(){if(state.route==="hp01Detection"
 
 let hp02TrainingMeta,hp02TrainingCam,hp02TrainingCtx,hp02TrainingStable,hp02TrainingTracker,hp02TrainingDone=false;
 function hp02TrainingSet(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp02TrainingDetection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=Math.max(1,Number(x.repetitions??x.targetReps)||10);hp02TrainingMeta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP02_REWARD_XP};hp02TrainingDone=false;state.route="hp02TrainingDetection";render();beginHp02TrainingCamera();}
+function goHp02TrainingDetection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=f01FormalTargetPerSide(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||10));hp02TrainingMeta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP02_REWARD_XP};hp02TrainingDone=false;state.route="hp02TrainingDetection";render();beginHp02TrainingCamera();}
 function hp02TrainingPage(){const m=hp02TrainingMeta||{exerciseName:"站姿髖屈曲",targetPerSide:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp02TrainingDetection()">返回</button><b>AI 站姿髖屈曲</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">正面或斜側面站立，可扶穩固物。單側膝蓋抬至接近髖部高度，停留 1～2 秒後緩慢放下；左右各 ${m.targetPerSide} 次。</div><div class="squat-camera-wrap"><video id="hp02TrainingVideo" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp02TrainingCanvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp02TrainingCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp02TrainingRing" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp02TrainingTotal">0</span><span class="squat-rep-counter-sep">/${m.targetPerSide*2}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp02TrainingDot"></span><span id="hp02TrainingReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp02TrainingStatus">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">左腿</span><b><span id="hp02TrainingLeft">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">右腿</span><b><span id="hp02TrainingRight">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp02TrainingScore">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp02TrainingReady">--</b></div><div class="small">左髖：<b id="hp02TrainingLeftHip">--</b>　右髖：<b id="hp02TrainingRightHip">--</b></div><div class="small">軀幹傾斜：<b id="hp02TrainingLean">--</b>　骨盆傾斜：<b id="hp02TrainingPelvis">--</b></div><div class="small">即時提醒：<b id="hp02TrainingFeedback">請站直並讓全身完整入鏡</b></div></div><button class="btn btn-primary full" id="hp02TrainingFinish" onclick="finalizeHp02Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp02TrainingDetection()">放棄本次訓練</button>`;}
 function beginHp02TrainingCamera(){const v=document.getElementById("hp02TrainingVideo"),c=document.getElementById("hp02TrainingCanvas");if(!v||!c)return;stopHp02TrainingCamera();hp02TrainingCtx=c.getContext("2d");hp02TrainingTracker=createStandingHipFlexionSession({targetPerSide:hp02TrainingMeta.targetPerSide,thresholds:HP02_TRAINING_THRESHOLDS});hp02TrainingStable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP02_TRAINING_THRESHOLDS.MIN_VISIBILITY},HP02_TRAINING_REQUIRED_LANDMARKS);hp02TrainingCam=createSquatCameraController({videoEl:v,onStatus:s=>hp02TrainingSet("hp02TrainingStatus",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp02TrainingFrame,onFatalError:m=>hp02TrainingSet("hp02TrainingStatus",m)});hp02TrainingCam.start();}
 function drawHp02Training(l){const c=document.getElementById("hp02TrainingCanvas"),v=document.getElementById("hp02TrainingVideo");if(!c||!hp02TrainingCtx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp02TrainingCtx.clearRect(0,0,c.width,c.height);if(!l)return;hp02TrainingCtx.strokeStyle="#7ea866";hp02TrainingCtx.fillStyle="#5f8d49";hp02TrainingCtx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp02TrainingCtx.beginPath();hp02TrainingCtx.moveTo(a.x*c.width,a.y*c.height);hp02TrainingCtx.lineTo(b.x*c.width,b.y*c.height);hp02TrainingCtx.stroke()});l.forEach(p=>{if(!p)return;hp02TrainingCtx.beginPath();hp02TrainingCtx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp02TrainingCtx.fill()});}
@@ -13366,7 +14302,7 @@ const renderBeforeHp02Training=render;render=function(){if(state.route==="hp02Tr
 
 let hp03Meta,hp03Cam,hp03Ctx,hp03Stable,hp03Tracker,hp03Done=false;
 function hp03Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp03Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=Math.max(1,Number(x.repetitions??x.targetReps)||10);hp03Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP03_REWARD_XP};hp03Done=false;state.route="hp03Detection";render();beginHp03Camera();}
+function goHp03Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=f01FormalTargetPerSide(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||10));hp03Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP03_REWARD_XP};hp03Done=false;state.route="hp03Detection";render();beginHp03Camera();}
 function hp03Page(){const m=hp03Meta||{exerciseName:"站姿髖伸展",targetPerSide:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp03Detection()">返回</button><b>AI 站姿髖伸展</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">側面站立，可扶穩固物。單側腿保持伸直並向後抬約 15°～20°，停留 1～2 秒後緩慢放下；左右各 ${m.targetPerSide} 次。</div><div class="squat-camera-wrap"><video id="hp03Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp03Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp03Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp03Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp03Total">0</span><span class="squat-rep-counter-sep">/${m.targetPerSide*2}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp03Dot"></span><span id="hp03ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp03Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">左腿</span><b><span id="hp03Left">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">右腿</span><b><span id="hp03Right">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp03Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp03Ready">--</b></div><div class="small">左髖伸展：<b id="hp03LeftExt">--</b>　右髖伸展：<b id="hp03RightExt">--</b></div><div class="small">軀幹傾斜：<b id="hp03Lean">--</b>　骨盆穩定：<b id="hp03Pelvis">--</b></div><div class="small">即時提醒：<b id="hp03Feedback">請側身站直並讓全身完整入鏡</b></div></div><button class="btn btn-primary full" id="hp03Finish" onclick="finalizeHp03Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp03Detection()">放棄本次訓練</button>`;}
 function beginHp03Camera(){const v=document.getElementById("hp03Video"),c=document.getElementById("hp03Canvas");if(!v||!c)return;stopHp03Camera();hp03Ctx=c.getContext("2d");hp03Tracker=createStandingHipExtensionSession({targetPerSide:hp03Meta.targetPerSide,thresholds:HP03_THRESHOLDS});hp03Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP03_THRESHOLDS.MIN_VISIBILITY},HP03_REQUIRED_LANDMARKS);hp03Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp03Set("hp03Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp03Frame,onFatalError:m=>hp03Set("hp03Status",m)});hp03Cam.start();}
 function drawHp03(l){const c=document.getElementById("hp03Canvas"),v=document.getElementById("hp03Video");if(!c||!hp03Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp03Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp03Ctx.strokeStyle="#7ea866";hp03Ctx.fillStyle="#5f8d49";hp03Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp03Ctx.beginPath();hp03Ctx.moveTo(a.x*c.width,a.y*c.height);hp03Ctx.lineTo(b.x*c.width,b.y*c.height);hp03Ctx.stroke()});l.forEach(p=>{if(!p)return;hp03Ctx.beginPath();hp03Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp03Ctx.fill()});}
@@ -13380,7 +14316,7 @@ const renderBeforeHp03=render;render=function(){if(state.route==="hp03Detection"
 
 let hp07Meta,hp07Cam,hp07Ctx,hp07Stable,hp07Tracker,hp07Done=false;
 function hp07Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function goHp07Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=Math.max(1,Number(x.repetitions??x.targetReps)||10);hp07Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP07_REWARD_XP};hp07Done=false;state.route="hp07Detection";render();beginHp07Camera();}
+function goHp07Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null,targetPerSide=f01FormalTargetPerSide(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||10));hp07Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetPerSide,rewardXp:x.rewardXp||DEFAULT_HP07_REWARD_XP};hp07Done=false;state.route="hp07Detection";render();beginHp07Camera();}
 function hp07Page(){const m=hp07Meta||{exerciseName:"消防栓式",targetPerSide:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitHp07Detection()">返回</button><b>AI 消防栓式</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">採四足跪姿，從正後方或斜後方拍攝。單側膝蓋維持約 90°並向外抬至 30°～45°，停留 1～2 秒後慢慢放回；左右各 ${m.targetPerSide} 次。</div><div class="squat-camera-wrap"><video id="hp07Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="hp07Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="hp07Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="hp07Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="hp07Total">0</span><span class="squat-rep-counter-sep">/${m.targetPerSide*2}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="hp07Dot"></span><span id="hp07ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="hp07Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">左側</span><b><span id="hp07Left">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">右側</span><b><span id="hp07Right">0</span> / ${m.targetPerSide}</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="hp07Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">追蹤狀態：<b id="hp07Ready">--</b></div><div class="small">左髖外展：<b id="hp07LeftAbd">--</b>　右髖外展：<b id="hp07RightAbd">--</b></div><div class="small">骨盆傾斜：<b id="hp07Pelvis">--</b>　肩膀傾斜：<b id="hp07Shoulder">--</b></div><div class="small">即時提醒：<b id="hp07Feedback">請擺好四足跪姿並完整入鏡</b></div></div><button class="btn btn-primary full" id="hp07Finish" onclick="finalizeHp07Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitHp07Detection()">放棄本次訓練</button>`;}
 function beginHp07Camera(){const v=document.getElementById("hp07Video"),c=document.getElementById("hp07Canvas");if(!v||!c)return;stopHp07Camera();hp07Ctx=c.getContext("2d");hp07Tracker=createFireHydrantSession({targetPerSide:hp07Meta.targetPerSide,thresholds:HP07_THRESHOLDS});hp07Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:HP07_THRESHOLDS.MIN_VISIBILITY},HP07_REQUIRED_LANDMARKS);hp07Cam=createSquatCameraController({videoEl:v,onStatus:s=>hp07Set("hp07Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleHp07Frame,onFatalError:m=>hp07Set("hp07Status",m)});hp07Cam.start();}
 function drawHp07(l){const c=document.getElementById("hp07Canvas"),v=document.getElementById("hp07Video");if(!c||!hp07Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}hp07Ctx.clearRect(0,0,c.width,c.height);if(!l)return;hp07Ctx.strokeStyle="#7ea866";hp07Ctx.fillStyle="#5f8d49";hp07Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;hp07Ctx.beginPath();hp07Ctx.moveTo(a.x*c.width,a.y*c.height);hp07Ctx.lineTo(b.x*c.width,b.y*c.height);hp07Ctx.stroke()});l.forEach(p=>{if(!p)return;hp07Ctx.beginPath();hp07Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);hp07Ctx.fill()});}
@@ -13948,7 +14884,7 @@ const genericBeforeAk04=renderGenericRecordDetail;renderGenericRecordDetail=func
 
 let ak05Meta,ak05Cam,ak05Ctx,ak05Stable,ak05Tracker,ak05Done=false;
 function ak05Set(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
-function goAk05Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak05Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:Math.max(1,Number(x.repetitions??x.targetReps)||10),rewardXp:x.rewardXp||DEFAULT_AK05_REWARD_XP};ak05Done=false;state.route="ak05Detection";render();beginAk05Camera();}
+function goAk05Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak05Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||10)),rewardXp:x.rewardXp||DEFAULT_AK05_REWARD_XP};ak05Done=false;state.route="ak05Detection";render();beginAk05Camera();}
 function ak05Page(){const m=ak05Meta||{exerciseName:"雙腳提踵",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitAk05Detection()">返回</button><b>AI 雙腳提踵</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">從正面拍攝並讓全身與雙腳完整入鏡。雙腳與肩同寬站穩，可扶穩固物，將兩側腳跟同步抬起、停留後慢慢下降；目標 ${m.targetReps} 次。</div><div class="squat-camera-wrap"><video id="ak05Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="ak05Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="ak05Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="ak05Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="ak05Total">0</span><span class="squat-rep-counter-sep">/${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="ak05Dot"></span><span id="ak05ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="ak05Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="ak05Reps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">品質符合</span><b id="ak05Valid">0</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="ak05Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">動作階段：<b id="ak05State">站立</b>　腳跟抬升：<b id="ak05Rise">--</b></div><div class="small">左右差異：<b id="ak05Asym">--</b>　膝蓋角度：<b id="ak05Knee">--</b></div><div class="small">軀幹傾斜：<b id="ak05Lean">--</b></div><div class="small">即時提醒：<b id="ak05Feedback">請保持全身與雙腳入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888">安全提醒：請在穩固扶手旁練習，若疼痛或失去平衡請立即停止。攝影機僅估算可見姿勢。</div><button class="btn btn-primary full" id="ak05Finish" onclick="finalizeAk05Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitAk05Detection()">放棄本次訓練</button>`;}
 function beginAk05Camera(){const video=document.getElementById("ak05Video"),canvas=document.getElementById("ak05Canvas");if(!video||!canvas)return;stopAk05Camera();ak05Ctx=canvas.getContext("2d");ak05Tracker=createDoubleCalfRaiseSession({targetReps:ak05Meta.targetReps,thresholds:AK05_THRESHOLDS});ak05Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:AK05_THRESHOLDS.MIN_VISIBILITY},AK05_REQUIRED_LANDMARKS);ak05Cam=createSquatCameraController({videoEl:video,onStatus:s=>ak05Set("ak05Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleAk05Frame,onFatalError:m=>ak05Set("ak05Status",m)});ak05Cam.start();}
 function drawAk05(landmarks){const canvas=document.getElementById("ak05Canvas"),video=document.getElementById("ak05Video");if(!canvas||!ak05Ctx)return;if(video.videoWidth&&(canvas.width!==video.videoWidth||canvas.height!==video.videoHeight)){canvas.width=video.videoWidth;canvas.height=video.videoHeight}ak05Ctx.clearRect(0,0,canvas.width,canvas.height);if(!landmarks)return;ak05Ctx.strokeStyle="#7ea866";ak05Ctx.fillStyle="#5f8d49";ak05Ctx.lineWidth=Math.max(2,canvas.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=landmarks[start],b=landmarks[end];if(!a||!b)return;ak05Ctx.beginPath();ak05Ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ak05Ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ak05Ctx.stroke()});landmarks.forEach(p=>{if(!p)return;ak05Ctx.beginPath();ak05Ctx.arc(p.x*canvas.width,p.y*canvas.height,Math.max(2,canvas.width*.006),0,Math.PI*2);ak05Ctx.fill()});}
@@ -13967,7 +14903,7 @@ const genericBeforeAk05=renderGenericRecordDetail;renderGenericRecordDetail=func
 
 let ak06Meta,ak06Cam,ak06Ctx,ak06Stable,ak06Tracker,ak06Done=false;
 function ak06Set(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
-function goAk06Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak06Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:Math.max(1,Number(x.repetitions??x.targetReps)||AK06_THRESHOLDS.TARGET_REPS),rewardXp:x.rewardXp||DEFAULT_AK06_REWARD_XP};ak06Done=false;state.route="ak06Detection";render();beginAk06Camera();}
+function goAk06Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak06Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||AK06_THRESHOLDS.TARGET_REPS)),rewardXp:x.rewardXp||DEFAULT_AK06_REWARD_XP};ak06Done=false;state.route="ak06Detection";render();beginAk06Camera();}
 function ak06Page(){const m=ak06Meta||{exerciseName:"雙腳抬腳",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitAk06Detection()">返回</button><b>AI 雙腳抬腳</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">從正面拍攝並讓全身、雙腳跟與腳尖完整入鏡。站穩並可扶牆，保持兩側腳跟貼地，將雙側腳尖同步抬起、停留後慢慢放下；目標 ${m.targetReps} 次。</div><div class="squat-camera-wrap"><video id="ak06Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="ak06Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="ak06Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="ak06Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="ak06Total">0</span><span class="squat-rep-counter-sep">/${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="ak06Dot"></span><span id="ak06ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="ak06Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="ak06Reps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">品質符合</span><b id="ak06Valid">0</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="ak06Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">動作階段：<b id="ak06State">站立</b>　腳尖抬升：<b id="ak06Lift">--</b></div><div class="small">左右差異：<b id="ak06Asym">--</b>　膝蓋代償：<b id="ak06Knee">--</b></div><div class="small">軀幹傾斜：<b id="ak06Lean">--</b></div><div class="small">即時提醒：<b id="ak06Feedback">請保持全身與雙腳入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888">安全提醒：請在穩固扶手旁練習，若疼痛或失去平衡請立即停止。攝影機僅能估算可見角度與位移。</div><button class="btn btn-primary full" id="ak06Finish" onclick="finalizeAk06Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitAk06Detection()">放棄本次訓練</button>`;}
 function beginAk06Camera(){const video=document.getElementById("ak06Video"),canvas=document.getElementById("ak06Canvas");if(!video||!canvas)return;stopAk06Camera();ak06Ctx=canvas.getContext("2d");ak06Tracker=createDoubleToeRaiseSession({targetReps:ak06Meta.targetReps,thresholds:AK06_THRESHOLDS});ak06Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:AK06_THRESHOLDS.MIN_VISIBILITY},AK06_REQUIRED_LANDMARKS);ak06Cam=createSquatCameraController({videoEl:video,onStatus:s=>ak06Set("ak06Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleAk06Frame,onFatalError:m=>ak06Set("ak06Status",m)});ak06Cam.start();}
 function drawAk06(landmarks){const canvas=document.getElementById("ak06Canvas"),video=document.getElementById("ak06Video");if(!canvas||!ak06Ctx)return;if(video.videoWidth&&(canvas.width!==video.videoWidth||canvas.height!==video.videoHeight)){canvas.width=video.videoWidth;canvas.height=video.videoHeight}ak06Ctx.clearRect(0,0,canvas.width,canvas.height);if(!landmarks)return;ak06Ctx.strokeStyle="#7ea866";ak06Ctx.fillStyle="#5f8d49";ak06Ctx.lineWidth=Math.max(2,canvas.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=landmarks[start],b=landmarks[end];if(!a||!b)return;ak06Ctx.beginPath();ak06Ctx.moveTo(a.x*canvas.width,a.y*canvas.height);ak06Ctx.lineTo(b.x*canvas.width,b.y*canvas.height);ak06Ctx.stroke()});landmarks.forEach(p=>{if(!p)return;ak06Ctx.beginPath();ak06Ctx.arc(p.x*canvas.width,p.y*canvas.height,Math.max(2,canvas.width*.006),0,Math.PI*2);ak06Ctx.fill()});}
@@ -14005,11 +14941,11 @@ const genericBeforeAk07=renderGenericRecordDetail;renderGenericRecordDetail=func
 
 let ak08Meta,ak08Cam,ak08Ctx,ak08Stable,ak08Tracker,ak08Done=false;
 function ak08Set(id,value){const el=document.getElementById(id);if(el)el.textContent=value;}
-function goAk08Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak08Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:Math.max(1,Number(x.repetitions??x.targetReps)||AK08_THRESHOLDS.TARGET_REPS),rewardXp:x.rewardXp||DEFAULT_AK08_REWARD_XP};ak08Done=false;state.route="ak08Detection";render();beginAk08Camera();}
-function ak08Page(){const m=ak08Meta||{exerciseName:"單腳抬腳尖",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitAk08Detection()">返回</button><b>AI 單腳抬腳尖</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">從正面或斜前方拍攝並讓全身與雙腳完整入鏡。抬起非訓練腳並扶穩，支撐腳腳跟貼地，將腳尖抬起、停留後慢慢放下；目標 ${m.targetReps} 次。</div><div class="squat-camera-wrap"><video id="ak08Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="ak08Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="ak08Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="ak08Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="ak08Total">0</span><span class="squat-rep-counter-sep">/${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="ak08Dot"></span><span id="ak08ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="ak08Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="ak08Reps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">左右完成</span><b id="ak08Sides">0 / 0</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="ak08Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">支撐腳：<b id="ak08Support">判定中</b>　腳尖抬升：<b id="ak08Lift">--</b></div><div class="small">骨盆傾斜：<b id="ak08Pelvis">--</b>　膝蓋代償：<b id="ak08Knee">--</b></div><div class="small">身體傾斜：<b id="ak08Lean">--</b></div><div class="small">即時提醒：<b id="ak08Feedback">請抬起非訓練腳並扶穩</b></div></div><div class="small" style="margin:10px 0;color:#888">安全提醒：務必在穩固扶手旁練習；若失去平衡、疼痛或腳踝不穩，請立即停止。</div><button class="btn btn-primary full" id="ak08Finish" onclick="finalizeAk08Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitAk08Detection()">放棄本次訓練</button>`;}
-function beginAk08Camera(){const v=document.getElementById("ak08Video"),c=document.getElementById("ak08Canvas");if(!v||!c)return;stopAk08Camera();ak08Ctx=c.getContext("2d");ak08Tracker=createSingleLegToeRaiseSession({targetReps:ak08Meta.targetReps,thresholds:AK08_THRESHOLDS});ak08Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:AK08_THRESHOLDS.MIN_VISIBILITY},AK08_REQUIRED_LANDMARKS);ak08Cam=createSquatCameraController({videoEl:v,onStatus:s=>ak08Set("ak08Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleAk08Frame,onFatalError:m=>ak08Set("ak08Status",m)});ak08Cam.start();}
+function goAk08Detection(){const c=getExercisePageContext();if(!c)return;const x=c.ex,rel=c.mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;ak08Meta={mode:c.mode,navigationOrigin:state.navigationOrigin,scheduleId:c.mode==="assigned"?c.schedule.id:null,exerciseIndex:c.mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:x.exerciseId,exerciseName:x.exerciseName,patientId:state.user.id,therapistId:c.mode==="assigned"?c.schedule.therapistId:rel?.therapistId,targetReps:f01FormalTargetReps(x.exerciseId,Math.max(1,Number(x.repetitions??x.targetReps)||AK08_THRESHOLDS.TARGET_REPS)),targetPerSide:f01FormalTargetPerSide(x.exerciseId,null),rewardXp:x.rewardXp||DEFAULT_AK08_REWARD_XP};ak08Done=false;state.route="ak08Detection";render();beginAk08Camera();}
+function ak08Page(){const m=ak08Meta||{exerciseName:"單腳抬腳尖",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitAk08Detection()">返回</button><b>AI 單腳抬腳尖</b><img class="icon" src="/images/ai_robot.png" alt="AI"></div><h2>${m.exerciseName}</h2><div class="small" style="margin-bottom:10px">從正面或斜前方拍攝並讓全身與雙腳完整入鏡。抬起非訓練腳並扶穩，支撐腳腳跟貼地，將腳尖抬起、停留後慢慢放下；目標 ${m.targetPerSide ? `每側 ${m.targetPerSide}` : m.targetReps} 次。</div><div class="squat-camera-wrap"><video id="ak08Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="ak08Canvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="ak08Counter"><svg class="squat-rep-ring" viewBox="0 0 72 72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="ak08Ring" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="ak08Total">0</span><span class="squat-rep-counter-sep">/${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="ak08Dot"></span><span id="ak08ReadyText">尚未偵測</span></div><div class="squat-status-overlay" id="ak08Status">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px"><div class="stat"><span class="small">完成次數</span><b><span id="ak08Reps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">左右完成</span><b id="ak08Sides">0 / 0</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="ak08Score">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px"><div class="small">支撐腳：<b id="ak08Support">判定中</b>　腳尖抬升：<b id="ak08Lift">--</b></div><div class="small">骨盆傾斜：<b id="ak08Pelvis">--</b>　膝蓋代償：<b id="ak08Knee">--</b></div><div class="small">身體傾斜：<b id="ak08Lean">--</b></div><div class="small">即時提醒：<b id="ak08Feedback">請抬起非訓練腳並扶穩</b></div></div><div class="small" style="margin:10px 0;color:#888">安全提醒：務必在穩固扶手旁練習；若失去平衡、疼痛或腳踝不穩，請立即停止。</div><button class="btn btn-primary full" id="ak08Finish" onclick="finalizeAk08Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitAk08Detection()">放棄本次訓練</button>`;}
+function beginAk08Camera(){const v=document.getElementById("ak08Video"),c=document.getElementById("ak08Canvas");if(!v||!c)return;stopAk08Camera();ak08Ctx=c.getContext("2d");ak08Tracker=createSingleLegToeRaiseSession({targetReps:ak08Meta.targetReps,targetPerSide:ak08Meta.targetPerSide,thresholds:AK08_THRESHOLDS});showF01PerSideProgress(F01_PER_SIDE_VIEW.ak08,ak08Tracker.getSummary());ak08Stable=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:AK08_THRESHOLDS.MIN_VISIBILITY},AK08_REQUIRED_LANDMARKS);ak08Cam=createSquatCameraController({videoEl:v,onStatus:s=>ak08Set("ak08Status",s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":""),onFrame:handleAk08Frame,onFatalError:m=>ak08Set("ak08Status",m)});ak08Cam.start();}
 function drawAk08(l){const c=document.getElementById("ak08Canvas"),v=document.getElementById("ak08Video");if(!c||!ak08Ctx)return;if(v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight}ak08Ctx.clearRect(0,0,c.width,c.height);if(!l)return;ak08Ctx.strokeStyle="#7ea866";ak08Ctx.fillStyle="#5f8d49";ak08Ctx.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b)return;ak08Ctx.beginPath();ak08Ctx.moveTo(a.x*c.width,a.y*c.height);ak08Ctx.lineTo(b.x*c.width,b.y*c.height);ak08Ctx.stroke()});l.forEach(p=>{if(!p)return;ak08Ctx.beginPath();ak08Ctx.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);ak08Ctx.fill()});}
-function handleAk08Frame(l,time){if(state.route!=="ak08Detection"||!ak08Stable||!ak08Tracker||ak08Done)return;drawAk08(l);const d=ak08Stable.update(l,time),m=computeSingleLegToeRaiseMetrics(l,AK08_THRESHOLDS),r=ak08Tracker.processFrame({timestamp:time,...m}),s=r.summary,dot=document.getElementById("ak08Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");ak08Set("ak08ReadyText",m.bodyReady?"已偵測到全身，請建立單腳支撐":"請保持全身與雙腳完整入鏡");ak08Set("ak08Total",s.totalReps);ak08Set("ak08Reps",s.totalReps);ak08Set("ak08Sides",`${s.leftReps||0} / ${s.rightReps||0}`);ak08Set("ak08Support",s.supportSide?s.supportSide==="left"?"左腳":"右腳":"判定中");ak08Set("ak08Lift",r.liftRatio==null?"--":Math.round(r.liftRatio*100)+"%");ak08Set("ak08Pelvis",m.pelvisTiltRatio==null?"--":(m.pelvisTiltRatio*100).toFixed(1)+"%");const k=s.supportSide&&m.bodyReady?m[s.supportSide+"KneeFlexionDeg"]:null;ak08Set("ak08Knee",k==null?"--":Math.round(k)+"°");ak08Set("ak08Lean",m.trunkLeanDeg==null?"--":Math.round(m.trunkLeanDeg)+"°");ak08Set("ak08Score",s.totalReps?calculateSingleLegToeRaiseScore(s).score:"--");if(r.completedRep){const issue=r.completedRep.issues[0],counter=document.getElementById("ak08Counter");ak08Set("ak08Feedback",issue?AK08_ISSUE_LABELS[issue]:"很好，腳跟穩定且腳尖抬放控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else ak08Set("ak08Feedback",r.feedback);const ring=document.getElementById("ak08Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));if(s.completed){ak08Done=true;stopAk08Camera();ak08Set("ak08Status","目標已完成！請儲存結果");ak08Set("ak08Finish","儲存並查看結果");document.getElementById("ak08Counter")?.classList.add("complete");}}
+function handleAk08Frame(l,time){if(state.route!=="ak08Detection"||!ak08Stable||!ak08Tracker||ak08Done)return;drawAk08(l);const d=ak08Stable.update(l,time),m=computeSingleLegToeRaiseMetrics(l,AK08_THRESHOLDS),r=ak08Tracker.processFrame({timestamp:time,...m}),s=r.summary,dot=document.getElementById("ak08Dot");if(dot)dot.className="squat-readiness-dot "+(d.displayState===DETECTION_DISPLAY_STATE.READY?"ready":"partial");ak08Set("ak08ReadyText",m.bodyReady?"已偵測到全身，請建立單腳支撐":"請保持全身與雙腳完整入鏡");ak08Set("ak08Total",s.totalReps);ak08Set("ak08Reps",s.totalReps);ak08Set("ak08Sides",`${s.leftReps||0} / ${s.rightReps||0}`);ak08Set("ak08Support",s.supportSide?s.supportSide==="left"?"左腳":"右腳":"判定中");ak08Set("ak08Lift",r.liftRatio==null?"--":Math.round(r.liftRatio*100)+"%");ak08Set("ak08Pelvis",m.pelvisTiltRatio==null?"--":(m.pelvisTiltRatio*100).toFixed(1)+"%");const k=s.supportSide&&m.bodyReady?m[s.supportSide+"KneeFlexionDeg"]:null;ak08Set("ak08Knee",k==null?"--":Math.round(k)+"°");ak08Set("ak08Lean",m.trunkLeanDeg==null?"--":Math.round(m.trunkLeanDeg)+"°");ak08Set("ak08Score",s.totalReps?calculateSingleLegToeRaiseScore(s).score:"--");if(r.completedRep){const issue=r.completedRep.issues[0],counter=document.getElementById("ak08Counter");ak08Set("ak08Feedback",issue?AK08_ISSUE_LABELS[issue]:"很好，腳跟穩定且腳尖抬放控制良好");if(counter){counter.classList.remove("pulse");void counter.offsetWidth;counter.classList.add("pulse")}}else ak08Set("ak08Feedback",r.feedback);const ring=document.getElementById("ak08Ring");if(ring)ring.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(s.totalReps,s.targetReps)));showF01PerSideProgress(F01_PER_SIDE_VIEW.ak08,s);if(s.completed){ak08Done=true;stopAk08Camera();ak08Set("ak08Status","目標已完成！請儲存結果");ak08Set("ak08Finish","儲存並查看結果");document.getElementById("ak08Counter")?.classList.add("complete");}}
 function stopAk08Camera(){ak08Cam?.stop();ak08Cam=null;ak08Ctx=null;ak08Stable=null;}
 function persistAk08(){if(!ak08Meta||!ak08Tracker)return false;const m=ak08Meta,s=ak08Tracker.getSummary(),assigned=m.mode==="assigned",schedule=assigned?scheduleService.getById(m.scheduleId):null,q=calculateSingleLegToeRaiseScore(s),now=nowIso();const record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:schedule?.id||null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:AK08_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score:q.score,overallScore:q.score,quality:q.quality,remark:buildSingleLegToeRaiseRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(schedule)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});return true;}
 function finalizeAk08Training(){if(!ak08Tracker?.getSummary().totalReps)return alert("尚未偵測到完整單腳抬腳尖與放下，請至少完成一次後再儲存。");stopAk08Camera();const m=ak08Meta;if(persistAk08()){ak08Tracker=null;ak08Meta=null;navigateAfterSquat(m);}}
@@ -14205,6 +15141,16 @@ function exitFlexDetection(){stopFlexCamera();const m=flexMeta;flexTracker=null;
 function renderFlexResult(record){const s=record.summary||{},total=s.totalReps??record.totalReps??0,target=s.targetReps??record.targetReps??0,score=record.score??record.overallScore??"—";return `<div class="detail-analysis-result"><div class="card result-hero">${renderRobot(total>=target?"celebrate":"happy","sm")}<div class="result-hero-headline">完成 ${total} 次伸展${total>=target?"！":""}</div><div class="small result-hero-sub">左側 ${s.leftReps||0} 次｜右側 ${s.rightReps||0} 次｜品質符合 ${s.validReps??record.validReps??0} 次</div></div><div class="card" style="margin-top:10px"><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成次數</div></div><div class="result-summary-col"><div class="result-summary-value">${s.targetSeconds||"—"}</div><div class="small">每次維持秒數</div></div><div class="result-summary-col"><div class="result-summary-value">${score}<span class="result-summary-value-sep">/100</span></div><div class="small">AI 姿勢分數</div></div></div></div><div class="card result-feedback-card" style="margin-top:10px"><b>AI 建議</b><div class="small">${record.remark||"請在無痛範圍內穩定維持，並慢慢回位。"}</div></div><details class="result-tech-details"><summary>詳細分析</summary><div class="small" style="margin-top:8px">維持中斷：${s.holdBreakCount||0} 次｜速度過快：${s.tooFastCount||0} 次｜骨盆傾斜：${s.pelvisTiltCount||0} 次｜追蹤中斷：${s.trackingInterruptionCount||0} 次</div><div class="small" style="margin-top:4px;color:#888">單一鏡頭只能估算可見姿勢、維持時間與左右差異，無法判斷疼痛或組織張力。</div></details></div>`;}
 const renderBeforeFlex=render;render=function(){if(state.route==="flexDetection"){app.innerHTML=phone(flexPage(),true);attachImageFallbacks(app)}else renderBeforeFlex();};const cameraBeforeFlex=openCameraPlaceholder;openCameraPlaceholder=function(){const c=getExercisePageContext(),a=c&&(resolvePoseAnalyzer(c.catalog)||resolvePoseAnalyzer(c.ex));return a===POSE_ANALYZER.FLEXIBILITY_SERIES?goFlexDetection():cameraBeforeFlex();};window.openCameraPlaceholder=openCameraPlaceholder;window.goFlexDetection=goFlexDetection;window.exitFlexDetection=exitFlexDetection;window.finalizeFlexTraining=finalizeFlexTraining;const resultBeforeFlex=renderAnalysisResultSection;renderAnalysisResultSection=function(record,ex){return String(record.analysisMode||"").startsWith(FLEX_ANALYSIS_MODE_PREFIX)?renderFlexResult(record):resultBeforeFlex(record,ex);};const historyBeforeFlex=buildTrainingHistoryEntry;buildTrainingHistoryEntry=function(record){const e=historyBeforeFlex(record);if(String(record.analysisMode||"").startsWith(FLEX_ANALYSIS_MODE_PREFIX))e.summaryLabel=`${record.totalReps||0}/${record.targetReps||0} 次｜AI 姿勢分數 ${record.score??record.overallScore??"—"} 分`;return e;};const genericBeforeFlex=renderGenericRecordDetail;renderGenericRecordDetail=function(record,entry){return String(record.analysisMode||"").startsWith(FLEX_ANALYSIS_MODE_PREFIX)?renderFlexResult(record):genericBeforeFlex(record,entry);};
 
+// F01 batch 1 (spec 4.3) — final check before ANY detector of the preparation
+// page starts. Installed after every per-detector openCameraPlaceholder
+// wrapper above, so it is the outermost layer; non-formal trainings pass through.
+const openCameraBeforeF01FinalCheck = openCameraPlaceholder;
+openCameraPlaceholder = function () {
+  if (isF01FormalTrainingContext() && !passF01FinalCheck()) return;
+  return openCameraBeforeF01FinalCheck();
+};
+window.openCameraPlaceholder = openCameraPlaceholder;
+
 function installTrainingFinalizeNavigationGuard(finalizeName, exitName, getMeta) {
   const original = window[finalizeName];
   if (typeof original !== "function") return;
@@ -14395,6 +15341,7 @@ function generateF01RecommendationFromSetup() {
     limitationIds: s.limitationIds,
     availableMinutes: s.availableMinutes,
     catalog: exerciseService.listNormalized(),
+    excludeAutoRecommendationPending: true, // F01 batch 2 §3B
   });
   if (result.missingExerciseIds.length) console.warn("[F01 recommendation] missing exercise data:", result.missingExerciseIds);
   if (result.status === "blocked") {
@@ -14411,8 +15358,10 @@ function generateF01RecommendationFromSetup() {
     state.f01RecommendationId = saved.recommendation.id;
     // Phase D1 — a completed baseline + a saved recommendation starts (or
     // re-links) the F01 7-day tracking cycle. Never blocks the recommendation.
-    const tracked = trackingCycleService.createOrGetTrackingCycle({ userId: patientId, baselineSession: session, recommendation: saved.recommendation });
+    const tracked = trackingCycleService.createOrGetTrackingCycle({ userId: patientId, baselineSession: session, recommendation: saved.recommendation, completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
     if (tracked.error) console.warn("[tracking cycle] not linked:", tracked.error);
+    // F01 batch 2 §3D — a plan without executable counting definitions never takes effect silently.
+    if (tracked.error === "counting_basis_undefined") alert("這份訓練安排中有動作尚未設定可執行的計量方式（每側或合計），因此不會開始本週追蹤。請重新設定訓練需求，或請專業人員協助安排。" + countingGapText(tracked.undefinedItems));
     state.f01RecCycleNotice = tracked.reason === "another_active_cycle" ? tracked.cycle : null;
   }
   state.f01RecResultOrigin = "setup";
@@ -14448,10 +15397,10 @@ function startF01RecommendedTraining(exerciseId) {
   state.selectedExerciseId = exerciseId;
   state.selectedScheduleId = null;
   state.selectedExerciseIndex = null;
-  const ctx = armF01TrackingTraining(exerciseId);
-  // Phase D3 — first training start of the day freezes today's required
-  // exercises (real local date; outside Day 1-6 it is simply refused).
-  if (ctx) trackingCycleService.ensureDailyTrainingSnapshot({ cycleId: ctx.cycleId, userId: ctx.userId, dateKey: toLocalDateKey(new Date()) });
+  armF01TrackingTraining(exerciseId);
+  // F01 batch 1 (spec 4.1) — the day's snapshot (required exercises + frozen
+  // targets, one write) is created by goDetectionPrep's preparation stage,
+  // the same path as the 今日訓練 and exercise-detail entries.
   state.tab = "work";
   goDetectionPrep();
 }
@@ -14493,10 +15442,18 @@ function renderF01RecommendationImage(exerciseId, catalogExercise, exerciseName)
 
 function f01RecommendationResultPage() {
   const patientId = getCurrentPatientId();
-  const rec = state.f01RecommendationId
-    ? recommendationService.getById(state.f01RecommendationId)
-    : (state.f01RecEmpty ? null : recommendationService.getLatestF01GoalRecommendation(patientId));
   const empty = state.f01RecEmpty;
+  // Which plan: the one just opened if it is this patient's; else the active cycle's; else the latest (never another account's).
+  const requested = state.f01RecommendationId ? recommendationService.getById(state.f01RecommendationId) : null;
+  const activeCycle = empty ? null : trackingCycleService.getActiveTrackingCycle(patientId);
+  const rec = empty ? null : pickF01RecommendationForPage({
+    patientId,
+    requested,
+    activeCycleRec: activeCycle && activeCycle.recommendationId ? recommendationService.getById(activeCycle.recommendationId) : null,
+    latest: recommendationService.getLatestF01GoalRecommendation(patientId),
+  });
+  // 開始訓練 / 查看動作 read state.f01RecommendationId — keep it on the plan actually shown.
+  if (rec) state.f01RecommendationId = rec.id;
   const sourceId = rec ? rec.sourceAssessmentId : (state.f01RecSetup && state.f01RecSetup.sourceAssessmentId) || null;
   // Opened from the tracking card's 查看本週訓練: 返回 goes home, and the assessment result opened from here returns home too.
   const fromTracking = state.f01RecResultOrigin === "tracking";
@@ -14507,8 +15464,10 @@ function f01RecommendationResultPage() {
       <span></span>
     </div>`;
 
-  if (!rec) {
-    const excludedText = empty && empty.excluded && empty.excluded.length ? `你勾選的情況排除了 ${empty.excluded.length} 個動作，` : "";
+  if (!rec && empty) {
+    // limitation exclusions only: the batch-2 automatic-candidate exclusion (reason counting_basis_pending) is not one
+    const limitationExcluded = (empty.excluded || []).filter((e) => e.reason !== "counting_basis_pending");
+    const excludedText = limitationExcluded.length ? `你勾選的情況排除了 ${limitationExcluded.length} 個動作，` : "";
     return `${header}
       <div class="card fa5x-result-hero incomplete">
         <span class="fa5x-status-chip neutral">目前沒有可建議的動作</span>
@@ -14517,14 +15476,60 @@ function f01RecommendationResultPage() {
       <button class="btn btn-primary full" style="margin-top:14px;" onclick="goF01RecommendationSetup('${sourceId || ""}')">重新設定訓練需求</button>
     `;
   }
+  if (!rec) {
+    return `${header}
+      <div class="card fa5x-result-hero incomplete">
+        <span class="fa5x-status-chip neutral">還沒有訓練建議</span>
+        <p class="fa5x-reason">完成一次五次坐站評估並選擇想加強的部分後，這裡會列出依評估結果整理的 F01 動作。</p>
+      </div>
+      <button class="btn btn-primary full" style="margin-top:14px;" onclick="goFiveTimesSitToStandAssessment()">進行五次坐站評估</button>
+    `;
+  }
 
-  // Basis rows: icon + label + value (content unchanged — the time row keeps
-  // 「決定建議動作數量」 so it never reads as a guaranteed session length).
+  const isD5 = rec.origin === D5_PROPOSAL_ORIGIN;
+  // A next-stage plan trains only once its next 7-day cycle exists (viewing never creates one).
+  const planCycle = isD5 ? trackingCycleService.listTrackingCycles(patientId).find((c) => c.recommendationId === rec.id) || null : null;
+  const d5Handoff = isD5 && rec.d5 && rec.d5.confirmation ? rec.d5.confirmation.handoff : null;
+  const trainingOpen = !isD5 || !!planCycle;
+  const notStartedHtml = trainingOpen ? "" : `<div class="card f01-limited-basis">
+      <b>下一週還沒開始</b>
+      <p class="small">${d5Handoff && d5Handoff.requiresFreshBaseline ? "你已接受這份下一階段建議。需要先完成一次新的五次坐站作為下一週第 1 天，下一週的訓練才會開始並計入追蹤。" : "這份下一階段建議還沒有對應的 7 日追蹤，目前不能從這裡開始訓練。"}</p>
+      ${d5Handoff && d5Handoff.requiresFreshBaseline
+        ? `<button class="btn btn-primary full" style="margin-top:8px;" onclick="goNextCycleBaselineAssessment('${rec.id}')">開始下一週期基準評估 →</button>`
+        : `<button class="btn btn-light full" style="margin-top:8px;" onclick="goD5Proposal('${rec.id}')">查看下一階段建議</button>`}
+    </div>`;
+  const getSession = (id) => (id ? functionalAssessmentService.getById(id) : null);
+  const evidence = isD5 ? describeD5Evidence(rec, patientId, getSession) : describeFa5xEvidence(getSession(rec.sourceAssessmentId), patientId);
+  const EVIDENCE_PROBLEM = {
+    missing: "找不到這份建議所依據的評估紀錄",
+    not_owned: "這份建議的評估紀錄不屬於目前帳號",
+    not_5xsts: "這份建議所依據的紀錄不是五次坐站評估",
+    not_completed: "這份建議所依據的評估未完成或量測無效",
+  };
+  const limitedHtml = evidence.valid ? "" : `<div class="card f01-limited-basis">
+      <b>推薦依據有限</b>
+      <p class="small">${EVIDENCE_PROBLEM[evidence.problem] || EVIDENCE_PROBLEM.missing}，因此下列動作只依你選的訓練目標整理，不是根據評估結果的完整建議。</p>
+      <button class="btn btn-light full" style="margin-top:8px;" onclick="goFiveTimesSitToStandAssessment()">重新進行五次坐站評估</button>
+    </div>`;
+
+  // Basis rows: icon + label + value. The assessment row shows the actual result and date of the
+  // assessment this plan came from; the stored goal / time / limitation rows stay as the engine wrote them.
   const BASIS_ICON = { assessment: "/images/icon_body_lower_limb.png", goal: "/images/icon_goal_strength.png", time: "/images/stat_time.png" };
-  const basisHtml = (rec.basis || []).map((b) => `<div class="f01-basis-item">
+  const assessmentRow = {
+    key: "assessment",
+    label: evidence.valid ? evidence.label : "功能評估",
+    value: evidence.valid ? `${evidence.resultText}${evidence.dateText ? `｜${evidence.dateText}` : ""}` : "無法確認",
+  };
+  const basisRows = [assessmentRow, ...(rec.basis || []).filter((b) => b.key !== "assessment")];
+  const basisHtml = basisRows.map((b) => `<div class="f01-basis-item">
       ${BASIS_ICON[b.key] ? `<img class="f01-basis-icon" src="${BASIS_ICON[b.key]}" alt="" />` : `<span class="f01-basis-dot" aria-hidden="true"></span>`}
       <div class="f01-basis-text"><span>${b.label}</span><b>${b.value}</b></div>
     </div>`).join("");
+  const basisNote = isD5
+    ? (evidence.valid && evidence.extra ? `<p class="small fa5x-muted">${evidence.extra}。下一階段建議依上一週的前後評估與訓練完成天數決定。</p>` : "")
+    : `<p class="small fa5x-muted">評估秒數用來確認這次評估有效；動作排序依你選的目標與條件，不依秒數高低調整。本次排序未參考：${F01_NOT_USED_IN_RANKING.join("、")}。</p>`;
+  const limitationsApplied = (rec.limitationIds || []).length > 0;
+
   const itemsHtml = (rec.items || []).map((it) => {
     const catalog = exerciseService.getNormalizedById(it.exerciseId);
     const imageHtml = renderF01RecommendationImage(it.exerciseId, catalog, it.exerciseName);
@@ -14535,54 +15540,93 @@ function f01RecommendationResultPage() {
     // stay available one tap away.
     const goalLabel = it.selectedGoalLabel || rec.selectedGoalLabel || "";
     const purpose = it.recommendationRole && !/5xSTS/i.test(it.recommendationRole) ? it.recommendationRole : goalLabel;
-    const conditionsHtml = (it.matchedConditions || []).map((c) => `<li>${c.text}</li>`).join("");
+    const d5Line = isD5 ? describeD5Item(rec.d5, it.exerciseId) : null;
+    const keptFromLastWeek = d5Line === "沿用上一週的動作";
+    const reasonLines = [d5Line, ...explainF01Item(it, { limitationsApplied, isD5 })].filter(Boolean);
+    const volume = describePlanVolume(exerciseService.getById(it.exerciseId), it.dose);
+    const conditionsHtml = (it.matchedConditions || []).map((c) => `<li>${displayConditionText(c)}</li>`).join("");
     return `<div class="card f01-rec-card">
       <div class="f01-rec-top">
         <div class="f01-rec-image">${imageHtml}</div>
         <div class="f01-rec-main">
           <div class="f01-rec-name"><span class="f01-rec-rank">${String(it.rank).padStart(2, "0")}</span><b>${it.exerciseName}</b></div>
+          ${it.rank === 1 ? `<div class="f01-rec-start-hint">建議從這個動作開始</div>` : ""}
           ${purpose ? `<div class="f01-rec-purpose">${purpose}</div>` : ""}
+          ${reasonLines.length ? `<div class="small f01-rec-short-reason">${reasonLines[0]}</div>` : ""}
+          <div class="small f01-rec-volume">訓練量：${formatPlanVolume(volume) || "動作資料未提供組數或次數，請依動作頁說明進行"}</div>
           <div class="f01-rec-tags">${it.aiSupported ? `<span class="training-mode-badge tier-pose"><img src="/images/ai_robot.png" alt="" />AI 動作辨識</span>` : `<span class="f01-rec-self">自行練習</span>`}</div>
         </div>
       </div>
       <details class="f01-rec-why">
         <summary>為什麼推薦這個？</summary>
         <div class="f01-rec-why-body">
-          <p class="f01-rec-reason">${it.reason}</p>
+          <p class="f01-rec-reason">${keptFromLastWeek ? "上一週首次推薦時的理由：" : ""}${it.reason}</p>
+          ${reasonLines.length ? `<ul class="f01-rec-reasons">${reasonLines.map((l) => `<li>${l}</li>`).join("")}</ul>` : ""}
           ${level.badge ? `<span class="f01-match-badge ${level.cls}">${level.badge}</span>` : ""}
           ${conditionsHtml ? `<ul class="f01-rec-conditions">${conditionsHtml}</ul>` : ""}
         </div>
       </details>
       <div class="f01-rec-actions">
         <button class="btn btn-light" onclick="goF01RecommendationExerciseDetail('${it.exerciseId}')">查看動作</button>
-        <button class="btn btn-primary" onclick="startF01RecommendedTraining('${it.exerciseId}')">開始訓練</button>
+        ${trainingOpen ? `<button class="btn btn-primary" onclick="startF01RecommendedTraining('${it.exerciseId}')">開始訓練</button>` : ""}
       </div>
+      <p class="small fa5x-muted f01-rec-next">${trainingOpen ? `按「開始訓練」會進入「${it.exerciseName}」的訓練準備頁${it.aiSupported ? "，準備好後開啟相機進行 AI 動作辨識" : ""}。` : "下一週開始後，才能從這裡開始訓練。"}</p>
     </div>`;
   }).join("");
-  const excludedHtml = (rec.excluded || []).length
-    ? `<details class="card f01-excluded-card"><summary>未納入的動作（${rec.excluded.length}）</summary>${rec.excluded.map((e) => `<div class="f01-excluded-row"><b>${e.exerciseName}</b><span class="small">因你勾選「${e.limitationLabel}」。動作注意事項：${e.precaution}</span></div>`).join("")}</details>`
+
+  // Other options (ordinary plans only): same goal and conditions, ordered by the same rules, cut off by the time choice.
+  const others = listF01OtherOptions(rec, exerciseService.listNormalized());
+  const othersHtml = others.length
+    ? `<details class="card f01-other-options">
+        <summary>其他可選動作（${others.length}）</summary>
+        <p class="small fa5x-muted">同樣符合你的目標與條件，依相同規則排在主要推薦之後。可以自己查看練習，會以自主練習記錄，不計入本次建議或 7 日追蹤。</p>
+        ${others.map((o) => `<div class="f01-other-row">
+          <div><b>${o.exerciseName}</b>${F01_MATCH_LEVEL_TEXT[o.matchLevel] ? `<span class="f01-match-badge ${F01_MATCH_LEVEL_TEXT[o.matchLevel].cls}">${F01_MATCH_LEVEL_TEXT[o.matchLevel].badge}</span>` : ""}${o.trainingGoal ? `<div class="small">${o.trainingGoal}</div>` : ""}</div>
+          <button class="btn btn-light" onclick="goSelfPracticeExerciseDetail('${o.exerciseId}')">查看動作</button>
+        </div>`).join("")}
+      </details>`
     : "";
+  const excludedRow = (e) => (e.reason === "counting_basis_pending"
+    // F01 batch 2 §3B — not a limitation: the exercise's counting (each side or total) is not yet defined
+    ? `<div class="f01-excluded-row"><b>${e.exerciseName}</b><span class="small">暫不納入：計量方式（每側或合計）待確認，本版不列入自動推薦。</span></div>`
+    : `<div class="f01-excluded-row"><b>${e.exerciseName}</b><span class="small">因你勾選「${e.limitationLabel}」。動作注意事項：${e.precaution}</span></div>`);
+  const excludedHtml = (rec.excluded || []).length
+    ? `<details class="card f01-excluded-card"><summary>未納入的動作（${rec.excluded.length}）</summary>${rec.excluded.map(excludedRow).join("")}</details>`
+    : "";
+  // F01 batch 2 §3B — fewer eligible exercises than the time option's slots is stated, never filled in.
+  const shortfallHtml = rec.shortfall
+    ? `<div class="card small f01-shortfall-note">符合條件的動作只有 ${rec.shortfall.available} 個，少於${rec.availableMinutes ? ` ${rec.availableMinutes} 分鐘` : "所選"}方案的 ${rec.shortfall.requested} 個；系統不會另外補入動作。</div>`
+    : "";
+  const first = (rec.items || [])[0];
 
   return `${header}
     <div class="card f01-rec-hero">
       <div class="f01-rec-hero-text">
         <b class="f01-rec-hero-title">本次訓練建議</b>
-        <p class="f01-rec-hero-count">已為你安排 ${rec.items.length} 個練習</p>
-        <p class="small">目標：${rec.selectedGoalLabel}${rec.origin === D5_PROPOSAL_ORIGIN ? "（依你已接受的下一階段建議）" : ""}</p>
+        <p class="f01-rec-hero-count">主要推薦 ${rec.items.length} 個動作${first ? `，建議從「${first.exerciseName}」開始` : ""}</p>
+        <p class="small">目標：${rec.selectedGoalLabel}${isD5 ? "（依你已接受的下一階段建議）" : ""}</p>
+        <p class="small f01-rec-size-note">${describeF01ListSize(rec)}</p>
       </div>
       <img class="f01-rec-hero-illustration" src="/images/exercise/exercise_plan.png" alt="" />
     </div>
+    ${limitedHtml}
+    ${notStartedHtml}
     ${state.f01RecCycleNotice && state.f01RecCycleNotice.baselineAssessmentId !== rec.sourceAssessmentId
       ? `<div class="card f01-cycle-notice"><p class="small">你目前已有進行中的 F01 7 日追蹤（開始於 ${formatDateKeyMonthDay(state.f01RecCycleNotice.cycleStartDateKey)}），這次的建議不會改變那個追蹤週期。</p></div>`
       : ""}
     <div class="card f01-basis-card">
       <b class="fa5x-section-title">推薦依據</b>
       ${basisHtml}
+      ${basisNote}
     </div>
+    <h3 class="section-title">主要推薦</h3>
+    <p class="small fa5x-muted f01-volume-note">${PLAN_VOLUME_SOURCE_NOTE}</p>
+    ${shortfallHtml}
     ${itemsHtml}
+    ${othersHtml}
     ${excludedHtml}
     <p class="small fa5x-muted f01-rec-note">建議依 ReMotion 系統推薦規則（F01 訓練目標對應）整理，並非臨床處方；練習時請依各動作的注意事項進行，如有不適請停止並諮詢專業人員。</p>
-    ${rec.origin === D5_PROPOSAL_ORIGIN
+    ${isD5
       // Phase D5 — an accepted next-cycle proposal is never re-set through Phase C.
       ? `<div class="fa5x-secondary-row">
       <button class="btn btn-light fa5x-secondary" onclick="goD5Proposal('${rec.id}')">查看下一階段建議</button>
@@ -14668,7 +15712,7 @@ function renderTrackingCycleCard(patientId) {
   }
   // Phase D3 — completed training days (unique dates) and today's progress
   // (stored daily snapshot, else the cycle's current recommendation ids).
-  const completedDays = (cycle.completedTrainingDates || []).length;
+  const completedDays = displayCompletedTrainingDays(cycle); // batch 2: null when measurement pending
   let todayProgress = null;
   if (view.status === TRACKING_STATUS.TRAINING) {
     const rec = recommendationService.getById(cycle.recommendationId);
@@ -14710,8 +15754,8 @@ function renderTrackingCycleCard(patientId) {
     ? `<div class="home-hero-status ${todayDone ? "done" : ""}">${todayDone ? "✓ 今日訓練已完成" : model.today.text}</div>`
     : isReady ? `<div class="home-hero-status">重新做一次五次坐站，之後可以比較這段期間的變化。</div>` : "";
   const stats = isCompleted
-    ? [["初次評估", baselineText || "—"], ["再次評估", reassessmentText || "—"], ["本週完成", `${completedDays} 天`]]
-    : [["初次評估", baselineText || "—"], ["本週完成", `${completedDays} 天`], ["再次評估", formatDateKeyMonthDay(view.plannedReassessmentDateKey)]];
+    ? [["初次評估", baselineText || "—"], ["再次評估", reassessmentText || "—"], ["本週完成", fmtF01TrainingDays(completedDays)]]
+    : [["初次評估", baselineText || "—"], ["本週完成", fmtF01TrainingDays(completedDays)], ["再次評估", formatDateKeyMonthDay(view.plannedReassessmentDateKey)]];
   const statsHtml = stats.map(([label, value]) => `<div class="home-hero-stat"><span>${label}</span><b>${value}</b></div>`).join("");
   // Calendar-date progress through the 7 days (not a count of training days).
   const dotsHtml = model.calendarDots
@@ -14729,6 +15773,7 @@ function renderTrackingCycleCard(patientId) {
     </div>
     ${dotsHtml}
     <div class="home-hero-stats">${statsHtml}</div>
+    ${weekSyntheticNote(cycle)}
     <button class="btn btn-primary full home-hero-cta" onclick="${cta.fn}">${cta.label}</button>
     ${secondaryHtml}
   </div>`;
@@ -14853,6 +15898,23 @@ if (import.meta.env && import.meta.env.DEV) {
     },
     async seedPatient00ShowcaseData(options = {}) { const r = (await showcase()).seedPatient00ShowcaseData(state.user, options); render(); return r; },
     async resetPatient00ShowcaseData() { const r = (await showcase()).resetPatient00ShowcaseData(state.user); render(); return r; },
+    // READ-ONLY (server reads): are these trackingCycles docs in Firestore for the signed-in account, and does it own the records that reference them? (js/dev/cloudRecordInspector.js)
+    async inspectCloudTrackingCycles(ids = []) {
+      const { inspectTrackingCyclesInCloud } = await import("./js/dev/cloudRecordInspector.js");
+      const relations = state.user && state.user.role === "therapist"
+        ? relationService.findActiveByTherapistId(state.user.id).filter((r) => r.status === "accepted")
+        : [];
+      const r = await inspectTrackingCyclesInCloud(state.user, ids, {
+        localIds: ids.filter((id) => !!trackingCycleService.getTrackingCycleById(id)),
+        relations,
+        loadStatus: storageService.getOptionalCloudLoadStatus("trackingCycles"),
+        localSessions: storageService.getItem("collection_functionalAssessmentSessions", []),
+        localRecords: storageService.getItem("collection_analysisRecords", []),
+      });
+      const text = JSON.stringify(r, null, 2);
+      console.log(text);
+      return r;
+    },
   };
 }
 window.startTodayPlanTask = startTodayPlanTask;
@@ -14873,6 +15935,10 @@ analysisService.onCreate((record) => {
   if (!record || record.patientId !== ctx.userId || record.exerciseId !== ctx.exerciseId) return;
   const r = trackingCycleService.recordExerciseCompletion({ cycleId: ctx.cycleId, userId: ctx.userId, exerciseId: ctx.exerciseId, analysisRecord: record });
   if (r.error && r.error !== "training_not_completed") console.warn("[tracking cycle] training not counted:", r.error);
+  // F01 batch 1 (spec 4.6) — after the completion flow: the saved record joins its
+  // day's attempt list (the service checks the record's STORED source fields).
+  const a = trackingCycleService.recordTrainingAttempt({ userId: ctx.userId, analysisRecord: record });
+  if (a.error) console.warn("[tracking cycle] training attempt not recorded:", a.error);
 });
 
 // ── Phase D4 — 初次評估 vs 再次評估 前後比較 (read-only) ─────────────────
@@ -14893,6 +15959,64 @@ function goTrackingComparison(cycleId, origin = null) {
   render();
 }
 
+/**
+ * 本週採用安排 (read-only) — the week's next-stage history as stored: rule
+ * suggestion, therapist changes, what the patient accepted, the week that
+ * followed. Same block for the patient (前後比較) and the therapist (AI 週摘要).
+ */
+function renderWeekArrangementBlock(patientId, cycleId) {
+  const cycle = trackingCycleService.getTrackingCycleById(cycleId);
+  if (!cycle || cycle.userId !== patientId) return "";
+  const proposal = recommendationService.getF01D5ProposalForCycle(patientId, cycle.id);
+  const ordered = trackingCycleService.listTrackingCycles(patientId).slice().reverse()
+    .sort((a, b) => String(a.cycleStartDateKey).localeCompare(String(b.cycleStartDateKey)));
+  const nextCycle = trackingCycleService.getNextTrackingCycle(patientId, cycle.id);
+  const after = ordered[ordered.findIndex((c) => c.id === cycle.id) + 1] || null;
+  const view = describeWeekArrangement({
+    cycle,
+    proposal: proposal && proposal.patientId === patientId ? proposal : null,
+    review: proposal ? getD5Review(proposal.id) : null,
+    nextCycle,
+    followingCycle: !nextCycle && after && after.previousCycleId !== cycle.id ? after : null,
+    nameOf: (id) => (exerciseService.getNormalizedById(id) || {}).name || null,
+    volumeOf: (id, item) => formatPlanVolume(describePlanVolume(exerciseService.getById(id), item && item.dose)),
+    dateOf: (x) => formatDateKeyMonthDay(String(x).length > 10 ? toLocalDateKey(x) : x),
+  });
+  if (!view) return "";
+  const esc = summaryText;
+  const items = (list) => `<ul class="week-arr-items">${list.map((it) => `<li>${esc(it.name)}${it.volume ? `<span class="small">｜${esc(it.volume)}</span>` : ""}</li>`).join("")}</ul>`;
+  const demo = view.demo ? `<span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span>` : "";
+  const head = `<div class="row" style="justify-content:space-between;"><b class="fa5x-section-title">本週採用安排</b>${demo}</div>`;
+  if (view.state === "none") return `<div class="card week-arrangement">${head}<p class="small">${esc(view.note)}</p></div>`;
+  const rv = view.review;
+  const reviewHtml = rv
+    ? `<div class="week-arr-step">
+        <b class="small">2. 復健師檢視${rv.reviewedOn ? `（${rv.reviewedOn}）` : ""}</b>${rv.simulated ? `<span class="demo-synthetic-badge">${SIMULATED_REVIEW_TEXT}</span>` : ""}
+        ${rv.reason ? `<p class="small">理由：${esc(rv.reason)}</p>` : ""}
+        ${rv.changes.length ? `<ul class="d5-decision-basis">${rv.changes.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : `<p class="small">沒有修改規則產生的安排。</p>`}
+      </div>`
+    : `<div class="week-arr-step"><b class="small">2. 復健師檢視</b><p class="small">這一週的安排沒有經過復健師檢視。</p></div>`;
+  const acceptedHtml = view.accepted
+    ? `<div class="week-arr-step"><b class="small">3. 患者接受${view.accepted.acceptedOn ? `（${view.accepted.acceptedOn}）` : ""}${view.accepted.viaReview ? "｜採用復健師檢視後的內容" : "｜採用規則產生的內容"}</b>${items(view.accepted.items)}</div>`
+    : `<div class="week-arr-step"><b class="small">3. 患者接受</b><p class="small">尚未接受。</p></div>`;
+  return `<div class="card week-arrangement">
+    ${head}
+    <div class="week-arr-step"><b class="small">1. ${esc(view.rule.decisionText)}</b>${items(view.rule.items)}</div>
+    ${reviewHtml}
+    ${acceptedHtml}
+    ${view.next ? `<p class="small">${esc(view.next.text)}</p>` : ""}
+    <p class="small muted">${PLAN_VOLUME_SOURCE_NOTE}</p>
+  </div>`;
+}
+
+/** One line under a week's numbers when its records are demo data. */
+function weekSyntheticNote(cycle) {
+  const w = cycle ? describeWeekSynthetic(cycle, (id) => functionalAssessmentService.getById(id)) : null;
+  if (!w || !w.any) return "";
+  const parts = [w.baseline && "初次／基準評估", w.reassessment && "再次評估", w.cycle && "訓練週期與紀錄"].filter(Boolean);
+  return `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">${parts.join("、")}為展示用合成資料，不是真實量測或訓練。</span></div>`;
+}
+
 function trackingComparisonPage() {
   const backFn = state.trackingComparisonOrigin === "trackingHistory" ? "goF01TrackingHistory()" : state.trackingComparisonOrigin === "journey" ? "goMap()" : "switchTab('home')";
   const header = `
@@ -14905,7 +16029,10 @@ function trackingComparisonPage() {
   const res = trackingCycleService.getTrackingCycleComparison({ cycleId: state.trackingComparisonCycleId, userId: getCurrentPatientId() });
   const cmp = res.comparison;
   // Phase D5 — the next-stage flow starts on its own pages; nothing is decided here.
-  const d5Cta = res.cycle && res.cycle.reassessmentId
+  // A past week that a later week already replaced (no proposal of its own) never starts a new next-stage flow.
+  const latestCycle = res.cycle ? trackingCycleService.getLatestTrackingCycle(getCurrentPatientId()) : null;
+  const d5Open = res.cycle && (recommendationService.getF01D5ProposalForCycle(getCurrentPatientId(), res.cycle.id) || (latestCycle && latestCycle.id === res.cycle.id));
+  const d5Cta = res.cycle && res.cycle.reassessmentId && d5Open
     ? `<button class="btn btn-primary full cmp-home-cta" onclick="goD5StatusCheck('${res.cycle.id}')">查看下一階段建議 →</button>`
     : "";
   const homeCta = `${d5Cta}<button class="btn ${d5Cta ? "btn-light" : "btn-primary"} full cmp-home-cta" onclick="switchTab('home')">返回首頁</button>`;
@@ -14915,6 +16042,7 @@ function trackingComparisonPage() {
       <div class="card cmp-unavailable">
         <b>目前無法建立完整前後比較</b>
         <ul class="cmp-missing">${missing.map((m) => `<li>${m}</li>`).join("")}</ul>
+        ${cmp && cmp.historical ? `<div class="small fa5x-muted">各次紀錄仍可查看（不直接比較）：初次 ${cmp.historical.baselineDateText} ${cmp.historical.baselineText}；再次 ${cmp.historical.reassessmentDateText} ${cmp.historical.reassessmentText}</div>` : ""}
       </div>
       ${homeCta}`;
   }
@@ -14941,11 +16069,13 @@ function trackingComparisonPage() {
         </div>
       </div>
       <div class="cmp-diff"><span>完成時間差異</span><b>${cmp.differenceText}</b></div>
+      ${weekSyntheticNote(res.cycle)}
     </div>
     <div class="card cmp-section">
-      <b class="fa5x-section-title">本週完成訓練：${cmp.completedTrainingDays} 天</b>
+      <b class="fa5x-section-title">本週完成訓練：${fmtF01TrainingDays(cmp.completedTrainingDays)}</b>
       ${chipsHtml}
     </div>
+    ${renderWeekArrangementBlock(getCurrentPatientId(), res.cycle.id)}
     <div class="card cmp-section cmp-note">
       <p>這裡整理你在本次 7 日追蹤前後的五次坐站結果。初次評估與再次評估使用相同的量測方式，完成時間與訓練紀錄可作為後續追蹤比較的依據。</p>
       <p><b>${cmp.differenceText}。</b></p>
@@ -14974,13 +16104,24 @@ function escapeD5Text(text) {
 }
 
 const D5_ERROR_TEXT = {
+  // F01 batch 2 §3D
+  counting_basis_undefined: "下一週安排中有動作尚未設定可執行的計量方式（每側或合計），需由復健師確認後才能生效。",
   not_owner: "這個追蹤週期不屬於目前的使用者。",
   cycle_not_found: "找不到這個追蹤週期。",
   cycle_not_completed: "這個追蹤週期尚未完成再次評估。",
   recommendation_not_found: "找不到這個追蹤週期的訓練建議。",
   proposal_linkage_invalid: "這份下一階段建議與追蹤週期的紀錄不一致，無法使用。",
-  not_confirmable: "這份建議目前不能直接接受。",
+  not_confirmable: "這份建議目前不能直接接受（需要復健師檢視，或內容已變更）。",
+  accepted_plan_changed: "接受後內容已被變更，無法用這份內容開始下一週。",
   another_active_cycle: "目前已有進行中的 F01 7 日追蹤，無法再建立下一個週期。",
+};
+const D5_ARRANGEMENT_STATUS_TEXT = {
+  needs_review: "待復健師檢視",
+  reviewed: "復健師已確認，可以接受",
+  ready: "可以接受",
+  accepted: "已接受",
+  no_auto: "不安排下一週",
+  draft_pending: "推薦草稿產生中",
 };
 const d5ErrorText = (code) => D5_ERROR_TEXT[code] || "目前無法完成這個步驟，請回首頁查看追蹤狀態。";
 const d5ExerciseName = (id) => { const ex = exerciseService.getNormalizedById(id); return ex ? ex.name : id; };
@@ -15002,6 +16143,11 @@ function goD5StatusCheck(cycleId) {
   const ctx = trackingCycleService.getD5SourceContext({ cycleId, userId });
   if (ctx.error) { alert(d5ErrorText(ctx.error)); return switchTab("home"); }
   if (ctx.proposal && ctx.proposal.status === "accepted") return goD5Proposal(ctx.proposal.id);
+  // An LLM draft (being made or made) or a therapist confirmation exists: re-submitting the status check
+  // would start a new version and drop them. Entries from home / comparison / 今日計畫 open the proposal;
+  // only the proposal page's own 「修改狀況確認」 (route d5Proposal) opens the check to change it.
+  const liveDraft = ctx.proposal && ctx.proposal.llmDraft && ["valid", "pending"].includes(ctx.proposal.llmDraft.status);
+  if (ctx.proposal && state.route !== "d5Proposal" && (liveDraft || getD5Review(ctx.proposal.id))) return goD5Proposal(ctx.proposal.id);
   const draft = ctx.proposal ? ctx.proposal.d5 : null;
   state.d5Status = {
     cycleId: ctx.cycle.id,
@@ -15080,9 +16226,11 @@ function submitD5StatusCheck() {
       currentLimitations: s.currentLimitations,
     },
     catalog: exerciseService.listNormalized(),
+    excludeAutoRecommendationPending: true, // F01 batch 2 §3B
   });
   if (res.error) { alert(d5ErrorText(res.error)); return switchTab("home"); }
   goD5Proposal(res.proposal.id);
+  startD5LlmDraft(res.proposal.id);
 }
 
 function goD5Proposal(proposalId) {
@@ -15122,12 +16270,16 @@ function d5ProposalPage() {
   const d5 = proposal.d5;
   const cmp = ctx.comparison;
   const presentation = d5ProposalPresentation(d5);
+  // The ACTUAL arrangement (rule-ready / pending therapist review / therapist-confirmed / accepted).
+  const arrangement = getD5Arrangement(proposal, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION }); // batch 2 §3D
+  const reviewed = !!arrangement.review; // a linked therapist confirmed exactly this content (pending or accepted)
   const noAuto = d5.decision === D5_DECISION.NO_AUTO_DECISION;
   const review = presentation === "review";
   const accepted = proposal.status === "accepted";
   const handoff = accepted && d5.confirmation ? d5.confirmation.handoff : null;
   const nextCycle = ctx.nextCycle;
-  const readyForAcceptance = !accepted && !noAuto && d5.nextCycleReady === true && d5.confirmationMode === CONFIRMATION_MODE.USER_ACCEPTANCE;
+  const engineReady = d5.nextCycleReady === true && d5.confirmationMode === CONFIRMATION_MODE.USER_ACCEPTANCE;
+  const readyForAcceptance = !accepted && !noAuto && (arrangement.status === "reviewed" || (engineReady && arrangement.status === "ready"));
   const goal = F01_GOALS.find((g) => g.goalId === d5.selectedGoalId);
   const listHtml = (ids) => `<ol class="d5-ex-list">${ids.map((id) => `<li>${d5ExerciseName(id)}</li>`).join("")}</ol>`;
   const newLimitLabels = d5.newLimitations.map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
@@ -15138,29 +16290,45 @@ function d5ProposalPage() {
       <span class="small">下一階段建議狀態</span>
       <b class="d5-status-title">${statusTitle}</b>
       ${noAuto ? `<p class="small">目前資料不足以建立下一階段自動調整。</p>` : ""}
+      <div class="d5-arrangement-rows">
+        <div><span class="small">規則判定</span><b>${arrangement.ruleLabel}</b></div>
+        <div><span class="small">實際安排</span><b>${arrangement.actualLabel}</b></div>
+        <div><span class="small">目前狀態</span><b>${D5_ARRANGEMENT_STATUS_TEXT[arrangement.status] || "—"}</b></div>
+        <div><span class="small">決策來源</span><b>${describeDecisionSource(arrangement)}</b></div>
+      </div>
     </div>`;
   // B. reference data (neutral wording; the time difference in plain language only)
   const refHtml = `<div class="card f01-basis-card">
       <b class="fa5x-section-title">參考資料</b>
       <div class="f01-basis-row"><span>初次／再次五次坐站</span><b>${cmp.eligible ? `${cmp.baselineText} → ${cmp.reassessmentText}` : "無法比較"}</b></div>
+      ${!cmp.eligible && cmp.measurementCompatibility && !cmp.measurementCompatibility.compatible ? `<p class="small fa5x-muted d5-version-note">${cmp.missing[0]}</p>` : ""}
       ${cmp.eligible ? `<div class="f01-basis-row"><span>完成時間差異</span><b>${describeTimeDifference(cmp.changeMs)}</b></div>` : ""}
-      <div class="f01-basis-row"><span>本週完成訓練天數</span><b>${d5.completedTrainingDays} 天</b></div>
+      <div class="f01-basis-row"><span>本週完成訓練天數</span><b>${fmtF01TrainingDays(d5.completedTrainingDays)}</b></div>
       <div class="f01-basis-row"><span>訓練目標</span><b>${goal ? goal.label : d5.selectedGoalId}</b></div>
       <div class="f01-basis-row"><span>新的不適或限制</span><b>${d5.hasNewOrWorseningDiscomfort ? "有回報不適" : "沒有回報不適"}${newLimitLabels.length ? `；新增：${newLimitLabels.join("、")}` : ""}</b></div>
       ${d5.discomfortNote ? `<div class="f01-basis-row"><span>補充說明</span><b>${escapeD5Text(d5.discomfortNote)}</b></div>` : ""}
     </div>`;
-  // C. current training / D. proposed training / E. replacement
-  const currentHtml = `<div class="card cmp-section"><b class="fa5x-section-title">${noAuto || review ? "目前訓練（參考）" : "目前訓練"}</b>${listHtml(d5.currentExerciseIds)}</div>`;
-  const showProposed = !noAuto && !review;
-  const rep = d5.replacedExercise;
-  const replaceHtml = showProposed && rep
-    ? `<div class="d5-replace"><span>${rep.fromExerciseName}</span><span class="cmp-arrow" aria-hidden="true">→</span><b>${rep.toExerciseName}</b><span class="small">${rep.transitionType ? D5_TRANSITION_TEXT[rep.transitionType] : "同目標的替代候選"}</span></div>`
-    : "";
+  // C–E. last week -> next week, position by position, with each exercise's catalog amount.
+  // Only for a proposal the user can act on; otherwise the current training is shown for reference.
+  const showProposed = !noAuto && arrangement.status !== "needs_review";
+  const volumeText = (id, item) => formatPlanVolume(describePlanVolume(exerciseService.getById(id), item && item.dose));
+  const weeks = compareD5Weeks(d5, { nameOf: d5ExerciseName, volumeOf: volumeText, afterItems: reviewed ? arrangement.planItems : null });
+  const CHANGE_LABEL = { kept: "保留", replaced: "更換", removed: "移除", added: "新增", dose_changed: "保留（復健師設定訓練量）" };
+  const cell = (label, ex) => `<div class="d5-compare-cell"><span class="small">${label}</span><b>${ex ? ex.name : "—"}</b>${ex && ex.volume ? `<span class="small">${ex.volume}</span>` : ""}</div>`;
+  const currentHtml = showProposed ? "" : `<div class="card cmp-section"><b class="fa5x-section-title">${noAuto || review ? "目前訓練（參考）" : "目前訓練"}</b>${listHtml(d5.currentExerciseIds)}</div>`;
   const proposedHtml = showProposed
-    ? `<div class="card cmp-section"><b class="fa5x-section-title">下一週建議訓練</b>${listHtml(d5.proposedExerciseIds)}${replaceHtml}</div>`
+    ? `<div class="card cmp-section d5-week-compare">
+        <b class="fa5x-section-title">上一週 → 下一週</b>
+        <p class="small d5-change-summary">${reviewed ? "以下是復健師檢視並確認後的下一週安排。" : describeD5ContentChange(d5, weeks)}</p>
+        ${weeks.rows.map((r) => `<div class="d5-compare-row is-${r.change}">${cell("上一週", r.before)}<span class="cmp-arrow" aria-hidden="true">→</span>${cell("下一週", r.after)}<span class="d5-change-tag">${CHANGE_LABEL[r.change]}${r.note ? `｜${r.note}` : ""}</span></div>`).join("")}
+        <p class="small fa5x-muted">${D5_DOSAGE_NOTE}</p>
+      </div>`
     : "";
-  // F. reason
-  const reasonHtml = `<div class="card cmp-section cmp-note"><b class="fa5x-section-title">說明</b><p>${d5.reason}</p></div>`;
+  // F. reason + the inputs the rule actually used
+  const reasonHtml = `<div class="card cmp-section cmp-note"><b class="fa5x-section-title">說明</b><p>${d5.reason}</p>
+      <b class="fa5x-section-title">判定依據</b>
+      <ul class="d5-decision-basis">${explainD5Decision(d5).map((l) => `<li>${l}</li>`).join("")}</ul>
+    </div>`;
   // G. alternatives — shown for confirmation only, never applied automatically
   const altHtml = d5.alternatives.length
     ? `<div class="card cmp-section d5-alternatives"><b class="fa5x-section-title">其他可確認候選</b>
@@ -15172,16 +16340,32 @@ function d5ProposalPage() {
   // 需要進一步確認 — its own screen: the flow pauses here (not a bug, nothing lost).
   // Wording comes from the engine's reviewReasons; the free-text note is shown
   // verbatim and never interpreted.
-  if (review && !nextCycle) {
+  if (arrangement.status === "needs_review" && !nextCycle) {
     const byDiscomfort = (d5.reviewReasons || []).includes("unmapped_discomfort");
+    const hasTherapist = relationService.findAcceptedByPatientId(getCurrentPatientId()).length > 0;
     const limitLabels = d5.currentLimitations.map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
     return `${header}
     <div class="card result-state result-state--review d5-review-hero">
       <img class="result-state-illustration" src="/images/robot/robot_listening.png" alt="" />
       <span class="result-state-eyebrow">下一階段建議</span>
       <b class="result-state-title">需要進一步確認</b>
-      <p class="result-state-sub">${byDiscomfort ? "你回報了新的或加重的不適，目前不會自動安排下一週訓練。" : "目前的限制條件與訓練內容需要重新安排，目前不會自動安排下一週訓練。"}</p>
+      <p class="result-state-sub">${byDiscomfort ? "你回報了新的或加重的不適，目前不會自動安排下一週訓練。" : "下一週的安排需要復健師檢視，目前不會自動安排下一週訓練。"}</p>
+      <span class="d5-pending-chip">待復健師檢視</span>
+      <p class="small">決策來源：${describeDecisionSource(arrangement)}</p>
     </div>
+    ${arrangement.draft ? `<div class="card d5-review-report">
+      <b class="fa5x-section-title">LLM 推薦草稿（尚未確認）</b>
+      <p class="small">判定：${LLM_DRAFT_DECISION_LABEL[arrangement.draft.plan.decision] || "—"}；${arrangement.draft.plan.changes.length ? arrangement.draft.plan.changes.map((c) => `「${d5ExerciseName(c.fromExerciseId)}」→「${d5ExerciseName(c.toExerciseId)}」`).join("、") : "動作不變"}。需由復健師確認後，才能接受並開始下一週。</p>
+    </div>` : ""}
+    <div class="card d5-review-report">
+      <b class="fa5x-section-title">待處理項目</b>
+      <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${r.text}</li>`).join("")}</ul>
+      ${arrangement.staleReview ? `<p class="small">復健師先前的確認是針對舊版內容；內容已變更，需要重新檢視。</p>` : ""}
+      <p class="small">${hasTherapist
+        ? "目前等待你的復健師在個案頁檢視這份建議；系統不會另外通知復健師，可以主動告知對方。復健師確認後會顯示在這裡，再由你決定是否接受。"
+        : "目前沒有連結的復健師，這份建議無法在 ReMotion 中完成檢視。可以用復健師提供的邀請碼加入個案名單，加入後對方即可在個案頁檢視。"}</p>
+    </div>
+    ${hasTherapist ? "" : renderInviteCodeCard()}
     <div class="card d5-review-report">
       <b class="fa5x-section-title">本次回報</b>
       <div class="d5-review-row"><span>新的或加重的不適</span><b>${d5.hasNewOrWorseningDiscomfort ? "有" : "沒有"}</b></div>
@@ -15204,6 +16388,25 @@ function d5ProposalPage() {
     <p class="small fa5x-muted f01-rec-note">這是流程上的暫停，不是診斷結果；練習時如有不適請停止並諮詢專業人員。</p>`;
   }
 
+  // 復健師已檢視並確認 — who / when / why / what changed (content shown above in the comparison)
+  const rv = arrangement.review;
+  const describeChange = (c) => {
+    const amount = (x) => volumeText(x.exerciseId, x) || "動作資料未提供訓練量";
+    if (c.kind === "replaced") return `第 ${c.position} 個動作：${c.from.exerciseName} → ${c.to.exerciseName}${c.to.dose ? `（${amount(c.to)}）` : ""}`;
+    if (c.kind === "dose_changed") return `第 ${c.position} 個動作「${c.to.exerciseName}」訓練量：${amount(c.from)} → ${amount(c.to)}`;
+    if (c.kind === "added") return `新增第 ${c.position} 個動作：${c.to.exerciseName}`;
+    return `移除第 ${c.position} 個動作：${c.from.exerciseName}`;
+  };
+  const reviewedHtml = rv ? `<div class="card d5-reviewed">
+      <b class="fa5x-section-title">復健師已檢視並確認</b>${isSimulatedReview(rv) ? `<span class="demo-synthetic-badge">${SIMULATED_REVIEW_TEXT}</span>` : ""}
+      <p class="small">確認日期：${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))}</p>
+      <p class="small"><b>調整理由：</b>${escapeD5Text(rv.reason)}</p>
+      ${rv.basedOnLlmDraftId
+        // reviewed on an LLM draft: report what the therapist changed relative to THAT draft
+        ? ((rv.changesFromLlmDraft || []).length ? `<p class="small">相對 LLM 草稿的修改：</p><ul class="d5-decision-basis">${rv.changesFromLlmDraft.map((c) => `<li>${describeChange(c)}</li>`).join("")}</ul>` : `<p class="small">復健師確認 LLM 草稿的安排，沒有修改草稿內容。</p>`)
+        : (rv.changes.length ? `<ul class="d5-decision-basis">${rv.changes.map((c) => `<li>${describeChange(c)}</li>`).join("")}</ul>` : `<p class="small">復健師確認沿用規則產生的安排，沒有修改內容。</p>`)}
+    </div>` : "";
+
   // Actions by state
   const homeBtn = `<button class="btn btn-light full cmp-home-cta" onclick="switchTab('home')">返回首頁</button>`;
   const editBtn = `<button class="btn btn-light full cmp-home-cta" onclick="goD5StatusCheck('${d5.sourceCycleId}')">修改狀況確認</button>`;
@@ -15214,11 +16417,13 @@ function d5ProposalPage() {
   } else if (accepted && handoff && handoff.requiresFreshBaseline) {
     actionsHtml = `<div class="card d5-done"><b>已接受這份建議</b><p class="small">確認日與再次評估不是同一天，需要先完成一次新的五次坐站，作為下一週期的第 1 天。</p></div>
       <button class="btn btn-primary full cmp-home-cta" onclick="goNextCycleBaselineAssessment('${proposal.id}')">開始下一週期基準評估 →</button>${homeBtn}`;
+  } else if (arrangement.status === "draft_pending") {
+    actionsHtml = `<div class="card d5-done"><b>推薦草稿產生中</b><p class="small">完成後會顯示在這裡；若模型無法完成，會改用規則結果（規則備用）。</p></div>${homeBtn}`;
   } else if (noAuto) {
     actionsHtml = `${homeBtn}<button class="btn btn-light full cmp-home-cta" onclick="switchTab('home')">稍後確認</button>${editBtn}`;
   } else if (readyForAcceptance) {
     const sameDay = measuredDateKeyOf(ctx.reassessment) === toLocalDateKey(new Date());
-    actionsHtml = `<p class="small fa5x-muted d5-accept-note">接受代表採用 ReMotion 系統建議作為下一週訓練配置，不代表診斷、處方或物理治療師的正式建議。${sameDay ? "" : "今天不是再次評估的同一天，接受後需要先完成一次新的五次坐站，才會開始下一週。"}</p>
+    actionsHtml = `<p class="small fa5x-muted d5-accept-note">${reviewed ? "接受代表採用復健師確認後的安排作為下一週訓練配置。" : "接受代表採用 ReMotion 系統建議作為下一週訓練配置，不代表診斷、處方或物理治療師的正式建議。"}${sameDay ? "" : "今天不是再次評估的同一天，接受後需要先完成一次新的五次坐站，才會開始下一週。"}</p>
       <button class="btn btn-primary full cmp-home-cta" onclick="confirmD5ProposalFromUi('${proposal.id}')">${sameDay ? "接受並開始下一週" : "接受這份建議"}</button>
       ${editBtn}<button class="btn btn-light full cmp-home-cta" onclick="switchTab('home')">稍後確認</button>`;
   } else {
@@ -15226,7 +16431,9 @@ function d5ProposalPage() {
   }
 
   return `${header}
+    ${isDemoSynthetic(proposal) || isDemoSynthetic(ctx.cycle) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">這份建議與其依據的評估、訓練為展示用合成資料。</span></div>` : ""}
     ${statusHtml}
+    ${reviewedHtml}
     ${refHtml}
     ${currentHtml}
     ${proposedHtml}
@@ -15236,13 +16443,30 @@ function d5ProposalPage() {
     <p class="small fa5x-muted f01-rec-note">下一階段建議依 ReMotion 系統規則整理，並非診斷或臨床處方；練習時如有不適請停止並諮詢專業人員。</p>`;
 }
 
+/**
+ * F01 再評估後的 LLM 推薦草稿 — started after the status check, never awaited by
+ * the page. Off unless LLM_RECOMMENDATION_CONFIG.enabled. The service discards
+ * an answer whose request / proposal version / account is no longer current.
+ */
+function startD5LlmDraft(proposalId) {
+  // isolated local demo: 展示用模擬回應，非真實 Gemini (recorded as provider "test_double")
+  const simulated = LOCAL_DEMO_MODE && localDemoModule ? localDemoModule.simulateD5ModelAnswer : null;
+  if (!simulated && !LLM_RECOMMENDATION_CONFIG.enabled) return;
+  const userId = getCurrentPatientId();
+  if (!userId) return;
+  requestD5LlmDraft({ proposalId, userId }, { isStillCurrent: () => getCurrentPatientId() === userId, excludeAutoRecommendationPending: true, ...(simulated ? { generate: simulated } : {}) })
+    .catch((e) => console.warn("[d5 llm draft] not completed:", e && e.message))
+    .finally(() => { if (state.route === "d5Proposal" && state.d5ProposalId === proposalId) render(); });
+  render(); // shows 「推薦草稿產生中」
+}
+
 /** 接受: the service records the confirmation with today's REAL local date (never the debug override). */
 function confirmD5ProposalFromUi(proposalId) {
   if (state.d5Confirming) return; // double click; the service is idempotent as well
   state.d5Confirming = true;
   try {
-    const res = trackingCycleService.confirmD5Proposal({ proposalId, userId: getCurrentPatientId(), confirmationDateKey: toLocalDateKey(new Date()) });
-    if (res.error) alert(d5ErrorText(res.error));
+    const res = trackingCycleService.confirmD5Proposal({ proposalId, userId: getCurrentPatientId(), confirmationDateKey: toLocalDateKey(new Date()), completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    if (res.error) alert(d5ErrorText(res.error) + countingGapText(res.undefinedItems));
   } finally {
     state.d5Confirming = false;
   }
@@ -15341,13 +16565,15 @@ function f01TrackingHistoryPage() {
   }
   const sec = (ms) => (ms == null ? "—" : fmtFa5xSec(ms));
   const md = formatDateKeyMonthDay;
+  const weekCycle = (w) => trackingCycleService.getTrackingCycleById(w.cycleId);
+  const synthWeeks = timeline.weeks.filter((w) => describeWeekSynthetic(weekCycle(w), (id) => functionalAssessmentService.getById(id)).any).map((w) => w.weekNumber);
   const diffText = (ms) => (ms === 0 ? "與初次相同" : `${ms < 0 ? "少" : "多"} ${(Math.abs(ms) / 1000).toFixed(1)} 秒`);
   const cur = timeline.current;
   const currentHtml = cur
     ? `<div class="card track-now">
         <span class="exp-label">目前</span>
         <b class="track-now-title">第 ${cur.weekNumber} 週｜${cur.view.status === TRACKING_STATUS.READY_FOR_REASSESSMENT ? "可以再次評估" : `第 ${cur.view.cycleDay} / ${TRACKING_CYCLE_LENGTH_DAYS} 天`}</b>
-        <div class="track-now-facts"><div><span class="exp-label">目前基準</span><b>${sec(cur.baselineMs)}</b></div><div><span class="exp-label">再次評估</span><b>${md(cur.plannedReassessmentDateKey)}</b></div></div>
+        ${weekSyntheticNote(weekCycle(cur))}<div class="track-now-facts"><div><span class="exp-label">目前基準</span><b>${sec(cur.baselineMs)}</b></div><div><span class="exp-label">再次評估</span><b>${md(cur.plannedReassessmentDateKey)}</b></div></div>
       </div>`
     : `<div class="card track-now"><span class="exp-label">目前</span><b class="track-now-title">第 ${timeline.weeks.length} 週追蹤已完成</b><p class="small">確認下一階段建議後，會開始新的一週。</p></div>`;
   const weekHtml = timeline.weeks.map((w) => {
@@ -15356,7 +16582,8 @@ function f01TrackingHistoryPage() {
           <div class="track-week-head"><b>第 ${w.weekNumber} 週 ✓</b><span class="small">${md(w.startDateKey)} → ${md(w.endDateKey)}</span></div>
           <b class="track-week-values">${sec(w.baselineMs)} → ${sec(w.reassessmentMs)}</b>
           <span class="small">完成時間差異：${diffText(w.changeMs)}</span>
-          <span class="small">訓練完成：${w.completedDays} 天</span>
+          <span class="small">訓練完成：${fmtF01TrainingDays(w.completedDays)}</span>
+          ${weekSyntheticNote(weekCycle(w))}
           <button class="btn btn-light full track-week-cta" onclick="goTrackingComparison('${w.cycleId}', 'trackingHistory')">查看第 ${w.weekNumber} 週前後比較</button>
         </div>`;
     }
@@ -15364,14 +16591,15 @@ function f01TrackingHistoryPage() {
     return `<div class="card track-week is-current">
         <div class="track-week-head"><b>第 ${w.weekNumber} 週｜${w.status === "in_progress" ? "進行中" : "已再次評估"}</b></div>
         <span class="small">基準 ${sec(w.baselineMs)}</span>
-        <span class="small">完成 ${w.completedDays} 天</span>
+        <span class="small">完成 ${fmtF01TrainingDays(w.completedDays)}</span>
+        ${weekSyntheticNote(weekCycle(w))}
         <span class="small">${w.status !== "in_progress" ? "本週前後比較資料不完整" : ready ? "可以進行再次評估" : `等待 ${md(w.plannedReassessmentDateKey)} 再次評估`}</span>
         ${ready ? `<button class="btn btn-light full track-week-cta" onclick="goTrackingReassessment('${w.cycleId}')">進行再次評估</button>` : ""}
       </div>`;
   }).join("");
   const trend = timeline.trend;
   const trendHtml = trend.nodes.length >= 2
-    ? `<h3 class="section-title">功能追蹤趨勢</h3><div class="card track-trend"><span class="exp-label">五次坐站完成時間（秒）</span>${renderF01WeekTrendChart(trend)}</div>`
+    ? `<h3 class="section-title">功能追蹤趨勢</h3><div class="card track-trend"><span class="exp-label">五次坐站完成時間（秒）</span>${renderF01WeekTrendChart(trend)}${synthWeeks.length ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">${syntheticWeeksText(synthWeeks)}的評估為展示用合成資料，不是真實量測。</span></div>` : ""}</div>`
     : "";
   // 訓練表現 — secondary training metric (AI 姿勢分數 of the week's own F01 plan trainings).
   const perf = cycleTrainingPerformanceService.getByCycle(patientId);
@@ -15386,8 +16614,9 @@ function f01TrackingHistoryPage() {
   const perfHtml = `<h3 class="section-title track-perf-title">訓練表現</h3>
     <div class="card track-perf">
       <span class="exp-label">平均 AI 姿勢分數（本週 F01 訓練）</span>
-      ${perfRows.map(({ w, p }) => `<div class="track-perf-row"><span>第 ${w.weekNumber} 週${w.status === "in_progress" ? "｜目前" : ""}</span><b>${p.averageAiPostureScore != null ? p.averageAiPostureScore : "—"}</b><span class="small">${p.completedTrainingCount} 次訓練</span></div>`).join("")}
+      ${perfRows.map(({ w, p }) => `<div class="track-perf-row"><span>第 ${w.weekNumber} 週${w.status === "in_progress" ? "｜目前" : ""}${synthWeeks.includes(w.weekNumber) && p.completedTrainingCount ? `<span class="demo-synthetic-badge">合成</span>` : ""}</span><b>${p.averageAiPostureScore != null ? p.averageAiPostureScore : "—"}</b><span class="small">${p.completedTrainingCount} 次訓練</span></div>`).join("")}
       ${perfCompareHtml}
+      ${synthWeeks.length ? `<p class="small">標示「合成」的週次，訓練紀錄與 AI 姿勢分數為展示用合成資料。</p>` : ""}
       ${scoredRows.length ? "" : `<p class="small">完成本週 F01 訓練後，這裡會顯示平均 AI 姿勢分數。</p>`}
       <p class="small track-perf-note">AI 姿勢分數是動作辨識的參考分數，功能變化以五次坐站完成時間為主。</p>
     </div>`;
@@ -15402,3 +16631,36 @@ render = function () {
   } else renderBeforeF01TrackingHistory();
 };
 
+// ── 本機隔離展示 (dev server + ?localDemo=d5 only) ───────────────────────
+// Switches between two demo users WITHOUT Firebase login; production login and
+// permissions are untouched (this block is inert outside the demo).
+function localDemoAs(role) {
+  if (!LOCAL_DEMO_MODE || !localDemoModule) return;
+  setSession({ ...(role === "therapist" ? localDemoModule.DEMO_THERAPIST : localDemoModule.DEMO_PATIENT) });
+  document.querySelectorAll("#local-demo-bar [data-role]").forEach((b) => b.classList.toggle("active", b.dataset.role === role));
+}
+function localDemoReset() {
+  if (!LOCAL_DEMO_MODE || !localDemoModule) return;
+  localDemoModule.resetLocalD5Demo();
+  location.reload();
+}
+if (LOCAL_DEMO_MODE) {
+  window.localDemoAs = localDemoAs;
+  window.localDemoReset = localDemoReset;
+  import("./js/dev/localD5Demo.js").then((demo) => {
+    localDemoModule = demo;
+    if (!demo.hasLocalD5Demo()) demo.seedLocalD5Demo();
+    const bar = document.createElement("div");
+    bar.id = "local-demo-bar";
+    bar.innerHTML = `<b>本機隔離展示</b><span>資料只存在此瀏覽器的展示區，未連線 Firebase；推薦草稿為「${demo.DEMO_MODEL_LABEL}」。</span>
+      <button data-role="patient" onclick="localDemoAs('patient')">示範患者</button>
+      <button data-role="therapist" onclick="localDemoAs('therapist')">示範復健師</button>
+      <button onclick="localDemoReset()">重設展示資料</button>`;
+    document.body.appendChild(bar);
+    document.body.classList.add("local-demo");
+    const fit = () => document.body.style.setProperty("--local-demo-bar-h", `${bar.offsetHeight}px`); // keep every page header visible below the bar
+    fit();
+    window.addEventListener("resize", fit);
+    localDemoAs("patient");
+  });
+}

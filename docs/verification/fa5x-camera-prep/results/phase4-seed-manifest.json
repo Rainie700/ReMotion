@@ -1,0 +1,10 @@
+{
+  "note": "synthetic local emulator data only (demo-remotion)",
+  "patient": {
+    "uid": "DUew5CBs80OVBtxAXlOz6Z8UbGLn",
+    "email": "prep-mvizicfd@local.test"
+  },
+  "cycle": "trackingCycle_mvizicqm_3_nxn56l",
+  "standalone": "functionalAssessment_mvizicqm_4_ya22mj",
+  "reassessLike": "functionalAssessment_mvizicqn_5_e6anrf"
+}

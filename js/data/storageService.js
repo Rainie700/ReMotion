@@ -1,7 +1,26 @@
 import { collection, deleteDoc, doc, getDocs, query, setDoc, where } from "firebase/firestore";
-import { firestore } from "./firebase.js";
+import { firestore, isEmulatorMode } from "./firebase.js";
 
-const NAMESPACE = "remotion";
+// Local isolated demo (dev server only, URL ?localDemo=d5): a separate storage prefix, so a
+// demo never reads or overwrites the real local cache. Never active in a production build.
+const LOCAL_DEMO = (() => {
+  try {
+    return !!(import.meta.env && import.meta.env.DEV) && typeof location !== "undefined" && new URLSearchParams(location.search).get("localDemo") === "d5";
+  } catch (e) {
+    return false;
+  }
+})();
+// Local browser verification: the emulator mode (js/data/firebase.js) keeps its own
+// local cache, so emulator test data never mixes with a production or demo cache.
+const NAMESPACE = LOCAL_DEMO ? "remotion_localdemo" : isEmulatorMode() ? "remotion_emulator" : "remotion";
+/** True only in the isolated local demo (dev server + ?localDemo=d5). */
+export const isLocalDemoStorage = () => LOCAL_DEMO;
+/** Removes every key of the isolated demo (and nothing else). Refuses outside the demo. */
+export function clearLocalDemoStorage() {
+  if (!LOCAL_DEMO) return false;
+  Object.keys(localStorage).filter((k) => k.startsWith("remotion_localdemo_")).forEach((k) => localStorage.removeItem(k));
+  return true;
+}
 let cloudUser = null;
 
 // Actual user-created data. Seed/demo data and gamification/XP are excluded.
@@ -19,7 +38,14 @@ const CLOUD_COLLECTIONS = [
 // fails (e.g. rules not yet deployed -> permission denied) the local copy is
 // kept and login is never blocked; if it succeeds, cloud and local records
 // are merged by id (cloud wins) instead of the local list being replaced.
-const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries"];
+const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews"];
+// Outcome of the last cloud load of each optional collection for the signed-in
+// user ("loaded" | "failed"), so a UI can tell "cloud copy not loaded" apart
+// from "no records" instead of showing a failed load as an empty list.
+const optionalCloudLoadStatus = new Map();
+// firestore.rules: `allow delete: if false` — a local remove() of these never reaches the cloud,
+// and the cloud copy is merged back on the next login.
+const CLOUD_UNDELETABLE_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews"];
 const isSyncedCollection = (name) => CLOUD_COLLECTIONS.includes(name) || OPTIONAL_CLOUD_COLLECTIONS.includes(name);
 
 function readRaw(key, fallback) {
@@ -72,6 +98,23 @@ async function loadCloudCollection(name, user) {
     return mergeById([asPatient, asTherapist]);
   }
 
+  // 5xSTS batch A — a therapist reads a patient's assessment sessions only through a
+  // CURRENTLY ACCEPTED relation, and only sessions stamped with that relation
+  // (firestore.rules re-checks the relation document on every read; the stamp alone
+  // grants nothing). Same query shape as the optional collections above.
+  if (name === "functionalAssessmentSessions" && user.role === "therapist") {
+    const ownRecords = await getRecordsForField(name, "patientId", user.id);
+    const relations = readRaw(collectionKey("therapistPatientRelations"), []).filter((r) => r.therapistId === user.id && r.status === "accepted");
+    const patientRecords = await Promise.all(relations.map(async (relation) => {
+      const snapshot = await getDocs(query(collection(firestore, name),
+        where("patientId", "==", relation.patientId),
+        where("therapistId", "==", user.id),
+        where("relationId", "==", relation.id)));
+      return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+    }));
+    return mergeById([ownRecords, ...patientRecords]);
+  }
+
   if (["patientAssessments", "recommendationResults", "functionalAssessmentSessions", "trackingCycles"].includes(name)) {
     const ownRecords = await getRecordsForField(name, "patientId", user.id);
     if (user.role !== "therapist") return ownRecords;
@@ -100,10 +143,21 @@ function trackCloudWrite(promise, meta) {
   return tracked;
 }
 
+/** The patient's current accepted relation as a { therapistId, relationId } stamp ("" when none). */
+function currentRelationStamp(patientId) {
+  const relation = readRaw(collectionKey("therapistPatientRelations"), []).find((r) => r.patientId === patientId && r.status === "accepted");
+  return { therapistId: relation ? relation.therapistId : "", relationId: relation ? relation.id : "" };
+}
+
+// Records whose cloud copy carries the patient's current relation stamp, so a linked
+// therapist's read can be checked by firestore.rules (which re-reads the relation).
+// 5xSTS batch A added functionalAssessmentSessions; only the stamp fields change —
+// the rest of the record (incl. a stored measurement `result`) is written as it is.
+const RELATION_STAMPED_COLLECTIONS = ["trackingCycles", "functionalAssessmentSessions"];
+
 function persistRecord(name, record) {
-  if (name === "trackingCycles" && cloudUser && record.patientId === cloudUser.id) {
-    const relation = readRaw(collectionKey("therapistPatientRelations"), []).find((r) => r.patientId === cloudUser.id && r.status === "accepted");
-    record = { ...record, therapistId: relation ? relation.therapistId : "", relationId: relation ? relation.id : "" };
+  if (RELATION_STAMPED_COLLECTIONS.includes(name) && cloudUser && record.patientId === cloudUser.id) {
+    record = { ...record, ...currentRelationStamp(cloudUser.id) };
   }
   if (!cloudUser || !isSyncedCollection(name) || !record?.id) return;
   trackCloudWrite(setDoc(doc(firestore, name, record.id), record), { op: "set", name, id: record.id }).catch((error) => {
@@ -138,6 +192,7 @@ export const storageService = {
   },
   async hydrateCloudForUser(user) {
     cloudUser = user;
+    optionalCloudLoadStatus.clear();
     const userSnapshot = await getDocs(collection(firestore, "publicUsers"));
     writeRaw(collectionKey("users"), userSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
 
@@ -145,6 +200,19 @@ export const storageService = {
     for (const name of CLOUD_COLLECTIONS) {
       writeRaw(collectionKey(name), await loadCloudCollection(name, user));
     }
+    // 5xSTS batch A — re-stamp the patient's OWN assessment sessions whose cloud copy
+    // does not carry the current accepted relation (older sessions, or after a change of
+    // therapist). Only the stamp differs; result / conditionReports are written back as
+    // loaded, which firestore.rules requires to stay unchanged.
+    if (user.role === "patient") {
+      const stamp = currentRelationStamp(user.id);
+      const sessions = readRaw(collectionKey("functionalAssessmentSessions"), []);
+      for (const s of sessions.filter((x) => x.patientId === user.id)) {
+        if ((s.therapistId || "") !== stamp.therapistId || (s.relationId || "") !== stamp.relationId) persistRecord("functionalAssessmentSessions", s);
+      }
+      await waitForCloudWrites();
+    }
+    for (const name of OPTIONAL_CLOUD_COLLECTIONS) optionalCloudLoadStatus.set(name, "loading");
     for (const name of OPTIONAL_CLOUD_COLLECTIONS) {
       try {
         const cloud = await loadCloudCollection(name, user);
@@ -156,13 +224,24 @@ export const storageService = {
           }
           await waitForCloudWrites();
         }
+        optionalCloudLoadStatus.set(name, "loaded");
       } catch (error) {
+        optionalCloudLoadStatus.set(name, "failed");
         console.warn(`[storageService] optional collection "${name}" not loaded from cloud; keeping the local copy`, error);
       }
     }
   },
   clearCloudUser() {
     cloudUser = null;
+    optionalCloudLoadStatus.clear();
+  },
+  /** "loading" | "loaded" | "failed" for an optional cloud collection of the current login; null when no cloud load ran (local / dev). */
+  getOptionalCloudLoadStatus(name) {
+    return optionalCloudLoadStatus.get(name) || null;
+  },
+  /** True while signed in to the cloud for a collection whose records the rules never let the client delete. */
+  isCloudDeleteBlocked(name) {
+    return !!cloudUser && CLOUD_UNDELETABLE_COLLECTIONS.includes(name);
   },
 };
 

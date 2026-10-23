@@ -1,0 +1,2 @@
+5xSTS measurement compatibility tests passed
+test:fa5x-compat exit=0

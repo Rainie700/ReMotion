@@ -1,6 +1,7 @@
 process.env.TZ = "Asia/Taipei";
 
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -32,6 +33,8 @@ const TC = await import("../js/data/trackingCycle.js");
 const { F01_GOALS } = await import("../js/data/f01RecommendationSpec.js");
 const { F01_FUNCTIONAL_DOMAIN } = await import("../js/data/f01Recommendation.js");
 const CTP = await import("../js/data/cycleTrainingPerformance.js");
+const DEMOL = await import("../js/ui/demoSyntheticLabel.js");
+const DEMO_CTX = { ...DEMOL, trackingCycleService, functionalAssessmentService };
 
 const TODAY = "2026-09-30"; // demo today: Week 2 Day 3 / 7, two formal training days
 const fnSrc = (name) => {
@@ -48,7 +51,7 @@ const P00 = { id: "uid-p00", email: "patient00@gmail.com", role: "patient" };
 assert.equal(S.seedPatient00ShowcaseData(P00).ok, true);
 const oldRun = (ms, y, m, d, h) => {
   const s = functionalAssessmentService.create({ patientId: P00.id, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(y, m - 1, d, h).toISOString() } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(y, m - 1, d, h).toISOString() } });
 };
 [[24100, 9, 20, 9], [22800, 9, 20, 10], [8200, 9, 28, 11], [8200, 9, 28, 12], [8300, 9, 29, 9]].forEach(([ms, m, d, h]) => oldRun(ms, 2026, m, d, h));
 
@@ -78,7 +81,7 @@ const progress = functionalProgressService.getFunctionalProgress(P00.id, TODAY);
   const u = "no-cycle-user";
   for (const [ms, d] of [[9000, 10], [8800, 12], [8600, 14]]) {
     const s = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-    functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(2026, 8, d, 9).toISOString() } });
+    functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(2026, 8, d, 9).toISOString() } });
   }
   const p = functionalProgressService.getFunctionalProgress(u, TODAY);
   assert.equal(p.currentCycle, null);
@@ -87,14 +90,16 @@ const progress = functionalProgressService.getFunctionalProgress(P00.id, TODAY);
 
 // rendered Data section (real renderDataFunctionalSection / renderF01DurationChart)
 const dataFactory = new Function("ctx", `
-  const { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, formatDateKeyMonthDay } = ctx;
+  const { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, formatDateKeyMonthDay, trackingCycleService, functionalAssessmentService, describeWeekSynthetic, DEMO_SYNTHETIC_TEXT } = ctx;
   ${constLine("fmtFa5xSec")}
+  ${fnSrc("weekSyntheticNote")}
+  ${fnSrc("fmtF01TrainingDays")}
   ${fnSrc("renderDataFunctionalSection")}
   ${fnSrc("renderF01DurationChart")}
   return { renderDataFunctionalSection };
 `);
 {
-  const { renderDataFunctionalSection } = dataFactory(TC);
+  const { renderDataFunctionalSection } = dataFactory({ ...TC, ...DEMO_CTX });
   const html = renderDataFunctionalSection(progress);
   const labels = html.slice(html.indexOf("data-f01-trend-labels"));
   assert.equal((labels.match(/<span><b>/g) || []).length, 2, "two trend points");
@@ -128,13 +133,15 @@ const dataFactory = new Function("ctx", `
   assert.deepEqual(t.trend.nodes.map((n) => (n.pending ? "?" : n.ms)), [12800, 8900, "?"], "12.8 ─ 8.9 ─ ? (reused baseline is one node)");
   assert.deepEqual(t.trend.segments.map((sg) => [sg.week, sg.pending]), [[1, false], [2, true]]);
   const pageFactory = new Function("ctx", `
-    const { getCurrentPatientId, functionalProgressService, getTrackingTodayKey, formatDateKeyMonthDay, TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, cycleTrainingPerformanceService, compareCycleScores } = ctx;
+    const { getCurrentPatientId, functionalProgressService, getTrackingTodayKey, formatDateKeyMonthDay, TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, cycleTrainingPerformanceService, compareCycleScores, trackingCycleService, functionalAssessmentService, describeWeekSynthetic, syntheticWeeksText, DEMO_SYNTHETIC_TEXT } = ctx;
     ${constLine("fmtFa5xSec")}
+    ${fnSrc("weekSyntheticNote")}
+  ${fnSrc("fmtF01TrainingDays")}
     ${fnSrc("renderF01WeekTrendChart")}
     ${fnSrc("f01TrackingHistoryPage")}
     return f01TrackingHistoryPage;
   `);
-  const html = pageFactory({ getCurrentPatientId: () => P00.id, functionalProgressService, getTrackingTodayKey: () => TODAY, ...TC, ...CTP })();
+  const html = pageFactory({ getCurrentPatientId: () => P00.id, functionalProgressService, getTrackingTodayKey: () => TODAY, ...TC, ...CTP, ...DEMO_CTX })();
   for (const text of ["F01 下肢功能｜功能追蹤", ">目前<", "第 2 週｜第 3 / 7 天", "<b>8.9 秒</b>", "10/04",
     "第 1 週 ✓", "09/22 → 09/28", "12.8 秒 → 8.9 秒", "完成時間差異：少 3.9 秒", "訓練完成：6 天", "查看第 1 週前後比較",
     "第 2 週｜進行中", "基準 8.9 秒", "完成 2 天", "等待 10/04 再次評估", "功能追蹤趨勢", ">W1<", ">W2<", ">12.8<", ">8.9<", ">?<"]) {

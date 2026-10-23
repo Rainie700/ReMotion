@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -33,7 +34,7 @@ function pureFixture({ baseMs = 8900, reMs = 8200, baseReps = REPS, reReps = [16
   const cycle = { id: "cyc1", userId: "u1", functionalDomain: "F01", assessmentType: "5xSTS", baselineAssessmentId: "b1", reassessmentId: "r1", completedTrainingDates: dates };
   const mk = (id, ms, reps, day, extra = {}) => ({
     id, patientId: "u1", assessmentType: "five_times_sit_to_stand", status: "completed",
-    result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, repDurationsMs: reps, measuredAt: new Date(...day, 14, 0).toISOString(), ...extra },
+    result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, repDurationsMs: reps, measuredAt: new Date(...day, 14, 0).toISOString(), ...extra },
   });
   return {
     cycle,
@@ -160,7 +161,7 @@ function pureFixture({ baseMs = 8900, reMs = 8200, baseReps = REPS, reReps = [16
 // ── service: real stored records, ownership, read-only ────────────────────
 function storedBaseline(userId, ms = 8900) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", completedReps: 5, repCount: 5, totalDurationMs: ms, repDurationsMs: REPS, measuredAt: new Date(...D1, 14, 0).toISOString() } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: ms, repDurationsMs: REPS, measuredAt: new Date(...D1, 14, 0).toISOString() } });
   return functionalAssessmentService.getById(s.id);
 }
 function storedCycle(userId) {
@@ -171,7 +172,7 @@ function storedCycle(userId) {
 }
 function storedReassessment(userId, cycle, ms) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-  functionalAssessmentService.completeSession(s.id, { result: { status: "completed", completedReps: 5, repCount: 5, totalDurationMs: ms, measuredAt: new Date(...D7, 15, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: ms, measuredAt: new Date(...D7, 15, 0).toISOString(), assessmentRole: REASSESSMENT_ROLE, trackingCycleId: cycle.id, baselineAssessmentId: cycle.baselineAssessmentId } });
   return functionalAssessmentService.getById(s.id);
 }
 
@@ -222,7 +223,8 @@ function fnBody(name) {
   assert.ok(page.includes("F01 下肢功能｜7 日追蹤結果"));
   assert.ok(page.includes("目前無法建立完整前後比較"));
   assert.ok(page.includes("完成時間差異"));
-  assert.ok(page.includes("本週完成訓練：${cmp.completedTrainingDays} 天"));
+  // F01 batch 2 §3A — the same count, formatted so an unknown (null) count reads 「待確認」 instead of "null 天"
+  assert.ok(page.includes("本週完成訓練：${fmtF01TrainingDays(cmp.completedTrainingDays)}"));
   assert.ok(page.includes("這裡整理你在本次 7 日追蹤前後的五次坐站結果。初次評估與再次評估使用相同的量測方式，完成時間與訓練紀錄可作為後續追蹤比較的依據。"));
   // Flow & Data QA — the per-rep values are phase durations, not full sit-to-stands: never shown.
   assert.ok(!/每一次坐站時間|cmp-rep-row|cmp\.repComparison\.map/.test(page), "no per-rep 「第 N 次」 table");

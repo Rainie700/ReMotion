@@ -1,0 +1,51 @@
+{
+  "note": "synthetic local emulator data only (demo-remotion); current version read from the app",
+  "current": {
+    "algorithmVersion": "fa5x-assessment-1.2",
+    "geometryCoordinateSpace": "isotropic_image_height_units"
+  },
+  "history11": {
+    "algorithmVersion": "fa5x-assessment-1.1",
+    "geometryCoordinateSpace": "isotropic_image_height_units"
+  },
+  "patients": {
+    "A": {
+      "email": "v12-a-mvifbcdk@local.test",
+      "uid": "Spg42M9kgloxOs9JaGSAXr9PbEdN"
+    },
+    "B": {
+      "email": "v12-b-mvifbcdk@local.test",
+      "uid": "03UmN6nS3DWyGaXF9KEWlnOeLrIr"
+    },
+    "C": {
+      "email": "v12-c-mvifbcdk@local.test",
+      "uid": "6Xo5P1KqDcqer4omtv9JJFaqaUSZ"
+    },
+    "D": {
+      "email": "v12-d-mvifbcdk@local.test",
+      "uid": "RES5JpKFJowvReOSxlMpE7L5nSuE"
+    }
+  },
+  "A": {
+    "b": "functionalAssessment_mvifbcrk_1_ur41na",
+    "re": "functionalAssessment_mvifbcsa_4_d8pwix",
+    "cycleId": "trackingCycle_mvifbcs9_3_5y43d4",
+    "recId": "recommendation_mvifbcs8_2_07g2zh"
+  },
+  "B": {
+    "b": "functionalAssessment_mvifbcsb_5_l85ys2",
+    "re": "functionalAssessment_mvifbcsc_8_73of07",
+    "cycleId": "trackingCycle_mvifbcsc_7_fjdnuu",
+    "recId": "recommendation_mvifbcsc_6_0bs4dn",
+    "newRun": "functionalAssessment_mvifbcsc_9_wvfolp"
+  },
+  "C": {
+    "old": "functionalAssessment_mvifbcsd_10_jnkzr9"
+  },
+  "D": {
+    "b": "functionalAssessment_mvifbcsd_11_vuomn2",
+    "cycleId": "trackingCycle_mvifbcsd_13_0et8pi",
+    "recId": "recommendation_mvifbcsd_12_ntcfr8",
+    "newRun": "functionalAssessment_mvifbcse_14_8fqgw2"
+  }
+}

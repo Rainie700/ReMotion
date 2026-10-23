@@ -10,6 +10,13 @@ import { buildContextFacts, monthDay } from "./llmSummaryFacts.js";
 
 const hasReassessment = (ctx) => !!(ctx.functionalAssessment && ctx.functionalAssessment.valid && Number.isFinite(ctx.functionalAssessment.reassessmentMs));
 const isActive = (ctx) => !hasReassessment(ctx) && !ctx.decision;
+/** The accepted plan is a therapist-reviewed one (decision.therapistReview). */
+const reviewOf = (ctx) => (ctx.decision && ctx.decision.confirmationStatus === "accepted" && ctx.decision.therapistReview) || null;
+/** "2 組 × 每組 8 下" — only the amounts the therapist set. */
+function doseText(x) {
+  const amount = x.repetitions ? `每組 ${x.repetitions} 下` : x.durationSeconds ? `每組 ${x.durationSeconds} 秒` : null;
+  return [x.sets ? `${x.sets} 組` : null, amount].filter(Boolean).join(" × ") || null;
+}
 
 function trainingDaysSentence(ctx) {
   const days = ctx.training ? ctx.training.completedDays : null;
@@ -33,7 +40,8 @@ function functionSentence(ctx) {
 function nextPlanSentence(ctx) {
   const issues = ctx.reportedIssues || {};
   const d = ctx.decision;
-  if (issues.professionalReviewRequired) return "下一週訓練安排需由專業人員確認後進行。";
+  const review = reviewOf(ctx);
+  if (issues.professionalReviewRequired && !review) return "下一週訓練安排需由專業人員確認後進行。";
   if (!d || d.confirmationStatus !== "accepted") {
     if (isActive(ctx)) {
       const names = (ctx.currentExercises || []).map((e) => e.name);
@@ -44,9 +52,15 @@ function nextPlanSentence(ctx) {
   if (d.confirmedAction === "no_auto_decision") return "本週結果不自動判定下一週安排，需再確認。";
   const byFrom = new Map((d.transitions || []).map((t) => [t.fromExerciseId, t]));
   const clauses = [];
-  for (const t of d.transitions || []) clauses.push(t.transitionType === "maintain" ? `${t.fromName}維持原安排` : `${t.fromName}調整為${t.toName}`);
+  const doseOf = new Map(((review && review.doses) || []).map((x) => [x.exerciseId, doseText(x)]));
+  for (const t of d.transitions || []) {
+    const dose = doseOf.get(t.toExerciseId);
+    if (t.transitionType === "maintain") clauses.push(dose ? `${t.fromName}維持原動作，訓練量為 ${dose}` : `${t.fromName}維持原安排`);
+    else clauses.push(`${t.fromName}調整為${t.toName}${dose ? `，訓練量為 ${dose}` : ""}`);
+  }
   for (const e of ctx.currentExercises || []) if (!byFrom.has(e.exerciseId)) clauses.push(`${e.name}的下一步安排尚待確認`);
-  return clauses.length ? `下一週訓練中，${clauses.join("，")}。` : "下一週訓練安排已確認，動作細節尚未提供。";
+  const lead = review ? "下一週安排已由復健師檢視確認。" : "";
+  return clauses.length ? `${lead}下一週訓練中，${clauses.join("，")}。` : `${lead}下一週訓練安排已確認，動作細節尚未提供。`;
 }
 
 function aiSentence(ctx) {
@@ -70,7 +84,7 @@ function attentionNotes(ctx) {
   const i = ctx.reportedIssues || {};
   if (i.newDiscomfort) notes.push("已回報新的或加重的不適。");
   if (i.newLimitation) notes.push("已回報新的限制條件。");
-  if (i.professionalReviewRequired) notes.push("下一週安排需由專業人員確認。");
+  if (i.professionalReviewRequired) notes.push(reviewOf(ctx) ? "下一週安排已由復健師檢視確認。" : "下一週安排需由專業人員確認。");
   if (ctx.functionalAssessment && !ctx.functionalAssessment.valid) notes.push("本週五次坐站評估結果無法作為比較依據。");
   return notes;
 }
@@ -98,16 +112,21 @@ function professionalTraining(ctx) {
 
 function professionalPlan(ctx) {
   const d = ctx.decision;
-  const review = ctx.reportedIssues && ctx.reportedIssues.professionalReviewRequired ? "需專業人員確認。" : "";
+  const tr = reviewOf(ctx);
+  const review = ctx.reportedIssues && ctx.reportedIssues.professionalReviewRequired && !tr ? "需專業人員確認。" : "";
   if (!d || d.confirmationStatus !== "accepted") return `D5 決策尚未確認。${review}`;
   const rows = (d.transitions || []).map((t) => `${t.fromExerciseId} ${t.fromName} → ${t.toExerciseId} ${t.toName}（${t.transitionType}）`);
-  return `D5 已確認：規則結果 ${d.ruleOutcome}，確認動作 ${d.confirmedAction}${rows.length ? `：${rows.join("；")}` : "，動作細節尚未提供"}。${review}`;
+  const doses = ((tr && tr.doses) || []).map((x) => `${x.exerciseId} ${x.name} ${doseText(x)}`).filter((s) => !s.endsWith(" null"));
+  const reviewed = tr ? `復健師已檢視確認${tr.changed ? "並修改規則安排" : "，沒有修改規則安排"}${doses.length ? `；復健師設定訓練量：${doses.join("；")}` : ""}。` : "";
+  return `D5 已確認：規則結果 ${d.ruleOutcome}，確認動作 ${d.confirmedAction}${rows.length ? `：${rows.join("；")}` : "，動作細節尚未提供"}。${reviewed}${review}`;
 }
 
 /** The core narrative (spec §13): training days, function result, next plan / reassessment. */
 export function fallbackNarrative(ctx) {
   if (isActive(ctx) && Number.isInteger(ctx.weekNumber) && ctx.functionalAssessment && ctx.functionalAssessment.valid) {
-    const days = ctx.training && Number.isInteger(ctx.training.completedDays) && ctx.training.completedDays > 0 ? `本週已完成 ${ctx.training.completedDays} 個正式訓練日。` : "本週尚未完成正式訓練日。";
+    // F01 batch 2 §3A — an unknown count (null, measurement pending) is "not provided", never "not completed".
+    const n = ctx.training ? ctx.training.completedDays : null;
+    const days = !Number.isInteger(n) ? "本週正式訓練日資料尚未提供。" : n > 0 ? `本週已完成 ${n} 個正式訓練日。` : "本週尚未完成正式訓練日。";
     return `目前為第 ${ctx.weekNumber} 週追蹤中，${days}${functionSentence(ctx)}`;
   }
   return `${trainingDaysSentence(ctx)}${functionSentence(ctx)}${nextPlanSentence(ctx)}`;

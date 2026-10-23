@@ -1,0 +1,357 @@
+$ npm test
+
+> rm@1.0.0 test
+> node scripts/runAllTests.mjs
+
+✓ test:f01-additions
+✓ test:f02-additions
+✓ test:gait-series
+✓ test:upper-limb-series
+✓ test:flexibility-series
+✓ test:six-domains
+✓ test:ad07
+✓ test:ad06
+✓ test:ad05
+✓ test:ad04
+✓ test:ad03
+✓ test:ad02
+✓ test:ad01
+✓ test:hp10
+✓ test:cr05
+✓ test:cr01
+✓ test:cr02
+✓ test:cr03
+✓ test:cr04
+✓ test:cr06
+✓ test:cr07
+✓ test:cr08
+✓ test:ad08
+✓ test:ad09
+✓ test:ad10
+✓ test:ad11
+✓ test:ad12
+✓ test:ak01
+✓ test:ak02
+✓ test:ak03
+✓ test:ak04
+✓ test:ak05
+✓ test:ak06
+✓ test:ak07
+✓ test:ak08
+✓ test:ak09
+✓ test:ak10
+✓ test:ak11
+✓ test:ak12
+✓ test:ak13
+✓ test:ak14
+✓ test:ak15
+✓ test:kn03
+✓ test:le05
+✓ test:le03
+✓ test:le04
+✓ test:le06
+✓ test:le07
+✓ test:sh01
+✓ test:sh02
+✓ test:sh03
+✓ test:sh04
+✓ test:sh05
+✓ test:sh06
+✓ test:sh07
+✓ test:shflexgeom
+✓ test:shflexmeas
+✓ test:shabdgeom
+✓ test:shabdmeas
+✓ test:shprotocol
+✓ test:shiaguards
+✓ test:shfindings
+✓ test:shresultloop
+✓ test:srloop
+✓ test:tploop
+✓ test:achievements
+✓ test:gamhubia
+✓ test:datav2
+✓ test:advstages
+✓ test:therapist
+✓ test:asmtctx
+✓ test:demoseed
+✓ test:sarcopeniaphase1
+✓ test:sarcopeniaphase15
+✓ test:f01mvp1
+✓ test:integration0
+✓ test:fa5x
+✓ test:fa5x-compat
+✓ test:fa5x-frame-trace
+✓ test:fa5x-trace-replay
+✓ test:fa5x-condition-report
+✓ test:fa5x-blocked-result-checks
+✓ test:emulator-mode
+✓ test:f01rec
+✗ test:tracking
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert.ok(/OPTIONAL_CLOUD_COLLECTIONS = \["trackingCycles"\]/.test(storage))
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/trackingCycle.test.js:214:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:reassessment
+✓ test:training-days
+✓ test:f01-daily-targets
+✓ test:f01-batch2-completion
+✓ test:comparison
+✓ test:d5
+✓ test:d5-next-cycle
+✗ test:flow-qa
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog
++ actual - expected
+
++ 'confirmed'
+- 'missing'
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/flowDataQa.test.js:204:59 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'confirmed',
+  expected: 'missing',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✗ test:home-redesign
+
+<anonymous_script>:33
+  const completedDays = displayCompletedTrainingDays(cycle); // batch 2: null when measurement pending
+                        ^
+
+ReferenceError: displayCompletedTrainingDays is not defined
+    at Object.renderTrackingCycleCard (eval at <anonymous> (file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:49:14), <anonymous>:33:25)
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/homeResultRedesign.test.js:77:21
+
+Node.js v24.18.0
+✓ test:result-states
+✓ test:training-events
+✓ test:reward-consistency
+✓ test:f01-adventure
+✓ test:today-plan
+✓ test:training-tab-layout
+✓ test:patient00-showcase
+✓ test:data-profile-cleanup
+✗ test:exercise-experience
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder
++ actual - expected
+
++ 'image'
+- 'placeholder'
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/exerciseExperience.test.js:41:57 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'image',
+  expected: 'placeholder',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:core-value-experience
+✗ test:self-practice-library
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder
++ actual - expected
+
+  [
++   'image',
++   '/images/exercise/exercise_double_calf_raise.png'
+-   'placeholder',
+-   null
+  ]
+
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/selfPracticeLibrary.test.js:163:17 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [ 'image', '/images/exercise/exercise_double_calf_raise.png' ],
+  expected: [ 'placeholder', null ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✗ test:llm-weekly-summary
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no .env.local
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/llmWeeklySummary.test.js:187:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:llm-summary-validator
+✓ test:therapist-summary-cycle
+✓ test:patient00-demo-cloud-safety
+✓ test:cloud-record-inspector
+✓ test:patient-confirmed-summaries
+✓ test:weekly-summary-versions
+✓ test:f01-recommendation-view
+✓ test:d5-next-week-handoff
+✓ test:d5-therapist-review
+✗ test:d5-llm-recommendation
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: the demo never attaches Firebase login
+    at file:///C:/Users/User/Downloads/ReMotion-main%20(4)/ReMotion-main/tests/d5LlmRecommendation.test.js:279:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'import { authService } from "./js/data/authService.js";\n' +
+    'import { storageService, isLocalDemoStorage } from "./js/data/storageService.js";\n' +
+    'import { isEmulatorMode, checkEmulatorsReachable, EMULATOR_PROJECT_ID } from "./js/data/firebase.js";\n' +
+    '// 本機隔離展示 (dev server + ?localDemo=d5 only): separate storage prefix, no Firebase login, no cloud.\n' +
+    'const LOCAL_DEMO_MODE = isLocalDemoStorage();\n' +
+    '// 本機瀏覽器驗證 (dev server + localhost + ?emulator=1 only, js/data/firebase.js): Auth + Firestore on the\n' +
+    '// local emulators with a demo project id; its own local cache; a permanent 「本機測試資料」 banner.\n' +
+    'const EMULATOR_MODE = isEmulatorMode();\n' +
+    'if (EMULATOR_MODE && typeof document !== "undefined") {\n' +
+    '  const banner = document.createElement("div");\n' +
+    '  banner.id = "emulatorModeBanner";\n' +
+    '  banner.setAttribute("role", "status");\n' +
+    '  banner.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:10000;padding:4px 8px;background:#8a1c1c;color:#fff;font:600 12px/1.4 sans-serif;text-align:center;pointer-events:none;";\n' +
+    '  banner.textContent = `本機測試資料｜Firebase 模擬器（${EMULATOR_PROJECT_ID}）｜非正式資料`;\n' +
+    '  document.body.appendChild(banner);\n' +
+    '}\n' +
+    'let localDemoModule = null;\n' +
+    'import { scheduleService } from "./js/data/scheduleService.js";\n' +
+    'import { analysisService, ANALYSIS_RECORD_SOURCES, getRecordSource } from "./js/data/analysisService.js";\n' +
+    'import { gameService } from "./js/data/gameService.js";\n' +
+    'import { exerciseService, resolvePoseAnalyzer, POSE_ANALYZER } from "./js/data/exerciseService.js";\n' +
+    'import { userService } from "./js/data/userService.js";\n' +
+    'import { relationService } from "./js/data/relationService.js";\n' +
+    'import { generateId, nowIso } from "./js/utils/id.js";\n' +
+    'import { getD5Arrangement, getD5Review, listD5ReviewsForPatient, listD5ReviewOptions, reviewD5Proposal } from "./js/data/d5TherapistReviewService.js";\n' +
+    'import { planFingerprint } from "./js/data/d5Arrangement.js";\n' +
+    'import { compareD5Weeks, describeD5ContentChange, explainD5Decision, describeD5Item, D5_DOSAGE_NOTE, describeDecisionSource, LLM_DRAFT_DECISION_LABEL } from "./js/ui/d5ProposalView.js";\n' +
+    'import { requestD5LlmDraft } from "./js/services/d5RecommendationDraftService.js";\n' +
+    'import { LLM_RECOMMENDATION_CONFIG } from "./js/config/llmRecommendationConfig.js";\n' +
+    'import { describeFa5xEvidence, describeD5Evidence, pickF01RecommendationForPage, describeTrainingVolume, describePlanVolume, formatPlanVolume, PLAN_VOLUME_SOURCE_NOTE, displayConditionText, explainF01Item, listF01OtherOptions, describeF01ListSize, F01_NOT_USED_IN_RANKING } from "./js/ui/f01RecommendationView.js";\n' +
+    'import { describeWeekArrangement } from "./js/ui/weekArrangementView.js";\n' +
+    'import { isDemoSynthetic, isSimulatedConfirmation, isSimulatedReview, demoSyntheticBadge, describeWeekSynthetic, syntheticWeeksText, DEMO_SYNTHETIC_TEXT, SIMULATED_CONFIRMATION_TEXT, SIMULATED_REVIEW_TEXT } from "./js/ui/demoSyntheticLabel.js";\n' +
+    'import { createWeeklySummary, getSavedWeeklySummary, confirmWeeklySummary, listWeeklySummariesForPatient } from "./js/services/llmWeeklySummaryService.js";\n' +
+    'import { getPublishedVersion, getPendingDraft, getDraftToken, isSummaryDocConsistent } from "./js/data/weeklySummaryVersions.js";\n' +
+    'import { buildSummaryCycleOptions, resolveSummaryCycleSelection, isSummaryForSelection, isSameSummaryTarget, buildConfirmedSummaryOptions, resolveConfirmedSummarySelection } from "./js/ui/weeklySummaryCycleSelection.js";\n' +
+    'import { SQUAT_THRESHOLDS, SQUAT_ANALYSIS_MODE, DEFAULT_SQUAT_REWARD_XP, SQUAT_REQUIRED_LANDMARKS } from "./js/ai/squatConstants.js";\n' +
+    'import { computeKneeAngles, computeTrunkLeanDeg, computeKneeValgusSuspected, hasFullLowerBody } from "./js/ai/poseMath.js";\n' +
+    'import { createDetectionStabilityTracker, DETECTION_DISPLAY_STATE } from "./js/ai/detectionStability.js";\n' +
+    'import { createSquatSession } from "./js/ai/squatSession.js";\n' +
+    'import { SQUAT_QUALITY_ISSUE, SQUAT_QUALITY_ISSUE_LABELS, SQUAT_QUALITY_ISSUE_SUGGESTIONS } from "./js/ai/squatQuality.js";\n' +
+    'import { decideSquatFeedback, createFeedbackStabilityTracker, FEEDBACK_PRIORITY } from "./js/ai/squatFeedback.js";\n' +
+    'import { SQUAT_FEEDBACK_INTENT, SQUAT_FEEDBACK_ICON, SQUAT_MILESTONE_ICON, createFeedbackContentSelector } from "./js/ai/squatFeedbackContent.js";\n' +
+    'import { getSquatMilestone, createMilestoneTracker, SQUAT_MILESTONE } from "./js/ai/shared/milestones.js";\n' +
+    'import { pickSquatRobotState } from "./js/ai/squatRobotCompanion.js";\n' +
+    'import { SQUAT_TRAINING_STATE, SQUAT_TRAINING_EVENT, nextSquatTrainingState, isSquatTrainingLocked } from "./js/ai/shared/trainingState.js";\n' +
+    'import { createVoicePolicyTracker } from "./js/ai/shared/voicePolicy.js";\n' +
+    'import { pickSquatVoice, SQUAT_VOICE_SETTINGS } from "./js/ai/shared/voiceProfile.js";\n' +
+    'import { calculateSquatScore, buildSquatRemark, buildSquatQualityExplanation, calculateQualityRatioPercent, calculateProgressRatio } from "./js/ai/squatScore.js";\n' +
+    'import { createSquatCameraController, POSE_CONNECTIONS } from "./js/ai/shared/cameraController.js";\n' +
+    'import { HP02_REQUIRED_LANDMARKS } from "./js/ai/exercises/hipFlexion/constants.js";\n' +
+    'import { computeHipFlexionAngles } from "./js/ai/exercises/hipFlexion/poseMath.js";\n' +
+    'import { createHipFlexionSession } from "./js/ai/exercises/hipFlexion/session.js";\n' +
+    'import { HP02_TRAINING_REQUIRED_LANDMARKS, HP02_TRAINING_THRESHOLDS, HP02_ANALYSIS_MODE, DEFAULT_HP02_REWARD_XP } from "./js/ai/exercises/standingHipFlexion/constants.js";\n' +
+    'import { computeStandingHipFlexionMetrics } from "./js/ai/exercises/standingHipFlexion/poseMath.js";\n' +
+    'import { createStandingHipFlexionSession } from "./js/ai/exercises/standingHipFlexion/session.js";\n' +
+    'import { calculateStandingHipFlexionScore, buildStandingHipFlexionRemark, HP02_ISSUE_LABELS } from "./js/ai/exercises/standingHipFlexion/score.js";\n' +
+    'import { HP03_REQUIRED_LANDMARKS, HP03_THRESHOLDS, HP03_ANALYSIS_MODE, DEFAULT_HP03_REWARD_XP } from "./js/ai/exercises/standingHipExtension/constants.js";\n' +
+    'import { computeStandingHipExtensionMetrics } from "./js/ai/exercises/standingHipExtension/poseMath.js";\n' +
+    'import { createStandingHipExtensionSession } from "./js/ai/exercises/standingHipExtension/session.js";\n' +
+    'import { calculateStandingHipExtensionScore, buildStandingHipExtensionRemark, HP03_ISSUE_LABELS } from "./js/ai/exercises/standingHipExtension/score.js";\n' +
+    'import { HP07_REQUIRED_LANDMARKS, HP07_THRESHOLDS, HP07_ANALYSIS_MODE, DEFAULT_HP07_REWARD_XP } from "./js/ai/exercises/fireHydrant/constants.js";\n' +
+    'import { computeFireHydrantMetrics } from "./js/ai/exercises/fireHydrant/poseMath.js";\n' +
+    'import { createFireHydrantSession } from "./js/ai/exercises/fireHydrant/session.js";\n' +
+    'import { calculateFireHydrantScore, buildFireHydrantRemark, HP07_ISSUE_LABELS } from "./js/ai/exercises/fireHydrant/score.js";\n' +
+    'import { HP08_REQUIRED_LANDMARKS, HP08_THRESHOLDS, HP08_ANALYSIS_MODE, DEFAULT_HP08_REWARD_XP } from "./js/ai/exercises/lateralStep/constants.js";\n' +
+    'import { computeLateralStepMetrics } from "./js/ai/exercises/lateralStep/poseMath.js";\n' +
+    'import { createLateralStepSession } from "./js/ai/exercises/lateralStep/session.js";\n' +
+    'import { calculateLateralStepScore, buildLateralStepRemark, HP08_ISSUE_LABELS } from "./js/ai/exercises/lateralStep/score.js";\n' +
+    'import { HP09_REQUIRED_LANDMARKS, HP09_THRESHOLDS, HP09_ANALYSIS_MODE, DEFAULT_HP09_REWARD_XP } from "./js/ai/exercises/monsterWalk/constants.js";\n' +
+    'import { computeMonsterWalkMetrics } from "./js/ai/exercises/monsterWalk/poseMath.js";\n' +
+    'import { createMonsterWalkSession } from "./js/ai/exercises/monsterWalk/session.js";\n' +
+    'import { calculateMonsterWalkScore, buildMonsterWalkRemark, HP09_ISSUE_LABELS } from "./js/ai/exercises/monsterWalk/score.js";\n' +
+    'import { HP10_REQUIRED_LANDMARKS, HP10_THRESHOLDS, HP10_ANALYSIS_MODE, DEFAULT_HP10_REWARD_XP } from "./js/ai/exercises/singleLegHipStability/constants.js";\n' +
+    'import { computeSingleLegHipStabilityMetrics } from "./js/ai/exercises/singleLegHipStability/poseMath.js";\n' +
+    'import { createSingleLegHipStabilitySession } from "./js/ai/exercises/singleLegHipStability/session.js";\n' +
+    'import { calculateSingleLegHipStabilityScore, buildSingleLegHipStabilityRemark } from "./js/ai/exercises/singleLegHipStability/score.js";\n' +
+    'import { AD01_REQUIRED_LANDMARKS, AD01_THRESHOLDS, AD01_ANALYSIS_MODE, DEFAULT_AD01_REWARD_XP } from "./js/ai/exercises/bedRolling/constants.js";\n' +
+    'import { computeBedRollingMetrics } from "./js/ai/exercises/bedRolling/poseMath.js";\n' +
+    'import { createBedRollingSession } from "./js/ai/exercises/bedRolling/session.js";\n' +
+    'import { calculateBedRollingScore, buildBedRollingRemark } from "./js/ai/exercises/bedRolling/score.js";\n' +
+    'import { AD02_REQUIRED_LANDMARKS, AD02_THRESHOLDS, AD02_ANALYSIS_MODE, DEFAULT_AD02_REWARD_XP } from "./js/ai/exercises/bedsideSitUp/constants.js";\n' +
+    'import { computeBedsideSitUpMetrics } from "./js/ai/exercises/bedsideSitUp/poseMath.js";\n' +
+    'import { createBedsideSitUpSession } from "./js/ai/exercises/bedsideSitUp/session.js";\n' +
+    'import { calculateBedsideSitUpScore, buildBedsideSitUpRemark } from "./js/ai/exercises/bedsideSitUp/score.js";\n' +
+    'import { AD03_REQUIRED_LANDMARKS, AD03_THRESHOLDS, AD03_ANALYSIS_MODE, DEFAULT_AD03_REWARD_XP } from "./js/ai/exercises/shoeDressing/constants.js";\n' +
+    'import { computeShoeDressingMetrics } from "./js/ai/exercises/shoeDressing/poseMath.js";\n' +
+    'import { createShoeDressingSession } from "./js/ai/exercises/shoeDressing/session.js";\n' +
+    'import { calculateShoeDressingScore, buildShoeDressingRemark } from "./js/ai/exercises/shoeDressing/score.js";\n' +
+    'import { AD04_REQUIRED_LANDMARKS, AD04_THRESHOLDS, AD04_ANALYSIS_MODE, DEFAULT_AD04_REWARD_XP } from "./js/ai/exercises/floorObjectPickup/constants.js";\n' +
+    'import { computeFloorObjectPickupMetrics } from "./js/ai/exercises/floorObjectPickup/poseMath.js";\n' +
+    'import { createFloorObjectPickupSession } from "./js/ai/exercises/floorObjectPickup/session.js";\n' +
+    'import { calculateFloorObjectPickupScore, buildFloorObjectPickupRemark } from "./js/ai/exercises/floorObjectPickup/score.js";\n' +
+    'import { AD05_REQUIRED_LANDMARKS, AD05_THRESHOLDS, AD05_ANALYSIS_MODE, DEFAULT_AD05_REWARD_XP } from "./js/ai/exercises/turningWalk/constants.js";\n' +
+    'import { computeTurningWalkMetrics } from "./js/ai/exerci'... 1490275 more characters,
+  expected: /if \(!LOCAL_DEMO_MODE\) authService\.subscribe\(/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+✓ test:patient00-history-6w
+✓ test:hp04
+✓ test:hp01
+✓ test:hp02
+✓ test:hp03
+✓ test:hp07
+✓ test:hp08
+✓ test:hp09
+✓ test:hp05
+✓ test:hp06
+✓ test:le02
+
+120 / 127 test scripts passed
+failed: test:tracking, test:flow-qa, test:home-redesign, test:exercise-experience, test:self-practice-library, test:llm-weekly-summary, test:d5-llm-recommendation
+exit=1

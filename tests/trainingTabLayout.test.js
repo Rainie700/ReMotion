@@ -27,6 +27,7 @@ const constSrc = (name) => {
   return line;
 };
 
+const RV = await import("../js/ui/f01RecommendationView.js");
 const FNS = ["todaySchedulePage", "todayPlanDayLabel", "renderTodayTaskImage", "todayTaskDoseText", "renderTodayTaskCard", "renderTodayTherapistTask", "renderTodayRemotionTask", "renderTodayPlanNotice", "renderProgressBar", "sourceBadgeClassFor", "generateScheduleReminder"];
 const CONSTS = ["WEEKDAY_LABELS", "todayTaskAiMeta", "todayGroupHead"];
 const TODAY = "2026-09-29";
@@ -38,7 +39,7 @@ const CATALOG = {
 };
 const factory = new Function("ctx", `
   const { state, getCurrentPatientId, todayStr, getTodayPlanForPatient, scheduleService, exerciseService, buildWeekStripDates,
-    renderExerciseCardImage, renderF01RecommendationImage, F01_DEMO_IMAGE_PENDING, TODAY_PLAN_NOTICE, TODAY_PLAN_REMOTION_KIND, F01_FUNCTIONAL_DOMAIN } = ctx;
+    renderExerciseCardImage, renderF01RecommendationImage, F01_DEMO_IMAGE_PENDING, TODAY_PLAN_NOTICE, TODAY_PLAN_REMOTION_KIND, F01_FUNCTIONAL_DOMAIN, formatPlanVolume, describePlanVolume } = ctx;
   ${CONSTS.map(constSrc).join("\n")}
   ${FNS.map(fnSrc).join("\n")}
   return { todaySchedulePage };
@@ -58,6 +59,8 @@ function render(plan, { schedule = null, viewDate = plan.dateKey } = {}) {
     TODAY_PLAN_NOTICE: P.TODAY_PLAN_NOTICE,
     TODAY_PLAN_REMOTION_KIND: P.TODAY_PLAN_REMOTION_KIND,
     F01_FUNCTIONAL_DOMAIN: { key: "F01", label: "下肢功能" },
+    formatPlanVolume: RV.formatPlanVolume,
+    describePlanVolume: RV.describePlanVolume,
   };
   return factory(ctx).todaySchedulePage();
 }
@@ -119,7 +122,7 @@ const between = (html, a, b) => { const i = html.indexOf(a); const j = b ? html.
   assert.ok(!/startTodayPlanTask\('[^']*', '[^']*', '[^']*'\)"[^>]*>(?!開始|繼續)/.test(html));
   assert.ok(!html.includes("查看並開始"), "short CTA");
   assert.ok(html.includes(">開始</button>"), "primary CTA 開始");
-  assert.ok(html.includes("10 次 × 2 組 · AI 姿勢分析"), "dose + AI 姿勢分析 metadata");
+  assert.ok(html.includes("2 組 × 每組 10 下（動作預設） · AI 姿勢分析"), "F01 plan dose: same wording + source label as the plan page, then AI 姿勢分析");
   const start = fnSrc("startTodayPlanTask");
   assert.ok(start.includes("goTodayPlanItem(kind, planId, exerciseId)") && start.includes("goDetectionPrep()"), "開始 = formal entry, then prep");
   assert.ok(fnSrc("startTodayScheduleTask").includes("goExerciseDetail(scheduleId, index)"));

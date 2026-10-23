@@ -1,0 +1,14 @@
+{
+  "note": "synthetic local emulator data only (demo-remotion)",
+  "patient": {
+    "uid": "3E4zBKJebBvh6rCybhvB6e1zJ3bX",
+    "email": "rw-patient-mvifd48e@local.test"
+  },
+  "cases": {
+    "none": "functionalAssessment_mvifd4hz_1_eoj094",
+    "unsure": "functionalAssessment_mvifd4i0_2_q4rq5p",
+    "assisted": "functionalAssessment_mvifd4i0_3_kdyuwv",
+    "clear": "functionalAssessment_mvifd4i0_4_3g9d2m",
+    "reassessment": "functionalAssessment_mvifd4is_8_rjw88r"
+  }
+}

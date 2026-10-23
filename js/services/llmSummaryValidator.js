@@ -35,7 +35,7 @@ function cnToNumber(s) {
   return s.split("").reduce((n, c) => n * 10 + CN_DIGIT[c], 0);
 }
 const UNIT_KIND = [
-  [/^(毫秒|ms)/i, "ms"], [/^(秒|sec|s\b)/i, "seconds"], [/^(個?正式訓練日|個?訓練日|天|日)/, "days"], [/^(週|周)/, "week"],
+  [/^(組|下)/, "dose"], [/^(毫秒|ms)/i, "ms"], [/^(秒|sec|s\b)/i, "seconds"], [/^(個?正式訓練日|個?訓練日|天|日)/, "days"], [/^(週|周)/, "week"],
   [/^(筆|次)/, "records"], [/^分/, "score"], [/^(個|項)/, "count"], [/^(%|％|公斤|kg|度|°|公分|cm)/i, "unsupported"],
 ];
 const unitKindAfter = (rest) => { const s = rest.replace(/^\s+/, ""); const hit = UNIT_KIND.find(([re]) => re.test(s)); return hit ? hit[1] : null; };
@@ -57,6 +57,15 @@ function findExercises(text, known) {
   }
   for (const m of text.matchAll(/F0[1-6]-\d{2}/g)) found.push({ id: m[0], name: m[0], index: m.index });
   return found.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Does the text state this baseline — as ms, or as seconds to one decimal?
+ * Compared by numeric value, so 12000 ms matches "12000", "12 秒" and "12.0 秒" alike.
+ */
+export function mentionsBaseline(text, baselineMs) {
+  const seconds = Number((baselineMs / 1000).toFixed(1));
+  return [...FULLWIDTH(String(text || "")).matchAll(/(?<![0-9.])\d+(?:\.\d+)?(?![0-9.])/g)].some((m) => Number(m[0]) === baselineMs || Number(m[0]) === seconds);
 }
 
 /** Every text field of an output, with its path. */
@@ -218,7 +227,7 @@ export function validateWeeklySummary(candidate, context) {
     const fields = candidate[audience] || {};
     const functionText = fields.functionSummary || "";
     const trainingText = fields.trainingSummary || "";
-    if (hasBaseline && ![String(fa.baselineMs), String(Number((fa.baselineMs / 1000).toFixed(1)))].some((n) => new RegExp(`(?<![0-9.])${n.replace(/\./g, "\\.")}(?![0-9.])`).test(functionText))) {
+    if (hasBaseline && !mentionsBaseline(functionText, fa.baselineMs)) {
       fail("missingData", "KNOWN_BASELINE_OMITTED", "available baseline must be included", `${audience}.functionSummary`);
     }
     if (hasBaseline && /^(?:尚無資料|無資料|沒有資料)[。.]?$/.test(functionText.trim())) {

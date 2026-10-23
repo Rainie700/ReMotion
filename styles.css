@@ -3579,3 +3579,94 @@ select {
 .sp-rail::-webkit-scrollbar { display: none; }
 .sp-rail .sp-card { flex: 0 0 152px; width: 152px; scroll-snap-align: start; }
 .sp-rail .sp-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* F01 訓練建議 — evidence, data-backed reasons, main vs other options */
+.f01-rec-start-hint { display: inline-block; margin: 2px 0 4px; padding: 2px 8px; border-radius: 999px; background: #eef5e9; color: var(--primary-dark); font-size: 12px; font-weight: 700; }
+.f01-rec-short-reason, .f01-rec-volume { margin-top: 4px; line-height: 1.45; }
+.f01-rec-reasons { margin: 6px 0 8px; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.f01-rec-next { margin: 8px 0 0; line-height: 1.5; }
+.f01-rec-size-note { margin-top: 4px; }
+.f01-limited-basis { padding: 12px 16px; margin-bottom: 10px; background: #fff8ec; box-shadow: none; }
+.f01-limited-basis p { margin: 4px 0 0; line-height: 1.55; }
+.f01-other-options { padding: 12px 16px; margin-bottom: 10px; font-size: 14px; }
+.f01-other-options summary { cursor: pointer; font-weight: 700; }
+.f01-other-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid #eee; }
+.f01-other-row .f01-match-badge { margin-left: 6px; }
+
+/* 下一階段建議 — last week vs next week */
+.d5-change-summary { margin: 4px 0 10px; line-height: 1.55; }
+.d5-compare-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px 10px; align-items: center; padding: 10px 0; border-top: 1px solid #eee; }
+.d5-compare-cell { display: grid; gap: 2px; min-width: 0; }
+.d5-compare-cell b { overflow-wrap: anywhere; }
+.d5-change-tag { grid-column: 1 / -1; font-size: 12px; color: var(--primary-dark); }
+.d5-compare-row.is-replaced .d5-change-tag { font-weight: 700; }
+.d5-decision-basis { margin: 6px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.55; }
+
+/* 下一階段建議 — actual arrangement + therapist review */
+.d5-arrangement-rows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.d5-arrangement-rows div { display: grid; gap: 2px; }
+.d5-pending-chip { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; background: #fff3dc; color: #8a5b20; font-size: 12px; font-weight: 700; }
+.d5-reviewed { padding: 12px 16px; margin-bottom: 10px; background: #eef5e9; box-shadow: none; }
+.d5-review-card { display: grid; gap: 6px; }
+.d5-review-row-edit { padding: 8px 0; border-top: 1px solid #eee; }
+.d5-review-form { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ccc; }
+
+/* 本機隔離展示 bar (dev server + ?localDemo=d5 only) */
+/* 5xSTS 測試條件表單 (fa5x-camera-prep): each option is one full-width tappable row — radio and text on
+   the same line. Scoped to this form only; the global `input { width:100%; padding:11px }` rule had made
+   each radio full-width and centred, pushing its text to the next line. Markup / names / values unchanged. */
+.fa5x-cond-form { margin-top: 8px; }
+.fa5x-cond-form summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.fa5x-cond-form .fa5x-cond-q { border: 0; margin: 12px 0 0; padding: 0; min-width: 0; }
+.fa5x-cond-form .fa5x-cond-q legend { padding: 0; margin: 0 0 6px; font-size: 14px; font-weight: 600; line-height: 1.45; white-space: normal; }
+.fa5x-cond-form .fa5x-cond-option { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; min-height: 44px; margin: 6px 0 0; padding: 8px 12px; border: 1px solid #dfe5da; border-radius: 10px; background: #fff; font-size: 15px; line-height: 1.4; cursor: pointer; }
+.fa5x-cond-form .fa5x-cond-option input[type="radio"] { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; padding: 0; border: 0; accent-color: #5f8d49; cursor: pointer; }
+.fa5x-cond-form .fa5x-cond-option:has(input:checked) { border-color: #5f8d49; background: #eef5e8; }
+.fa5x-cond-form label.fa5x-cond-q { display: flex; flex-direction: column; gap: 6px; }
+.fa5x-cond-form label.fa5x-cond-q input[type="number"] { width: 100%; box-sizing: border-box; }
+.fa5x-cond-form > .btn { margin-top: 14px; }
+
+/* local browser verification (dev + ?emulator=1 only): page content starts below the 本機測試資料 banner */
+body.emulator-mode { padding-top: var(--emulator-banner-h, 24px); }
+body.emulator-mode .phone { height: calc(100dvh - var(--emulator-banner-h, 24px)); }
+body.local-demo { padding-top: var(--local-demo-bar-h, 104px); }
+body.local-demo .phone { height: calc(100dvh - var(--local-demo-bar-h, 104px)); }
+#local-demo-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 6px 10px; background: #fff3dc; border-bottom: 2px solid #c98a1e; font-size: 12px; line-height: 1.35; color: #5a3a06; }
+#local-demo-bar span { flex: 1 1 100%; }
+#local-demo-bar button { padding: 2px 8px; border: 1px solid #c98a1e; border-radius: 6px; background: #fff; color: #5a3a06; font-size: 12px; cursor: pointer; }
+#local-demo-bar button.active { background: #c98a1e; color: #fff; }
+
+/* 展示合成資料 / 模擬確認 labels (js/ui/demoSyntheticLabel.js) */
+.demo-synthetic-badge {
+  display: inline-block;
+  margin: 0 4px;
+  padding: 1px 7px;
+  border: 1px dashed #b26a00;
+  border-radius: 999px;
+  background: #fff6e5;
+  color: #8a4b00;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.demo-synthetic-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0;
+}
+.demo-synthetic-note .demo-synthetic-badge { margin-left: 0; }
+
+/* 本週採用安排 (js/ui/weekArrangementView.js) */
+.week-arrangement .week-arr-step {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eee;
+}
+.week-arrangement .week-arr-items {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.week-arrangement .week-arr-items li { font-size: 13px; line-height: 1.6; }

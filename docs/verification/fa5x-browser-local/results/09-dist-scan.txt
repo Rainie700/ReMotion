@@ -1,0 +1,6 @@
+# built bundle scan: dist/assets/index-BpL_mD9Q.js
+emulator mode constant: var Oie=!1,lh=()=>Oie;`${ch}`
+connectAuthEmulator: 0
+connectFirestoreEmulator: 1
+demo-local-emulator-key: 0
+remotion-2026: 1

@@ -1,0 +1,1 @@
+5xSTS measurement compatibility tests passed

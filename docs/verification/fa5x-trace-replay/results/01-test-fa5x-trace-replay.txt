@@ -1,0 +1,2 @@
+5xSTS trace replay tests passed
+exit=0

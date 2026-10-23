@@ -1,0 +1,9 @@
+$ node docs/verification/fa5x-trace-replay/e2e/generateTraces.mjs docs/verification/fa5x-trace-replay/results/e2e-traces
+wrote traces + comparison to C:\Users\User\Downloads\ReMotion-main (4)\ReMotion-main\docs\verification\fa5x-trace-replay\results\e2e-traces
+completed: completed/- reps=5 total=11748 | identical result=true snapshots=true traced=299/299
+tracking_lost_invalid: invalid/tracking_lost reps=1 total=null | identical result=true snapshots=true traced=214/214
+start_not_seated_invalid: invalid/start_position_not_seated reps=0 total=null | identical result=true snapshots=true traced=160/160
+frame_changed_invalid: invalid/frame_changed reps=1 total=null | identical result=true snapshots=true traced=184/184
+timeout_incomplete: incomplete/timeout reps=0 total=null | identical result=true snapshots=true traced=1075/1075
+user_cancelled: incomplete/user_cancelled reps=1 total=null | identical result=true snapshots=true traced=185/185
+exit=0

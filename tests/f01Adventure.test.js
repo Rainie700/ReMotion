@@ -1,6 +1,7 @@
 process.env.TZ = "Asia/Taipei";
 
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -38,7 +39,7 @@ const fnBody = (name) => {
 function fiveXSts(user, { status = "completed", ms = 9000, at = [2026, 8, 28, 9, 0], role = null } = {}) {
   const s = functionalAssessmentService.create({ patientId: user, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
   const done = status === "completed";
-  functionalAssessmentService.completeSession(s.id, { result: { status, repCount: done ? 5 : 2, completedReps: done ? 5 : 2, totalDurationMs: done ? ms : null, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
+  functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status, repCount: done ? 5 : 2, completedReps: done ? 5 : 2, totalDurationMs: done ? ms : null, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
   return functionalAssessmentService.getById(s.id);
 }
 function startCycle(user) {

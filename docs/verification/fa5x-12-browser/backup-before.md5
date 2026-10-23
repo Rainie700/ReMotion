@@ -1,0 +1,6 @@
+f34dbf207e5cb7f0a165ce593eab1f2a *./app.js
+347117c83a7a8060a679024cc7da2f2d *./docs/verification/fa5x-browser-local/browser/phase1-emulator-flows.mjs
+fed34d73788a51f16bf81d272dc6bef6 *./docs/verification/fa5x-result-wording/browser/phase2-result-wording.mjs
+98b64c402f92253a2066a475413d8085 *./js/data/fa5xMeasurementCompatibility.js
+9803009a61f9f79294671b3585e751f4 *./package.json
+b28c364da0202a5c8d850273bf3263bb *./tests/fa5xMeasurementCompatibility.test.js

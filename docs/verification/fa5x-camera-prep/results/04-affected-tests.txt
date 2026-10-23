@@ -1,0 +1,30 @@
+=== test:home-redesign exit=1
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+=== test:result-states exit=0
+Result state UI tests passed
+=== test:fa5x exit=0
+                          select files by diff type
+    --output <file>       output to a specific file
+
+5xSTS Assessment Mode (Phase B + UX refinement) tests passed
+=== test:fa5x-compat exit=0
+5xSTS measurement compatibility tests passed
+=== test:fa5x-gap-reset exit=0
+5xSTS gap-reset (fa5x-assessment-1.2) tests passed
+=== test:fa5x-version-notice exit=0
+5xSTS version notice (fa5x-12-browser) tests passed
+=== test:fa5x-frame-trace exit=0
+5xSTS dev frame trace tests passed
+=== test:fa5x-trace-replay exit=0
+5xSTS trace replay tests passed
+=== test:fa5x-condition-report exit=0
+5xSTS batch A condition-report tests passed
+=== test:fa5x-blocked-result-checks exit=0
+5xSTS result-page checks blocked in homeResultRedesign re-run: passed
+=== test:emulator-mode exit=0
+emulator mode guard tests passed
+=== test:training-tab-layout exit=0
+Training Tab re-layout tests passed

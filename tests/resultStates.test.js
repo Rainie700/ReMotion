@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { FA5X_CURRENT_MEASUREMENT_FIELDS as FA5X_M } from "../js/data/fa5xMeasurementCompatibility.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -25,6 +26,10 @@ const { recommendationService, D5_PROPOSAL_ORIGIN } = await import("../js/data/r
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation, F01_LIMITATIONS, MATCH_LEVEL } = await import("../js/data/f01GoalRecommendation.js");
 const { F01_GOALS } = await import("../js/data/f01RecommendationSpec.js");
+const RV = await import("../js/ui/f01RecommendationView.js");
+const D5V = await import("../js/ui/d5ProposalView.js");
+const { getD5Arrangement } = await import("../js/data/d5TherapistReviewService.js");
+const { relationService } = await import("../js/data/relationService.js");
 const { describeTimeDifference } = await import("../js/data/trackingComparison.js");
 
 function fnSource(name) {
@@ -39,7 +44,11 @@ const constSource = (name) => {
   assert.ok(start >= 0, `${name} exists`);
   return appJs.slice(start, appJs.indexOf(";\n", start) + 1);
 };
-const build = (deps, sources, names) => new Function(...Object.keys(deps), `${sources.join("\n")}\nreturn { ${names.join(", ")} };`)(...Object.values(deps));
+const DEMOL = await import("../js/ui/demoSyntheticLabel.js");
+const CR = await import("../js/data/fa5xConditionReport.js"); // 5xSTS batch A
+const B2 = await import("../js/data/f01DailyTargets.js"); // F01 batch 2: real helpers used by the rebuilt app functions
+const withB2 = (deps) => ({ F01_FORMAL_COMPLETION_RULES_VERSION: B2.F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays: B2.displayCompletedTrainingDays, ...deps });
+const build = (deps, sources, names) => new Function(...Object.keys(withB2(deps)), `${[fnSource("fmtF01TrainingDays"), ...sources].join("\n")}\nreturn { ${names.join(", ")} };`)(...Object.values(withB2(deps)));
 const catalog = exerciseService.listNormalized();
 const U = "state-user";
 const state = {};
@@ -50,8 +59,10 @@ const resultApi = build(
     state, getCurrentPatientId: () => U, functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES, trackingCycleService,
     REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE, FA5X_RESULT_STATUS: C.FA5X_RESULT_STATUS, FA5X_END_REASON: C.FA5X_END_REASON,
     FA5X_TARGET_REPS: C.FA5X_TARGET_REPS, formatDateKeyMonthDay: T.formatDateKeyMonthDay, fa5xResultBackAction: () => "goF01LowerLimbHome()",
+    // 5xSTS batch A: the real condition-report helpers used by the result page (no stubs)
+    describeFa5xConditions: CR.describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT: CR.FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL: CR.FA5X_CONDITION_LABEL,
   },
-  [fnSource("getFa5xResultStatus"), constSource("FA5X_END_REASON_TEXT"), fnSource("fa5xResultPresentation"), fnSource("fmtFa5xDate"), fnSource("fiveTimesSitToStandResultPage")],
+  [fnSource("getFa5xResultStatus"), constSource("FA5X_END_REASON_TEXT"), fnSource("fa5xResultPresentation"), fnSource("fmtFa5xDate"), fnSource("renderFa5xConditionSection"), fnSource("fiveTimesSitToStandResultPage")],
   ["fiveTimesSitToStandResultPage", "fa5xResultPresentation"],
 );
 function session(result) {
@@ -115,15 +126,15 @@ const d5Api = build(
   {
     state, getCurrentPatientId: () => U, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS,
     D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE,
-    describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey,
+    describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService,
   },
-  [constSource("D5_ERROR_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage")],
+  [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderInviteCodeCard")],
   ["d5ProposalPage", "d5ProposalPresentation"],
 );
 function completedCycle(user, goal = "G05", minutes = 15, limitationIds = []) {
   const mk = (ms, at, role = null) => {
     const s = functionalAssessmentService.create({ patientId: user, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
-    functionalAssessmentService.completeSession(s.id, { result: { status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
+    functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: ms, measuredAt: new Date(...at).toISOString(), ...(role || {}) } });
     return functionalAssessmentService.getById(s.id);
   };
   const b = mk(12000, [2026, 8, 28, 9, 0]);
@@ -164,8 +175,8 @@ const renderD5 = (proposal) => { state.d5ProposalId = proposal.id; return d5Api.
   const cycle = completedCycle(u2);
   const p = trackingCycleService.evaluateD5Proposal({ cycleId: cycle.id, userId: u2, input: { hasNewOrWorseningDiscomfort: false, discomfortNote: null, currentLimitations: [] }, catalog }).proposal;
   const html = new Function("s", "u", "api", "s.d5ProposalId = u; return api.d5ProposalPage();")(state, p.id, build(
-    { state, getCurrentPatientId: () => u2, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE, describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey },
-    [constSource("D5_ERROR_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage")],
+    { state, getCurrentPatientId: () => u2, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE, describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService },
+    [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderInviteCodeCard")],
     ["d5ProposalPage"]));
   assert.ok(html.includes("result-state--completed") && !html.includes("result-state--review"));
   assert.ok(/confirmD5ProposalFromUi\('[^']+'\)">(接受並開始下一週|接受這份建議)<\/button>/.test(html), "normal proposal keeps its accept action");
@@ -187,7 +198,8 @@ const renderD5 = (proposal) => { state.d5ProposalId = proposal.id; return d5Api.
 {
   const MAP = { "F01-17": "/images/exercise/exercise_double_calf_raise.png", "F01-18": "/images/exercise/exercise_double_toe_raise.png" };
   const recApi = build(
-    { state, getCurrentPatientId: () => U, recommendationService, exerciseService, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, formatDateKeyMonthDay: T.formatDateKeyMonthDay, EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img src="${MAP[ex.id]}" alt="${ex.name}">` },
+    { state, getCurrentPatientId: () => U, recommendationService, exerciseService, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, formatDateKeyMonthDay: T.formatDateKeyMonthDay, EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img src="${MAP[ex.id]}" alt="${ex.name}">`,
+      trackingCycleService, functionalAssessmentService, ...RV, ...D5V },
     [constSource("F01_MATCH_LEVEL_TEXT"), constSource("F01_DEMO_IMAGE_PENDING"), fnSource("renderF01RecommendationImage"), fnSource("f01RecommendationResultPage")],
     ["f01RecommendationResultPage"],
   );
@@ -198,7 +210,8 @@ const renderD5 = (proposal) => { state.d5ProposalId = proposal.id; return d5Api.
   const html = recApi.f01RecommendationResultPage();
   const hero = html.slice(html.indexOf('<div class="card f01-rec-hero">'), html.indexOf('<div class="card f01-basis-card">'));
   assert.ok(hero.includes('class="f01-rec-hero-illustration" src="/images/exercise/exercise_plan.png"'), "summary has an illustration");
-  assert.ok(hero.includes("已為你安排 2 個練習") && hero.includes("目標：加強足踝力量與控制"));
+  assert.ok(hero.includes("主要推薦 2 個動作，建議從「雙腳提踵」開始") && hero.includes("目標：加強足踝力量與控制"));
+  assert.ok(hero.includes("不是完整課表或處方") && !hero.includes("已為你安排"), "a top-N list is not presented as a complete prescription");
   assert.equal((html.match(/class="f01-basis-icon"/g) || []).length, 3, "basis rows carry icons");
   assert.ok(html.includes("15 分鐘（決定建議動作數量）"), "time still explained as exercise count");
   const whys = html.match(/<details class="f01-rec-why">[\s\S]*?<\/details>/g) || [];

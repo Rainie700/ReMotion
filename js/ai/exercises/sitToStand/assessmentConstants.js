@@ -14,8 +14,36 @@ import { POSE_LANDMARK_INDEX } from "../../squatConstants.js";
  * keeps its own LE05_THRESHOLDS; nothing here changes it.
  */
 
-export const FA5X_ALGORITHM_VERSION = "fa5x-assessment-1.0";
+/**
+ * 1.0 measured knee angle, trunk lean and shank length on raw per-axis
+ * normalized landmarks (x / width mixed with y / height). 1.1 measures them in
+ * isotropic image-height units (assessmentFeatures.js). Timing, flow and every
+ * threshold value are unchanged, so FA5X_THRESHOLD_VERSION stays; results
+ * stored as 1.0 are kept as they are and are not recomputed.
+ *
+ * 1.2 (docs/verification/fa5x-gap-reset/): a received untracked frame during the
+ * timed test clears a standing / seated confirmation that is not complete yet,
+ * so "N consecutive frames" can no longer be met by frames on both sides of a
+ * tracking gap, and a confirmation time is never back-filled to before the gap.
+ * Same thresholds (FA5X_THRESHOLD_VERSION unchanged), but counting / timing can
+ * differ from 1.1, so 1.1 and 1.2 are separate measurement groups
+ * (js/data/fa5xMeasurementCompatibility.js); stored 1.1 results are not rewritten.
+ */
+export const FA5X_ALGORITHM_VERSION = "fa5x-assessment-1.2";
 export const FA5X_THRESHOLD_VERSION = "fa5x-engineering-candidate-2026-09-28";
+
+/** Coordinate space of the geometric features (stored on results from 1.1 on). */
+export const FA5X_GEOMETRY_COORDINATE_SPACE = "isotropic_image_height_units";
+
+/**
+ * Two frame sizes count as the same shape when their aspect ratios differ by at
+ * most this fraction. Not a movement threshold: it only absorbs integer
+ * rounding of reported video sizes (e.g. 1280x720 vs 1920x1080 are equal). A
+ * rotation (landscape <-> portrait) or a different camera mode (4:3 <-> 16:9)
+ * is far outside it. An equal-aspect resolution change keeps every normalized
+ * coordinate the same, so it never invalidates the baseline.
+ */
+export const FA5X_FRAME_ASPECT_TOLERANCE = 0.01;
 
 /** Excel completion_rule / protocol: exactly five full sit-to-stand cycles. Spec-defined, not a threshold. */
 export const FA5X_TARGET_REPS = 5;
@@ -104,6 +132,8 @@ export const FA5X_END_REASON = Object.freeze({
   START_POSITION_NOT_SEATED: "start_position_not_seated",
   TIMEOUT: "timeout",
   USER_CANCELLED: "user_cancelled",
+  /** Video aspect ratio / orientation changed after the seated baseline: the baseline no longer describes the image. */
+  FRAME_CHANGED: "frame_changed",
 });
 
 /**
@@ -134,11 +164,14 @@ export const FA5X_PROMPTS = Object.freeze({
   TRACKING_WARNING: { text: "請保持全身入鏡", voice: "請保持全身入鏡" },
   COMPLETE: { text: "評估完成", voice: "評估完成" },
   INVALID: { text: "追蹤中斷，請重新評估", voice: "追蹤中斷，請重新評估" },
+  // Video aspect ratio / orientation changed (e.g. the phone was rotated)
+  FRAME_CHANGED: { text: "畫面方向已改變，請重新調整拍攝位置", voice: "畫面方向已改變，請重新調整拍攝位置" },
+  FRAME_CHANGED_INVALID: { text: "畫面方向已改變，本次量測無效，請重新評估", voice: "畫面方向已改變，請重新評估" },
   INCOMPLETE: { text: "評估未完成", voice: "評估未完成" },
 });
 
 /** Prompts that must always be spoken on time (bypass cooldown, interrupt other speech). */
-export const FA5X_PRIORITY_PROMPTS = Object.freeze(["POSITION_OK", "READY", "COUNT_3", "COUNT_2", "COUNT_1", "START", "COMPLETE", "INVALID", "INCOMPLETE"]);
+export const FA5X_PRIORITY_PROMPTS = Object.freeze(["POSITION_OK", "READY", "COUNT_3", "COUNT_2", "COUNT_1", "START", "COMPLETE", "INVALID", "INCOMPLETE", "FRAME_CHANGED", "FRAME_CHANGED_INVALID"]);
 
 /** Voice guard: the same non-priority prompt is not repeated within this window. UX parameter. */
 export const FA5X_VOICE_COOLDOWN_MS = 4000;

@@ -1,0 +1,21 @@
+S1_stand_2_gap_1: SAME (except version)
+  before {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+  after  {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+S2_seat_2_gap_1: SAME (except version)
+  before {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+  after  {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+S3_repeated_short_gaps: CHANGED
+  before {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+  after  {"final":"running/seated/reps=0","start":8656,"base":0.6,"result":null,"rej":"not_fully_standing"}
+S4_gap_over_limit: SAME (except version)
+  before {"final":"finished/rising/reps=0","start":8656,"base":0.6,"result":{"s":"invalid","reps":0,"total":null,"inv":"tracking_lost","rej":[],"ver":"fa5x-assessment-1.1","times":[]},"rej":null}
+  after  {"final":"finished/rising/reps=0","start":8656,"base":0.6,"result":{"s":"invalid","reps":0,"total":null,"inv":"tracking_lost","rej":[],"ver":"fa5x-assessment-1.2","times":[]},"rej":null}
+S5_no_gap_five_reps: SAME (except version)
+  before {"final":"finished/seated/reps=5","start":8656,"base":0.6,"result":{"s":"completed","reps":5,"total":7326,"inv":null,"rej":[],"ver":"fa5x-assessment-1.1","times":[[2574,3102],[3630,4158],[4686,5214],[5742,6270],[6798,7326]]},"rej":null}
+  after  {"final":"finished/seated/reps=5","start":8656,"base":0.6,"result":{"s":"completed","reps":5,"total":7326,"inv":null,"rej":[],"ver":"fa5x-assessment-1.2","times":[[2574,3102],[3630,4158],[4686,5214],[5742,6270],[6798,7326]]},"rej":null}
+S6_gap_in_fifth_seat: CHANGED
+  before {"final":"finished/seated/reps=5","start":8656,"base":0.6,"result":{"s":"completed","reps":5,"total":7326,"inv":null,"rej":[],"ver":"fa5x-assessment-1.1","times":[[2574,3102],[3630,4158],[4686,5214],[5742,6270],[6798,7326]]},"rej":null}
+  after  {"final":"finished/seated/reps=5","start":8656,"base":0.6,"result":{"s":"completed","reps":5,"total":7524,"inv":null,"rej":[],"ver":"fa5x-assessment-1.2","times":[[2574,3102],[3630,4158],[4686,5214],[5742,6270],[6798,7524]]},"rej":null}
+S7_gap_before_confirm: SAME (except version)
+  before {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}
+  after  {"final":"running/seated/reps=1","start":8656,"base":0.6,"result":null,"rej":null}

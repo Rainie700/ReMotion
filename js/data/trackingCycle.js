@@ -122,7 +122,8 @@ export function buildTrackingCardModel(viewState, { baselineText = null, reasses
   const dots = (filled) => Array.from({ length: TRACKING_CYCLE_LENGTH_DAYS }, (_, i) => i < filled);
   // Phase D3 — completed training DAYS (unique completedTrainingDates) are a
   // separate number from the calendar day / dots; never shown as "N / 7" or %.
-  const doneDaysFact = (label) => ({ label, value: `${completedDays} 天` });
+  // F01 batch 2 — unknown completed days (measurement pending) read 「待確認」, never 0.
+  const doneDaysFact = (label) => ({ label, value: Number.isInteger(completedDays) ? `${completedDays} 天` : "待確認" });
   if (status === TRACKING_STATUS.NONE) {
     return {
       kind: status,

@@ -219,7 +219,7 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
 
 // ── 13. app.js wiring ────────────────────────────────────────────────────
 {
-  const entry = appJs.slice(appJs.indexOf("function startRecommendationFromFiveTimesSitToStand("), appJs.indexOf("function startRecommendationFromFiveTimesSitToStand(") + 1600);
+  const entry = appJs.slice(appJs.indexOf("function startRecommendationFromFiveTimesSitToStand("), appJs.indexOf("function startRecommendationFromFiveTimesSitToStand(") + 2400);
   assert.ok(entry.includes('session.status !== "completed"') && entry.includes("getFa5xResultStatus(session.result) !== FA5X_RESULT_STATUS.COMPLETED"), "result-page gate kept");
   assert.ok(entry.includes("goF01RecommendationSetup(session.id)"), "completed 5xSTS -> goal setup");
   const gen = appJs.slice(appJs.indexOf("function generateF01RecommendationFromSetup("), appJs.indexOf("function goF01RecommendationResult("));

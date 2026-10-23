@@ -1,0 +1,18 @@
+== trackingCycle
+ before: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value: @ tests/trackingCycle.test.js:214
+ after : AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value: @ tests/trackingCycle.test.js:214
+== flowDataQa
+ before: AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog @ tests/flowDataQa.test.js:204
+ after : AssertionError [ERR_ASSERTION]: F01-05 is still in the asset backlog @ tests/flowDataQa.test.js:204
+== homeResultRedesign
+ before: ReferenceError: weekSyntheticNote is not defined @ tests/homeResultRedesign.test.js:49
+ after : ReferenceError: weekSyntheticNote is not defined @ tests/homeResultRedesign.test.js:49
+== exerciseExperience
+ before: AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder @ tests/exerciseExperience.test.js:41
+ after : AssertionError [ERR_ASSERTION]: F01-17: unconfirmed photo -> placeholder @ tests/exerciseExperience.test.js:41
+== selfPracticeLibrary
+ before: AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder @ tests/selfPracticeLibrary.test.js:163
+ after : AssertionError [ERR_ASSERTION]: F01-17 (needs_review) -> explicit placeholder @ tests/selfPracticeLibrary.test.js:163
+== llmWeeklySummary
+ before: AssertionError [ERR_ASSERTION]: no .env.local @ tests/llmWeeklySummary.test.js:187
+ after : AssertionError [ERR_ASSERTION]: no .env.local @ tests/llmWeeklySummary.test.js:187

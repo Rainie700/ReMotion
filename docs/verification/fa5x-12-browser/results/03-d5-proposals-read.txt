@@ -1,0 +1,2 @@
+A: assessmentValid=true changeMs=-500 decision=no_auto_decision decisionRuleId=R006 trainingState=none completedTrainingDays=0 changeClass=within_reference_mdc
+B: assessmentValid=false changeMs=null decision=no_auto_decision decisionRuleId=R001 trainingState=none completedTrainingDays=0 changeClass=unclassified
