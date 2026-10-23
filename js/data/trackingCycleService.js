@@ -712,6 +712,10 @@ export const trackingCycleService = {
       const viaReview = arrangement.status === "reviewed";
       const handoff = deriveNextCycleHandoff({ sourceCycle: ctx.cycle, reassessment: ctx.reassessment, confirmationDateKey });
       if (!handoff.confirmationDateKey) return { error: "missing_confirmation_date" };
+      // Manual continuation never certifies its old insufficient measurement.
+      if (viaReview && arrangement.requiresFreshBaseline) {
+        Object.assign(handoff, { baselineReuseAllowed: false, requiresFreshBaseline: true, baselineAssessmentId: null, baselineMeasuredAt: null, cycleStartDateKey: null, plannedReassessmentDateKey: null, freshBaselineReason: "manual_no_auto_arrangement" });
+      }
       // A reviewed arrangement: the patient's own write adopts the therapist's items exactly
       // (firestore.rules compare them, and the basis, with d5TherapistReviews/{proposalId}).
       const acceptedItems = viaReview ? JSON.parse(JSON.stringify(arrangement.review.items)) : proposal.items;
@@ -732,6 +736,7 @@ export const trackingCycleService = {
             planFingerprint: planFingerprint({ ...proposal, items: acceptedItems }),
             therapistReviewId: viaReview ? arrangement.review.id : null,
             therapistReviewedAt: viaReview ? arrangement.review.reviewedAt : null,
+            ...(viaReview && arrangement.requiresFreshBaseline ? { arrangementSource: "therapist_manual_no_auto" } : {}),
             ...(completionRulesVersion ? { completionRulesVersion } : {}),
           },
         },
@@ -785,10 +790,15 @@ export const trackingCycleService = {
     }
     if (!baselineSession || baselineSession.patientId !== userId) return { error: "baseline_not_owned" };
     if (!isUsableNextCycleBaseline(baselineSession)) return { error: "baseline_not_completed" };
+    if (proposal.d5.decision === "no_auto_decision" || proposal.d5.selectionRuleId === "NC-N01") {
+      const r = baselineSession.result || {};
+      if ((r.completedReps ?? r.repCount) !== 5 || (r.repCount ?? r.completedReps) !== 5 || !Number.isFinite(r.totalDurationMs) || r.totalDurationMs <= 0) return { error: "baseline_not_completed" };
+    }
     if (!isCurrentFa5xMeasurement(baselineSession.result)) return { error: "baseline_measurement_outdated" };
 
     let baselineSource;
     if (baselineSession.id === ctx.cycle.reassessmentId) {
+      if (proposal.d5.decision === "no_auto_decision" || proposal.d5.selectionRuleId === "NC-N01") return { error: "baseline_reuse_not_allowed" };
       if (!confirmation.handoff || !confirmation.handoff.baselineReuseAllowed) return { error: "baseline_reuse_not_allowed" };
       baselineSource = "reassessment_reuse";
     } else {

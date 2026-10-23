@@ -16120,7 +16120,7 @@ const D5_ARRANGEMENT_STATUS_TEXT = {
   reviewed: "復健師已確認，可以接受",
   ready: "可以接受",
   accepted: "已接受",
-  no_auto: "不安排下一週",
+  no_auto: "待復健師另行安排",
   draft_pending: "推薦草稿產生中",
 };
 const d5ErrorText = (code) => D5_ERROR_TEXT[code] || "目前無法完成這個步驟，請回首頁查看追蹤狀態。";
@@ -16279,7 +16279,7 @@ function d5ProposalPage() {
   const handoff = accepted && d5.confirmation ? d5.confirmation.handoff : null;
   const nextCycle = ctx.nextCycle;
   const engineReady = d5.nextCycleReady === true && d5.confirmationMode === CONFIRMATION_MODE.USER_ACCEPTANCE;
-  const readyForAcceptance = !accepted && !noAuto && (arrangement.status === "reviewed" || (engineReady && arrangement.status === "ready"));
+  const readyForAcceptance = !accepted && (arrangement.status === "reviewed" || (!noAuto && engineReady && arrangement.status === "ready"));
   const goal = F01_GOALS.find((g) => g.goalId === d5.selectedGoalId);
   const listHtml = (ids) => `<ol class="d5-ex-list">${ids.map((id) => `<li>${d5ExerciseName(id)}</li>`).join("")}</ol>`;
   const newLimitLabels = d5.newLimitations.map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
@@ -16310,7 +16310,7 @@ function d5ProposalPage() {
     </div>`;
   // C–E. last week -> next week, position by position, with each exercise's catalog amount.
   // Only for a proposal the user can act on; otherwise the current training is shown for reference.
-  const showProposed = !noAuto && arrangement.status !== "needs_review";
+  const showProposed = (!noAuto || reviewed) && arrangement.status !== "needs_review";
   const volumeText = (id, item) => formatPlanVolume(describePlanVolume(exerciseService.getById(id), item && item.dose));
   const weeks = compareD5Weeks(d5, { nameOf: d5ExerciseName, volumeOf: volumeText, afterItems: reviewed ? arrangement.planItems : null });
   const CHANGE_LABEL = { kept: "保留", replaced: "更換", removed: "移除", added: "新增", dose_changed: "保留（復健師設定訓練量）" };
@@ -16404,7 +16404,7 @@ function d5ProposalPage() {
       ${rv.basedOnLlmDraftId
         // reviewed on an LLM draft: report what the therapist changed relative to THAT draft
         ? ((rv.changesFromLlmDraft || []).length ? `<p class="small">相對 LLM 草稿的修改：</p><ul class="d5-decision-basis">${rv.changesFromLlmDraft.map((c) => `<li>${describeChange(c)}</li>`).join("")}</ul>` : `<p class="small">復健師確認 LLM 草稿的安排，沒有修改草稿內容。</p>`)
-        : (rv.changes.length ? `<ul class="d5-decision-basis">${rv.changes.map((c) => `<li>${describeChange(c)}</li>`).join("")}</ul>` : `<p class="small">復健師確認沿用規則產生的安排，沒有修改內容。</p>`)}
+        : (rv.changes.length ? `<ul class="d5-decision-basis">${rv.changes.map((c) => `<li>${describeChange(c)}</li>`).join("")}</ul>` : `<p class="small">${noAuto ? "復健師另行確認沿用上一週的動作；這不是系統自動判定的下一週安排。" : "復健師確認沿用規則產生的安排，沒有修改內容。"}</p>`)}
     </div>` : "";
 
   // Actions by state
@@ -16415,15 +16415,22 @@ function d5ProposalPage() {
     actionsHtml = `<div class="card d5-done"><b>已建立下一個 7 日追蹤</b><p class="small">第 1 天：${formatDateKeyMonthDay(nextCycle.cycleStartDateKey)}；預計再次評估：${formatDateKeyMonthDay(nextCycle.plannedReassessmentDateKey)}</p></div>
       <button class="btn btn-primary full cmp-home-cta" onclick="goTrackingWeekTraining('${nextCycle.id}')">查看本週訓練 →</button>${homeBtn}`;
   } else if (accepted && handoff && handoff.requiresFreshBaseline) {
-    actionsHtml = `<div class="card d5-done"><b>已接受這份建議</b><p class="small">確認日與再次評估不是同一天，需要先完成一次新的五次坐站，作為下一週期的第 1 天。</p></div>
+    actionsHtml = `<div class="card d5-done"><b>已接受這份建議</b><p class="small">${handoff.freshBaselineReason === "manual_no_auto_arrangement" ? "這份安排由復健師另行確認，系統原本未自動判定。請先完成一次新的有效五次坐站作為基準，才會開始下一週；原本資料不足的紀錄仍保留。" : "需要先完成一次新的五次坐站，作為下一週期的第 1 天。"}</p></div>
       <button class="btn btn-primary full cmp-home-cta" onclick="goNextCycleBaselineAssessment('${proposal.id}')">開始下一週期基準評估 →</button>${homeBtn}`;
   } else if (arrangement.status === "draft_pending") {
     actionsHtml = `<div class="card d5-done"><b>推薦草稿產生中</b><p class="small">完成後會顯示在這裡；若模型無法完成，會改用規則結果（規則備用）。</p></div>${homeBtn}`;
-  } else if (noAuto) {
-    actionsHtml = `${homeBtn}<button class="btn btn-light full cmp-home-cta" onclick="switchTab('home')">稍後確認</button>${editBtn}`;
+  } else if (noAuto && !readyForAcceptance) {
+    const hasTherapist = relationService.findAcceptedByPatientId(getCurrentPatientId()).length > 0;
+    actionsHtml = `<div class="card d5-review-report"><b class="fa5x-section-title">下一步｜復健師另行安排</b>
+      <p class="small">${hasTherapist ? "等待你的復健師在個案總覽檢視並另行安排下一週。系統不會另外通知復健師，可以主動告知對方；確認後重新登入查看，再由你決定是否接受。" : "目前沒有連結的復健師，可用對方提供的邀請碼加入個案名單，請對方檢視並另行安排。也可重新進行五次坐站，查看新的評估結果；重新測試不保證可以自動安排。"}</p>
+      <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${escapeD5Text(r.text)}</li>`).join("")}</ul>
+      ${arrangement.staleReview ? `<p class="small">先前審閱已過期，需要復健師依目前內容重新確認。</p>` : ""}
+      <p class="small">接受另行安排後，仍須完成新的有效基準評估，才會開始下一週。</p></div>
+      ${hasTherapist ? "" : `${renderInviteCodeCard()}<button class="btn btn-light full" onclick="goFiveTimesSitToStandAssessment()">重新進行五次坐站評估</button>`}
+      ${homeBtn}${editBtn}`;
   } else if (readyForAcceptance) {
-    const sameDay = measuredDateKeyOf(ctx.reassessment) === toLocalDateKey(new Date());
-    actionsHtml = `<p class="small fa5x-muted d5-accept-note">${reviewed ? "接受代表採用復健師確認後的安排作為下一週訓練配置。" : "接受代表採用 ReMotion 系統建議作為下一週訓練配置，不代表診斷、處方或物理治療師的正式建議。"}${sameDay ? "" : "今天不是再次評估的同一天，接受後需要先完成一次新的五次坐站，才會開始下一週。"}</p>
+    const sameDay = !arrangement.requiresFreshBaseline && measuredDateKeyOf(ctx.reassessment) === toLocalDateKey(new Date());
+    actionsHtml = `<p class="small fa5x-muted d5-accept-note">${reviewed ? "接受代表採用復健師確認後的安排作為下一週訓練配置。" : "接受代表採用 ReMotion 系統建議作為下一週訓練配置，不代表診斷、處方或物理治療師的正式建議。"}${arrangement.requiresFreshBaseline ? "系統仍未自動判定；接受後需要先完成一次新的有效五次坐站，才會開始下一週。" : sameDay ? "" : "今天不是再次評估的同一天，接受後需要先完成一次新的五次坐站，才會開始下一週。"}</p>
       <button class="btn btn-primary full cmp-home-cta" onclick="confirmD5ProposalFromUi('${proposal.id}')">${sameDay ? "接受並開始下一週" : "接受這份建議"}</button>
       ${editBtn}<button class="btn btn-light full cmp-home-cta" onclick="switchTab('home')">稍後確認</button>`;
   } else {

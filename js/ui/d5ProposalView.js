@@ -109,6 +109,7 @@ const DRAFT_FAILURE_TEXT = { model_timeout: "模型逾時", model_error: "模型
 /** One line: LLM draft / draft pending / 規則備用 (with why) / rule only. */
 export function describeDecisionSource(arrangement) {
   const a = arrangement || {};
+  if (a.review && a.requiresFreshBaseline) return "復健師另行安排；系統未自動判定";
   const attempt = a.draftAttempt;
   if (a.decisionSource === "llm_draft" && a.draft) {
     const d = a.draft;

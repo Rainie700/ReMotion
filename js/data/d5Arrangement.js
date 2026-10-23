@@ -124,11 +124,13 @@ export function resolveD5Arrangement(proposal, { review = null, isReviewerLinked
   const limits = d5.currentLimitations || [];
   const ruleLabel = DECISION_LABEL[d5.matrixDecision] || DECISION_LABEL[d5.decision] || "—";
   let actualLabel = DECISION_LABEL[d5.decision] || "—";
+  const manualNoAuto = d5.selectionRuleId === "NC-N01" || d5.decision === "no_auto_decision";
+  const manualLabel = "復健師另行安排（資料不足，未自動判定）";
   if (d5.selectionRuleId === "NC-P01" && d5.selectionFallback === "no_confirmed_progression") actualLabel = "維持（沒有套用進階）";
 
   if (proposal && proposal.status === "accepted") {
     const viaReview = !!(d5.confirmation && d5.confirmation.therapistReviewId);
-    return withSource({ status: "accepted", ruleLabel, actualLabel: viaReview ? "復健師確認後的安排" : actualLabel, reasons: [], conflicts: [], review: viaReview ? review : null, staleReview: false, planItems: items });
+    return withSource({ status: "accepted", ruleLabel, actualLabel: viaReview ? (manualNoAuto ? manualLabel : "復健師確認後的安排") : actualLabel, reasons: [], conflicts: [], review: viaReview ? review : null, staleReview: false, planItems: items, requiresFreshBaseline: viaReview && manualNoAuto });
   }
 
   const valid = isReviewValidFor(proposal, review, isReviewerLinked);
@@ -136,7 +138,15 @@ export function resolveD5Arrangement(proposal, { review = null, isReviewerLinked
   const conflicts = findPlanConflicts(items.map((it) => it.exerciseId), limits);
   const base = { conflicts, review: valid && !reviewConflicts.length ? review : null, staleReview: !!review && !valid, planItems: items };
 
-  if (d5.selectionRuleId === "NC-N01" || d5.decision === "no_auto_decision") return withSource({ ...base, status: "no_auto", ruleLabel, actualLabel: "不安排下一週", reasons: [] });
+  if (manualNoAuto) {
+    const reasons = [{ code: "manual_arrangement_required", text: "系統資料不足，未自動判定；可由有照護關係的復健師另行安排，規則結果保持不變。" }];
+    if (base.review) {
+      const gap = countingGap(review.items);
+      if (gap.length) return withSource({ ...base, review: null, status: "no_auto", ruleLabel, actualLabel: "等待復健師另行安排", reasons: [...reasons, countingReason(gap)] });
+      return withSource({ ...base, status: "reviewed", ruleLabel, actualLabel: manualLabel, reasons, planItems: review.items, requiresFreshBaseline: true });
+    }
+    return withSource({ ...base, status: "no_auto", ruleLabel, actualLabel: "等待復健師另行安排", reasons });
+  }
 
   const reasons = [];
   if (d5.confirmationMode === "professional_review_required") {

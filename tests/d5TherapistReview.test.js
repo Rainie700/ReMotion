@@ -302,4 +302,60 @@ assert.equal(RV.displayConditionText({ ruleId: "R03", text: "動作注意事項�
 assert.equal(RV.displayConditionText({ ruleId: "NC-G04", text: "通過目前的限制條件篩選" }), "未命中現有的排除規則（注意事項沒有提到勾選的情況）");
 assert.ok(!/安全|適合/.test(RV.displayConditionText({ ruleId: "R03" })));
 
-console.log("d5TherapistReview: all assertions passed");
+// B3: R006/R009 are generated; R001/R002 also exercise defensive stored-record handling.
+for (const rule of ["R001", "R002", "R006", "R009"]) {
+  const u = `b3-${rule}`;
+  const { cycle, re } = completedCycle(u, { goal: "G04", reMs: rule === "R009" ? 16000 : 11000 });
+  let p = evaluate(u, cycle.id);
+  if (["R001", "R002"].includes(rule)) {
+    // Defensive fixture only, not a claim that R002 is reachable with valid subtraction.
+    p = recs.update(p.id, { d5: { ...p.d5, decisionRuleId: rule } });
+  }
+  assert.equal(p.d5.decisionRuleId, rule);
+  assert.equal(p.d5.decision, "no_auto_decision");
+  const originalD5 = JSON.stringify(p.d5);
+  assert.equal(R.getD5Arrangement(p).status, "no_auto");
+  assert.ok(R.listD5ReviewsForPatient({ therapistId: T1, patientId: u }).some((x) => x.proposal.id === p.id));
+  const waiting = patientPage(u, p.id);
+  assert.ok(waiting.includes("復健師另行安排") && !waiting.includes("confirmD5ProposalFromUi"));
+  assert.equal(accept(u, p.id).error, "not_confirmable");
+  const input = { proposalId: p.id, therapistId: T1, expectedFingerprint: A.planFingerprint(p), reason: "另行確認安排，仍需新基準", items: [{ exerciseId: "F01-10", sets: 2 }] };
+  assert.equal((await R.reviewD5Proposal({ ...input, therapistId: "outsider" }, { syncWrites: syncOk })).error, "not_authorized");
+  const reviewed = await R.reviewD5Proposal(input, { syncWrites: syncOk });
+  assert.ok(reviewed.review, JSON.stringify(reviewed));
+  const arr = R.getD5Arrangement(recs.getById(p.id));
+  assert.equal(arr.status, "reviewed");
+  assert.equal(arr.requiresFreshBaseline, true);
+  assert.ok(W.describeDecisionSource(arr).includes("未自動判定"));
+  assert.equal(JSON.stringify(recs.getById(p.id).d5), originalD5);
+  assert.equal(A.resolveD5Arrangement(p, { review: { ...reviewed.review, basePlanFingerprint: "stale" }, isReviewerLinked: () => true }).status, "no_auto");
+  relations.update(`rel-${u}`, { status: "completed" });
+  assert.equal(accept(u, p.id).error, "not_confirmable");
+  const invite = patientPage(u, p.id);
+  assert.ok(invite.includes("onInviteCodeQuery()") && invite.includes("goFiveTimesSitToStandAssessment()"));
+  relations.update(`rel-${u}`, { status: "accepted" });
+  const html = patientPage(u, p.id);
+  assert.ok(html.includes("confirmD5ProposalFromUi") && !html.includes(">接受並開始下一週</button>"));
+  const confirmation = accept(u, p.id);
+  assert.equal(confirmation.requiresFreshBaseline, true);
+  const accepted = recs.getById(p.id);
+  const { confirmation: savedConfirmation, ...unchanged } = accepted.d5;
+  assert.equal(JSON.stringify(unchanged), originalD5);
+  assert.equal(savedConfirmation.arrangementSource, "therapist_manual_no_auto");
+  assert.equal(savedConfirmation.handoff.baselineReuseAllowed, false);
+  assert.equal(savedConfirmation.handoff.requiresFreshBaseline, true);
+  assert.equal(trackingCycleService.createNextTrackingCycle({ userId: u, proposalId: p.id, baselineSession: re }).error, "baseline_reuse_not_allowed");
+  const b = functionalAssessmentService.create({ patientId: u, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
+  const result = { ...FA5X_M, status: "completed", repCount: 5, completedReps: 5, totalDurationMs: 11000, measuredAt: new Date(Date.parse(savedConfirmation.confirmedAt) + 60000).toISOString(), assessmentRole: "next_cycle_baseline", sourceCycleId: cycle.id, d5ProposalId: p.id };
+  const tryResult = (r) => trackingCycleService.createNextTrackingCycle({ userId: u, proposalId: p.id, baselineSession: { ...b, result: r } });
+  assert.equal(tryResult({ ...result, completedReps: 4, repCount: 4 }).error, "baseline_not_completed");
+  assert.equal(tryResult({ ...result, totalDurationMs: 0 }).error, "baseline_not_completed");
+  functionalAssessmentService.completeSession(b.id, { result });
+  const fresh = functionalAssessmentService.getById(b.id);
+  const next = trackingCycleService.createNextTrackingCycle({ userId: u, proposalId: p.id, baselineSession: fresh });
+  assert.ok(next.cycle, JSON.stringify(next));
+  assert.equal(next.created, true);
+  assert.equal(trackingCycleService.createNextTrackingCycle({ userId: u, proposalId: p.id, baselineSession: fresh }).cycle.id, next.cycle.id);
+}
+
+console.log("d5TherapistReview: all assertions passed (including B3 manual no-auto continuation)");

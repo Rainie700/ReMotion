@@ -72,7 +72,7 @@ export function listD5ReviewsForPatient({ therapistId, patientId, completionRule
       const loaded = trackingCycleService.loadD5Proposal({ proposalId: proposal.id, userId: patientId });
       return { proposal, loadError: loaded.error || null, ctx: loaded.ctx || null, arrangement: getD5Arrangement(proposal, { completionRulesVersion }) };
     })
-    .filter((x) => x.loadError || x.arrangement.status === "needs_review" || x.arrangement.status === "reviewed" || x.arrangement.staleReview)
+    .filter((x) => x.loadError || x.arrangement.status === "needs_review" || x.arrangement.status === "no_auto" || x.arrangement.status === "reviewed" || x.arrangement.staleReview)
     .sort((a, b) => String(b.proposal.createdAt).localeCompare(String(a.proposal.createdAt)));
 }
 
@@ -127,7 +127,7 @@ export async function reviewD5Proposal({ proposalId, therapistId, items, reason,
   if (proposal.status === "accepted" || loaded.ctx.nextCycle) return { error: "proposal_already_accepted" };
   if (!expectedFingerprint || expectedFingerprint !== planFingerprint(proposal)) return { error: "proposal_changed" };
   const before = getD5Arrangement(proposal, { completionRulesVersion });
-  if (!["needs_review", "reviewed"].includes(before.status)) return { error: "review_not_needed" };
+  if (!["needs_review", "no_auto", "reviewed"].includes(before.status)) return { error: "review_not_needed" };
   const text = typeof reason === "string" ? reason.trim().slice(0, 500) : "";
   if (!text) return { error: "review_reason_required" };
   const checked = validateD5ReviewItems(items, listD5ReviewOptions(proposal, catalog), { requireCountingBasis: !!completionRulesVersion });

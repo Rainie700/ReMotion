@@ -97,16 +97,37 @@ service cloud.firestore {
         && request.resource.data.items == resource.data.items
         && request.resource.data.d5.confirmation == resource.data.d5.confirmation;
     }
+    // Manual adoption must preserve the no-auto judgement and require a new baseline.
+    function isNoAutoPlan(data) {
+      return data.get('d5', null) is map
+        && (data.d5.get('decision', '') == 'no_auto_decision'
+          || data.d5.get('selectionRuleId', '') == 'NC-N01');
+    }
+    function manualNoAutoAcceptanceOk(data) {
+      return data.get('status', '') != 'accepted' || !isNoAutoPlan(data)
+        || (claimsReview(data)
+          && data.d5.confirmation.get('handoff', {}).get('baselineReuseAllowed', true) == false
+          && data.d5.confirmation.get('handoff', {}).get('requiresFreshBaseline', false) == true);
+    }
+    function keepsNoAutoJudgement() {
+      return !isNoAutoPlan(resource.data) || request.resource.data.get('status', '') != 'accepted'
+        || (request.resource.data.d5.decision == resource.data.d5.decision
+          && request.resource.data.d5.get('matrixDecision', '') == resource.data.d5.get('matrixDecision', '')
+          && request.resource.data.d5.decisionRuleId == resource.data.d5.decisionRuleId);
+    }
     match /recommendationResults/{id} {
       // Read stays open to signed-in users: these docs carry no therapistId / relationId,
       // so a linked therapist's read cannot be scoped here (see the report).
       allow read: if request.auth != null;
       allow create: if request.auth != null
         && request.resource.data.patientId == request.auth.uid
+        && manualNoAutoAcceptanceOk(request.resource.data)
         && (!claimsReview(request.resource.data) || reviewMatches(id, request.resource.data));
       allow update: if request.auth != null
         && resource.data.patientId == request.auth.uid
         && request.resource.data.patientId == resource.data.patientId
+        && keepsNoAutoJudgement()
+        && manualNoAutoAcceptanceOk(request.resource.data)
         && (resource.data.status != 'accepted' || request.resource.data.items == resource.data.items)
         && (!claimsReview(request.resource.data) || keepsAcceptedReview(id) || reviewMatches(id, request.resource.data));
       allow delete: if request.auth != null && resource.data.patientId == request.auth.uid;

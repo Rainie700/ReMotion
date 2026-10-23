@@ -1,0 +1,3 @@
+d5TherapistReview: all assertions passed (including B3 manual no-auto continuation)
+d5NextWeekHandoff: all assertions passed
+d5LlmRecommendation: all assertions passed
