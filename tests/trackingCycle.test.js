@@ -211,10 +211,35 @@ function recommend(userId, session, goalId = "G01") {
 // ── 7. storage: optional cloud collection never blocks login ─────────────
 {
   const storage = readFileSync(join(root, "js/data/storageService.js"), "utf8");
-  assert.ok(/OPTIONAL_CLOUD_COLLECTIONS = \["trackingCycles"\]/.test(storage));
-  const hydrate = storage.slice(storage.indexOf("async hydrateCloudForUser("));
-  assert.ok(/for \(const name of OPTIONAL_CLOUD_COLLECTIONS\) \{\s*try \{/.test(hydrate) && hydrate.includes("mergeById([readRaw(collectionKey(name), []), cloud])"), "optional collection: try/catch + merge, never replaces local on failure");
-  assert.ok(readFileSync(join(root, "firestore.rules"), "utf8").includes("'trackingCycles'"), "rules file lists trackingCycles (needs deploy)");
+  const optional = JSON.parse(storage.match(/const OPTIONAL_CLOUD_COLLECTIONS = (\[[^\n]+\]);/)[1]);
+  assert.ok(optional.includes("trackingCycles"), "tracking remains optional when more collections are added");
+  const required = JSON.parse(storage.match(/const CLOUD_COLLECTIONS = (\[[\s\S]*?\]);/)[1].replace(/,\s*\]/, "]"));
+  const hydrateMethod = storage.slice(storage.indexOf("async hydrateCloudForUser("), storage.indexOf("  clearCloudUser()"));
+  const local = new Map([["trackingCycles", [{ id: "local-only", patientId: "p" }, { id: "shared", version: "local" }]]]);
+  const loads = new Map(); let failTracking = true;
+  // Exercise the real hydrate method with a fake cloud boundary: no Firebase calls.
+  const deps = {
+    firestore: {}, collection: () => "publicUsers", getDocs: async () => ({ docs: [] }),
+    readRaw: (key, fallback) => local.get(key) ?? fallback, writeRaw: (key, value) => local.set(key, value), collectionKey: name => name,
+    CLOUD_COLLECTIONS: required, OPTIONAL_CLOUD_COLLECTIONS: optional, optionalCloudLoadStatus: loads,
+    loadCloudCollection: async name => {
+      if (name !== "trackingCycles") return [];
+      if (failTracking) throw Error("simulated cloud read failure");
+      return [{ id: "shared", version: "cloud" }, { id: "cloud-only" }];
+    },
+    mergeById: lists => [...new Map(lists.flat().map(r => [r.id, r])).values()],
+    console: { warn() {} }, currentRelationStamp: () => ({}), persistRecord: () => {}, waitForCloudWrites: async () => ({}),
+  };
+  const hydrate = new Function(...Object.keys(deps), `let cloudUser; return ({${hydrateMethod}}).hydrateCloudForUser;`)(...Object.values(deps));
+  await hydrate({ id: "t", role: "therapist" });
+  assert.equal(loads.get("trackingCycles"), "failed");
+  assert.deepEqual(local.get("trackingCycles").map(r => r.id), ["local-only", "shared"], "optional failure preserves local data without blocking login");
+  failTracking = false;
+  await hydrate({ id: "t", role: "therapist" });
+  assert.equal(loads.get("trackingCycles"), "loaded");
+  assert.deepEqual(local.get("trackingCycles").map(r => r.id).sort(), ["cloud-only", "local-only", "shared"]);
+  assert.equal(local.get("trackingCycles").find(r => r.id === "shared").version, "cloud", "cloud copy wins matching IDs");
+  assert.ok(readFileSync(join(root, "firestore.rules"), "utf8").includes("match /trackingCycles/"), "tracking collection has explicit rules");
 }
 
 console.log("Phase D1 tracking cycle tests passed");

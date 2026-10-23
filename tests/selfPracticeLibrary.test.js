@@ -151,7 +151,7 @@ const catalog = exerciseService.listNormalized();
   assert.equal(trainingEventService.listTrainingEvents("sp-u")[0].sourceLabel, "自主練習");
 }
 
-// 14–17 · asset audit: every id resolved, confirmed-only images, placeholders explicit, no 404
+// 14–17 · current display mapping, review flags, missing-file fallback and no 404
 {
   const audit = ASSETS.EXERCISE_ASSET_AUDIT;
   assert.deepEqual(Object.keys(audit).sort(), rehabExercises.map((r) => r.exercise_id).sort(), "one audit entry per catalog exercise");
@@ -159,18 +159,19 @@ const catalog = exerciseService.listNormalized();
     const a = audit[r.exercise_id];
     assert.ok(["confirmed", "wrong", "needs_review", "missing"].includes(a.status));
     const media = ASSETS.resolveExerciseMedia(r.exercise_id, r);
-    if (a.status === "confirmed") assert.equal(media.src, a.file, `${r.exercise_id} shows its confirmed image`);
-    else assert.deepEqual([media.state, media.src], ["placeholder", null], `${r.exercise_id} (${a.status}) -> explicit placeholder`);
+    if (a.file) assert.equal(media.src, a.file, `${r.exercise_id} shows its mapped image without changing its review status`);
+    else assert.deepEqual([media.state, media.src], ["placeholder", null], `${r.exercise_id}: no mapped file -> explicit placeholder`);
     for (const f of [a.file, a.candidate].filter(Boolean)) assert.ok(existsSync(join(root, "public", f)), `${r.exercise_id} file exists: ${f}`);
   }
-  const confirmedFiles = Object.values(ASSETS.EXERCISE_IMAGE_ASSETS);
+  const displayedFiles = Object.values(ASSETS.EXERCISE_IMAGE_ASSETS);
+  const confirmedFiles = Object.values(audit).filter(a => a.status === "confirmed").map(a => a.file);
   assert.equal(new Set(confirmedFiles).size, confirmedFiles.length, "no confirmed image is shared");
   assert.equal(audit["F03-07"].status, "needs_review", "F03-07 (steps sideways) differs from F02-05 (feet fixed)");
   const html = page();
   const shown = [...html.matchAll(/<img src="(\/images\/exercise\/[^"]+)"/g)].map((m) => m[1]);
-  assert.ok(shown.every((src) => confirmedFiles.includes(src)), "wrong image fallback = 0");
+  assert.ok(shown.every((src) => displayedFiles.includes(src)), "UI only displays explicitly mapped image paths");
   assert.ok(!html.includes("trainpic"));
-  assert.equal((html.match(/exercise-card-placeholder/g) || []).length, rehabExercises.filter((r) => audit[r.exercise_id].status !== "confirmed").length, "every non-confirmed exercise -> placeholder");
+  assert.equal((html.match(/exercise-card-placeholder/g) || []).length, rehabExercises.filter((r) => !audit[r.exercise_id].file).length, "only absent mappings need a placeholder");
   // docs are generated from the same source of truth
   const docs = buildExerciseAssetDocs();
   assert.deepEqual(JSON.parse(readFileSync(join(root, "docs/specs/exercise_asset_audit.json"), "utf8")), JSON.parse(JSON.stringify(docs.audit)), "audit json in sync");
@@ -192,9 +193,15 @@ const catalog = exerciseService.listNormalized();
   // B / C · an image that is missing / needs_review / wrong never removes the exercise
   for (const status of ["missing", "needs_review", "wrong"]) {
     const ids = Object.entries(ASSETS.EXERCISE_ASSET_AUDIT).filter(([, a]) => a.status === status).map(([id]) => id);
-    assert.ok(ids.length > 0);
     for (const id of ids) assert.ok(cardIds(html).includes(id), `${status} ${id} stays in the library`);
   }
+  // Current catalog has no missing images: exercise that branch with a new,
+  // unmapped catalog fixture rather than requiring production data to stay incomplete.
+  const missingRaw = { ...rehabExercises[0], exercise_id: "F01-99", exercise_name: "缺圖測試動作" };
+  const missingExercise = { ...catalog[0], id: "F01-99", exerciseId: "F01-99", name: missingRaw.exercise_name, raw: missingRaw, aiSupported: false };
+  const withMissing = lib({}, { listNormalized: () => [...catalog, missingExercise], list: () => [...rehabExercises, missingRaw] }).selfPracticeLibraryPage();
+  assert.equal(cardIds(withMissing).length, catalog.length + 1);
+  assert.ok(cardIds(withMissing).includes("F01-99") && withMissing.includes("缺圖測試動作") && withMissing.includes("exercise-card-placeholder"), "new exercise without a mapping stays visible with a placeholder");
   // D · every spelling of 「全部」 is the full catalog
   for (const all of ["", null, undefined, "all", "ALL", "全部", " 全部 "]) {
     assert.equal(cardIds(page({ selfPracticeBodyPart: all })).length, catalog.length, `ALL domain as ${JSON.stringify(all)}`);

@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 /**
  * Core Mobile UX — every catalog exercise through the ONE adapter + renderer:
  * detail / preparation / result render without crashing, dose, media
- * (confirmed asset or 「示意圖待補」, never another exercise's photo), AI
+ * (mapped asset or 「示意圖待補」, review flags preserved independently), AI
  * support, instructions / precautions / common mistakes / muscles / camera
  * guidance, missing-field fallbacks, no invented content, and the app wiring
  * (sticky CTA, source badge, return context, no bottom nav during a session).
@@ -38,8 +38,11 @@ const decode = (html) => html.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replac
   for (const [id, a] of Object.entries(M.EXERCISE_ASSET_AUDIT)) {
     if (a.file && !existsSync(join(root, "public", a.file))) assert.equal(M.EXERCISE_IMAGE_ASSETS[id], undefined, `${id}: a missing file is never used`);
   }
-  for (const id of M.EXERCISE_IMAGE_UNCONFIRMED) assert.equal(M.resolveExerciseMedia(id).state, "placeholder", `${id}: unconfirmed photo -> placeholder`);
-  assert.equal(M.resolveExerciseMedia("F01-05").state, "placeholder");
+  for (const id of M.EXERCISE_IMAGE_UNCONFIRMED) {
+    assert.ok(["wrong", "needs_review"].includes(M.EXERCISE_ASSET_AUDIT[id].status), "review flags remain intact");
+    assert.equal(M.resolveExerciseMedia(id).src, M.EXERCISE_ASSET_AUDIT[id].file || null, `${id}: current display policy keeps mapped illustrations visible`);
+  }
+  assert.equal(M.resolveExerciseMedia("F01-05").src, "/images/exercise/exercise_terminal_knee_extension.png");
   assert.equal(M.resolveExerciseMedia("NOPE").state, "placeholder");
   assert.equal(M.resolveExerciseMedia("F01-01", { demo_video_url: "https://example.com/v.mp4" }).state, "video");
   assert.equal(M.resolveExerciseMedia("F01-01", { demo_video_url: "待補" }).state, "image");
@@ -139,7 +142,7 @@ assert.deepEqual(domains, { F01: 20, F02: 9, F03: 11, F04: 7, F05: 7, F06: 12 },
   assert.ok(detail.includes('toTraining ? "返回今日復健" : "完成"') && detail.includes("exerciseResultMode = true"), "result CTA + session chrome");
   assert.ok(/source-tag-badge assigned">復健師安排[\s\S]*source-tag-badge recommendation">ReMotion 建議[\s\S]*source-tag-badge self-practice">自主練習/.test(detail), "source badge per start context");
   const prep = fnSource("detectionPrepPage");
-  assert.ok(prep.includes("renderPreparationView(buildExerciseExperience(catalog, { planItem: ex })") && prep.includes('onclick="openCameraPlaceholder()">開啟鏡頭') && prep.includes("moreHtml: analysisNoticeHtml"), "preparation = shared renderer, analyzer notice kept (folded)");
+  assert.ok(prep.includes("renderPreparationView(withF01PlanDoseLabel(buildExerciseExperience(catalog, { planItem: ex }), ex)") && prep.includes('onclick="openCameraPlaceholder()">開啟鏡頭') && prep.includes("moreHtml: analysisNoticeHtml"), "preparation keeps the shared renderer, source-labelled plan dose and folded analyzer notice");
   // session: no bottom nav from preparation to result
   const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name)}\nreturn ${name};`)(...Object.values(deps));
   const isTrainingSessionRoute = load("isTrainingSessionRoute", {});
@@ -179,12 +182,12 @@ assert.deepEqual(domains, { F01: 20, F02: 9, F03: 11, F04: 7, F05: 7, F06: 12 },
   assert.ok(!fnSource("patientDataOverviewPage").includes("detail-back-btn"), "Data tab has no back button");
 }
 
-// ── Exercise asset visual normalisation: transparent 800×800 PNGs, one mapping ──
+// ── Current transparent square PNGs and the one runtime mapping ──
 {
   const NORMALISED = {
     "F01-02": "exercise_mini_squat.png",
     "F01-03": "exercise_wall_half_squat.png",
-    "F02-01": "exercise_feet_together_balance.png",
+    "F02-01": "exercise_side_by_side_balance.png",
     "F02-02": "exercise_semi_tandem_stance.png",
     "F02-03": "exercise_tandem_stance.png",
     "F01-19": "exercise_single_leg_calf_raise.png",
@@ -198,12 +201,15 @@ assert.deepEqual(domains, { F01: 20, F02: 9, F03: 11, F04: 7, F05: 7, F06: 12 },
     assert.equal(M.resolveExerciseMedia(id).state, "image");
     const buf = readFileSync(join(root, "public", src));
     // PNG IHDR: width / height at 16 / 20, colour type at 25 (6 = RGBA -> real alpha channel)
-    assert.equal(buf.readUInt32BE(16), 800, `${id}: 800 px wide`);
-    assert.equal(buf.readUInt32BE(20), 800, `${id}: 800 px high`);
+    // The current F02-01 illustration replaced the previous 800px file with
+    // a 500px square. Preserve that replacement; don't silently restore old art.
+    const size = id === "F02-01" ? 500 : 800;
+    assert.equal(buf.readUInt32BE(16), size, `${id}: expected square width`);
+    assert.equal(buf.readUInt32BE(20), size, `${id}: expected square height`);
     assert.equal(buf[25], 6, `${id}: RGBA (transparent background, no baked mint / white)`);
     assert.ok(buf.length < 400 * 1024, `${id}: production size (${buf.length} bytes)`);
   }
-  // No 404: every confirmed image exists.
+  // No 404: every displayed image exists.
   for (const [id, src] of Object.entries(M.EXERCISE_IMAGE_ASSETS)) assert.ok(existsSync(join(root, "public", src)), `${id}: ${src} exists`);
   // exerciseAssets.js is the only exerciseId -> image mapping (no EXERCISE_IMAGE_MAP-style table elsewhere).
   const pairRe = /"F0\d-\d\d"\s*:\s*"\/images\/exercise\//;

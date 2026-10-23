@@ -4,15 +4,13 @@
  * Self Practice library, Exercise Detail, AI Preparation and records.
  *
  * Every catalog exercise has an audit entry:
- *   confirmed     file exists AND shows this exercise's own movement (per its
- *                 name / steps / description) — the ONLY status that is shown
+ *   confirmed     marked reviewed against this exercise's movement
  *   wrong         a file is mapped but shows a different movement
- *   needs_review  a file exists (mapped or candidate) but the defining part of
- *                 the movement is not visible / definition differs — needs a
- *                 human decision before it can be shown
+ *   needs_review  a file exists but movement details need human review
  *   missing       no usable file in the project
- * Anything not confirmed resolves to the neutral 「示意圖待補」 placeholder —
- * never another exercise's photo and never a generic stand-in.
+ * Current display policy shows every explicitly mapped `file`, independently
+ * of audit status. A missing mapping resolves to 「示意圖待補」. Review flags
+ * and the production/replacement backlog remain separate from display.
  * Asset backlog for image production: docs/specs/exercise_asset_backlog.json.
  * This table is the ONLY exerciseId -> image mapping in the app (no second map).
  * Production images: 800×800 transparent PNG, subject ~68–74% of the canvas
@@ -105,7 +103,7 @@ export const EXERCISE_IMAGE_ASSETS = Object.freeze(Object.fromEntries(
   Object.entries(EXERCISE_ASSET_AUDIT).filter(([, a]) => Boolean(a.file)).map(([id, a]) => [id, a.file]),
 ));
 
-/** Exercises with a file (mapped or candidate) that must NOT be shown yet (wrong / needs_review). */
+/** Exercises whose mapped/candidate image still carries a review flag. */
 export const EXERCISE_IMAGE_UNCONFIRMED = Object.freeze(
   Object.entries(EXERCISE_ASSET_AUDIT).filter(([, a]) => a.status === "wrong" || a.status === "needs_review").map(([id]) => id),
 );

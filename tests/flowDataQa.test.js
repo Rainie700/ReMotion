@@ -200,8 +200,10 @@ const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name
   const { EXERCISE_ASSET_AUDIT } = await import("../js/data/exerciseAssets.js");
   assert.ok(!appJs.includes("EXERCISE_IMAGE_MAP"), "no second exerciseId -> image table in app.js");
   assert.equal(Object.keys(EXERCISE_ASSET_AUDIT).filter((id) => id.startsWith("F01-")).length, 20, "every F01 exercise keeps an audit entry");
-  // UI asset backlog: no file yet (F01-03 靠牆半蹲 and F01-02 迷你深蹲 landed 2026-09-30).
-  for (const id of ["F01-05", "F01-07", "F01-09"]) assert.equal(EXERCISE_ASSET_AUDIT[id].status, "missing", `${id} is still in the asset backlog`);
+  // These illustrations have since been added; don't keep expecting missing placeholders.
+  for (const [id, file] of Object.entries({ "F01-05": "exercise_terminal_knee_extension.png", "F01-07": "exercise_seated_knee_flexion.png", "F01-09": "exercise_sitting_knee_raise.png" })) {
+    assert.equal(EXERCISE_ASSET_AUDIT[id].file, `/images/exercise/${file}`, `${id} keeps its own added illustration`);
+  }
   const entries = Object.entries(EXERCISE_ASSET_AUDIT).filter(([id, a]) => id.startsWith("F01-") && a.file).map(([id, a]) => [id, a.file]);
   for (const [id, src] of entries) assert.ok(existsSync(join(root, "public", src)), `${id} image exists: ${src}`);
   const srcs = entries.map((e) => e[1]);

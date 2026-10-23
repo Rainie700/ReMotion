@@ -3,6 +3,7 @@ process.env.TZ = "Asia/Taipei";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -184,7 +185,11 @@ const w2 = B.buildVerifiedWeeklyContext({ userId: P00.id, cycleId: seeded.cycle2
     const src = readFileSync(join(root, "js/services", f), "utf8");
     assert.ok(!/fetch\(|XMLHttpRequest|openai|anthropic|gemini|apiKey|api_key|REMOTION_LLM|firebase|setDoc|createCollection\(/i.test(src), `${f}: no provider / network / storage write`);
   }
-  assert.ok(!existsSync(join(root, ".env.local")), "no .env.local");
+  const tracked = spawnSync("git", ["ls-files", "--", ".env", ".env.*"], { cwd: root, encoding: "utf8" });
+  if (tracked.status === 0) assert.deepEqual(tracked.stdout.trim().split(/\r?\n/).filter(name => name && name !== ".env.example"), [], "local environment files must not be tracked by Git; their local existence is allowed");
+  else assert.ok(!existsSync(join(root, ".git")), "a Git project must allow the environment tracking check to run");
+  const ignore = readFileSync(join(root, ".gitignore"), "utf8");
+  assert.ok(ignore.split(/\r?\n/).includes(".env.*") && ignore.includes("!.env.example"), "local variants ignored, example remains shareable");
   const appJs = readFileSync(join(root, "app.js"), "utf8");
   assert.ok(/generateCaseWeeklySummary/.test(appJs) && /AI 週摘要/.test(appJs), "Phase 1B UI wiring exists");
   const config = readFileSync(join(root, "js/config/llmSummaryConfig.js"), "utf8");

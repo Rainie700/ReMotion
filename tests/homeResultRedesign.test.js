@@ -161,10 +161,10 @@ const cycle = trackingCycleService.createOrGetTrackingCycle({ userId: u, baselin
   assert.ok(card.includes("查看動作") && card.includes("開始訓練"));
 }
 
-// 11. Missing / unconfirmed demo images -> neutral placeholder; mapping entries kept
+// 11. Mapped illustrations remain visible; genuinely missing images use a placeholder.
 {
   // Self Practice Asset Audit — the pending set is DERIVED from the one asset audit
-  // (js/data/exerciseAssets.js): every F01 exercise without a confirmed image.
+  // (js/data/exerciseAssets.js): every F01 exercise without a resolved image.
   const { resolveExerciseMedia, EXERCISE_ASSET_AUDIT } = await import("../js/data/exerciseAssets.js");
   const render = new Function("EXERCISE_ASSET_AUDIT", "resolveExerciseMedia", "renderExerciseCardImage", `${constSource("F01_DEMO_IMAGE_PENDING")}\n${fnSource("renderF01RecommendationImage")}\nreturn renderF01RecommendationImage;`)(EXERCISE_ASSET_AUDIT, resolveExerciseMedia, (ex) => `<img src="${resolveExerciseMedia(ex.id).src}">`);
   assert.ok(render("F01-01", { id: "F01-01" }, "深蹲").includes("exercise_squat.png"));
@@ -173,7 +173,7 @@ const cycle = trackingCycleService.createOrGetTrackingCycle({ userId: u, baselin
   assert.ok(render("F01-02", { id: "F01-02" }, "迷你深蹲").includes("exercise_mini_squat.png"), "F01-02 now has its confirmed image");
   for (const id of ["F01-05", "F01-07", "F01-09", "F01-17", "F01-18", "F01-20"]) {
     const html = render(id, { id }, "動作");
-    assert.ok(html.includes("：動作示意圖待補") && html.includes("示意圖待補</span>") && html.includes('role="img"') && !html.includes("exercise_squat.png"), `${id} placeholder (label + visible text)`);
+    assert.ok(html.includes(EXERCISE_ASSET_AUDIT[id].file) && !html.includes("示意圖待補</span>"), `${id} uses its mapped illustration, even if audit review is pending`);
   }
   assert.ok(render("F01-99", null, "x").includes("動作示意圖待補"), "unknown exercise -> placeholder, card never breaks");
   for (let n = 1; n <= 20; n++) { const id = `F01-${String(n).padStart(2, "0")}`; assert.ok(EXERCISE_ASSET_AUDIT[id], `${id} keeps its audit entry`); }

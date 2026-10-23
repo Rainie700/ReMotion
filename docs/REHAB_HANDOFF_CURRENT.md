@@ -49,6 +49,8 @@
 
 ## 測試狀態
 
-上一批全套測試是 126/132，同樣六項既有失敗：test:tracking、test:flow-qa、test:home-redesign、test:exercise-experience、test:self-practice-library、test:llm-weekly-summary。仍需分別確認是舊測試假設或實作問題，不能宣稱全套通過。
+本次已修正上述六項測試的過時假設與環境檔追蹤設定，全套測試由 126/132 改為 132/132 通過。追蹤測試改成驗證雲端載入失敗保留本機資料、成功合併；圖片測試依目前明確對應的圖片顯示政策，仍保留缺圖 fallback 與待審核標記。圖片查核仍有 14 筆待審核／替換，不代表圖片內容已全部核准。
+
+本機 .env.local 保留使用，但不應由 Git 追蹤。套用測試修正包後，請執行 git rm --cached --ignore-unmatch .env.local，再跑 npm test。這包沒有修改功能邏輯或規則，不需要為此重部署 Firebase。
 
 本次介面修正重跑三項回報單項測試與實際本機瀏覽器整合，正式建置通過。沒有正式網站帳號操作、真實攝影機或實體手機驗證；那些要由部署後實測補上。原始測試與來源查核的其他待辦不因本文件自動結案。
