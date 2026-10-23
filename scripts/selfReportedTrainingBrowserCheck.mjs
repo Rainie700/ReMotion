@@ -37,6 +37,22 @@ try{
   const p=await login(patient,390);
   await p.evaluate(()=>window.goSelfPracticeExerciseDetail("F01-01"));
   await p.getByRole("button",{name:"不使用相機，自行回報",exact:true}).click();
+  for (const width of [320,375,390,430]) {
+    await p.setViewportSize({width,height:900});
+    const layout=await p.locator('.self-report-attest').evaluate(label=>{
+      const input=label.querySelector('input'),text=label.querySelector('span'),form=label.closest('form');
+      const box=input.getBoundingClientRect(),t=text.getBoundingClientRect(),f=form.getBoundingClientRect();
+      return {checkboxWidth:box.width,textWidth:t.width,textRight:t.right,formRight:f.right,textLeft:t.left,inputRight:box.right,height:label.getBoundingClientRect().height,viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth};
+    });
+    assert.ok(layout.checkboxWidth>=20&&layout.checkboxWidth<=24,JSON.stringify(layout));
+    assert.ok(layout.textWidth>100&&layout.textLeft>=layout.inputRight&&layout.textRight<=layout.formRight+1,JSON.stringify(layout));
+    assert.ok(layout.height<160&&layout.scrollWidth<=layout.viewport+1,JSON.stringify(layout));
+  }
+  await p.setViewportSize({width:390,height:900});
+  if (process.env.LAYOUT_SCREENSHOT) await p.locator('.self-report-attest').screenshot({path:process.env.LAYOUT_SCREENSHOT});
+  await p.locator('.self-report-attest span').click();assert.equal(await p.locator('#manualAttested').isChecked(),true);
+  await p.locator('#manualAttested').uncheck();
+  console.log('PASS | 320/375/390/430px layouts keep a 22px checkbox and wrapped text inside the form; label text toggles checkbox');
   const draft=await p.evaluate(async id=>(await import('/js/data/selfReportedTrainingService.js')).selfReportedTrainingService.begin(id,'F01-01'),patient.id);
   await p.locator("#manualBasis").selectOption("per_side");
   await p.locator("#manualLeft").fill("3");await p.locator("#manualRight").fill("0");await p.locator("#manualNote").fill("本機本人回報測試");await p.locator("#manualAttested").check();

@@ -1,0 +1,3 @@
+selfReportedTraining: amount/source validation, stable drafts, failure, retry idempotence, immutable saved payload, ownership, relation, void history, escaping and no AI credit passed
+dailyTrainingFeedback: validation, append-only corrections, conflict, failure, account and relation isolation, UI escaping passed
+incompleteTrainingFeedback: targets, saved attempts, missing values, filtering, no inferred completion, optional reasons, old-report compatibility and stale progress passed
