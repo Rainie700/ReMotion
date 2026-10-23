@@ -1,0 +1,71 @@
+// LOCAL emulator only. Verification dependencies live in a separate folder.
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
+import { doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp, collection, query, where, getDocs, runTransaction } from "firebase/firestore";
+if (process.env.GCLOUD_PROJECT !== "demo-remotion") throw Error("Use local demo-remotion emulator only");
+const env = await initializeTestEnvironment({ projectId: "demo-remotion", firestore: { host: "127.0.0.1", port: 8080, rules: readFileSync(process.env.RULES_PATH, "utf8") } });
+const P = "b4-patient", T = "b4-therapist", X = "b4-outsider", C = "dailyTrainingFeedback", id = `${P}_2026-10-23`;
+const db = uid => env.authenticatedContext(uid).firestore();
+const p = db(P), t = db(T), x = db(X);
+const reference = s => doc(s, C, id);
+const report = { source: "self_report", reportedBy: P, reportedAt: "2026-10-23T08:00:00Z", effort: "unknown", discomfort: "unknown", note: "" };
+const fresh = () => ({ id, patientId: P, dateKey: "2026-10-23", schemaVersion: "daily-training-feedback-1", therapistId: T, relationId: "b4-rel", reports: [report], revision: 1, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+const seed = fn => env.withSecurityRulesDisabled(ctx => fn(ctx.firestore()));
+const results = [];
+async function check(label, allowed, fn) {
+  try { await (allowed ? assertSucceeds(fn()) : assertFails(fn())); results.push(`PASS | ${label}`); }
+  catch (e) { results.push(`FAIL | ${label} | ${e.message}`); }
+  console.log(results.at(-1));
+}
+await env.clearFirestore();
+await seed(s => setDoc(doc(s, "therapistPatientRelations", "b4-rel"), { patientId: P, therapistId: T, status: "accepted" }));
+await check("owner transaction can read missing document", true, () => getDoc(reference(p)));
+await check("outsider cannot create for owner", false, () => setDoc(reference(x), fresh()));
+await check("therapist cannot report as patient", false, () => setDoc(reference(t), fresh()));
+await check("invalid subjective enum rejected", false, () => setDoc(reference(p), { ...fresh(), reports: [{ ...report, discomfort: "" }] }));
+await check("AI source rejected", false, () => setDoc(reference(p), { ...fresh(), reports: [{ ...report, source: "ai" }] }));
+await check("forged relation rejected", false, () => setDoc(reference(p), { ...fresh(), relationId: "not-a-relation" }));
+await check("noncanonical document ID rejected", false, () => setDoc(doc(p, C, "duplicate-id"), fresh()));
+await check("self-report with explicit unknown saved", true, () => setDoc(reference(p), fresh()));
+await check("owner reads", true, () => getDoc(reference(p)));
+await check("linked therapist reads", true, () => getDoc(reference(t)));
+await check("outsider read denied", false, () => getDoc(reference(x)));
+await check("owner query loads", true, () => getDocs(query(collection(p, C), where("patientId", "==", P))));
+await check("linked scoped query loads", true, () => getDocs(query(collection(t, C), where("patientId", "==", P), where("therapistId", "==", T), where("relationId", "==", "b4-rel"))));
+await check("unscoped list denied", false, () => getDocs(collection(x, C)));
+const correction = { ...report, discomfort: "yes", effort: "somewhat_hard", note: "膝蓋有不舒服" };
+await check("therapist cannot correct patient report", false, () => updateDoc(reference(t), { reports: [report, correction], revision: 2, updatedAt: serverTimestamp() }));
+await check("old report overwrite denied", false, () => updateDoc(reference(p), { reports: [correction], updatedAt: serverTimestamp() }));
+await check("forged author denied", false, () => updateDoc(reference(p), { reports: [report, { ...correction, reportedBy: X }], revision: 2, updatedAt: serverTimestamp() }));
+await check("invalid appended value denied", false, () => updateDoc(reference(p), { reports: [report, { ...correction, effort: "bad" }], revision: 2, updatedAt: serverTimestamp() }));
+await check("created timestamp cannot change", false, () => updateDoc(reference(p), { reports: [report, correction], revision: 2, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+await check("valid correction appends", true, () => updateDoc(reference(p), { reports: [report, correction], revision: 2, updatedAt: serverTimestamp() }));
+await check("stale device cannot overwrite second report", false, () => updateDoc(reference(p), { reports: [report, { ...report, discomfort: "no" }], revision: 2, updatedAt: serverTimestamp() }));
+await check("cannot delete history", false, () => deleteDoc(reference(p)));
+await check("cannot reassign patient", false, () => updateDoc(reference(p), { patientId: X, reports: [report, correction, report], revision: 3, updatedAt: serverTimestamp() }));
+await check("cannot insert fake AI score", false, () => updateDoc(reference(p), { score: 100, reports: [report, correction, report], revision: 3, updatedAt: serverTimestamp() }));
+await seed(s => updateDoc(doc(s, "therapistPatientRelations", "b4-rel"), { status: "revoked" }));
+await check("revoked therapist cannot read", false, () => getDoc(reference(t)));
+await check("revoked relation cannot be claimed on write", false, () => updateDoc(reference(p), { reports: [report, correction, report], revision: 3, updatedAt: serverTimestamp() }));
+await check("owner may save unlinked report", true, () => updateDoc(reference(p), { therapistId: "", relationId: "", reports: [report, correction, report], revision: 3, updatedAt: serverTimestamp() }));
+await check("single online transaction append", true, () => runTransaction(p, async tx => {
+  const snap = await tx.get(reference(p));
+  tx.update(reference(p), { reports: [...snap.data().reports, report], revision: 4, updatedAt: serverTimestamp() });
+}));
+// Two online devices read the same revision. Exactly one can commit that revision.
+let successes = 0, conflicts = 0;
+await Promise.all([p, db(P)].map(s => runTransaction(s, async tx => {
+  const snap = await tx.get(reference(s));
+  if (snap.data().revision !== 4) throw Error("stale-revision");
+  tx.update(reference(s), { reports: [...snap.data().reports, report], revision: 5, updatedAt: serverTimestamp() });
+}).then(() => successes++, e => { if (e.message.includes("stale-revision") || e.code === "permission-denied") conflicts++; else throw e; })));
+assert.equal(successes, 1); assert.equal(conflicts, 1);
+results.push("PASS | concurrent devices: one commit and one conflict; history retained");
+const saved = (await getDoc(reference(p))).data();
+assert.equal(saved.reports.length, 5); assert.deepEqual(saved.reports[1], correction);
+for (const result of results) console.log(result);
+await env.cleanup();
+const failed = results.filter(x => x.startsWith("FAIL"));
+console.log(`${results.length - failed.length}/${results.length} feedback rule checks passed`);
+process.exit(failed.length ? 1 : 0);

@@ -219,6 +219,48 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // B04: one daily document with append-only self-reported corrections.
+    // Writes use an online transaction; no overwrite of older revisions.
+    function validDailyFeedback(data, id) {
+      return data.keys().hasOnly(['id', 'patientId', 'dateKey', 'schemaVersion', 'therapistId', 'relationId', 'revision', 'reports', 'createdAt', 'updatedAt'])
+        && data.patientId == request.auth.uid
+        && data.id == id && id == data.patientId + '_' + data.dateKey
+        && data.dateKey is string && data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.schemaVersion == 'daily-training-feedback-1'
+        && data.reports is list && data.revision is int
+        && data.revision > 0 && data.revision <= 100 && data.reports.size() == data.revision
+        && data.createdAt is timestamp && data.updatedAt == request.time
+        && sessionStampOk(data);
+    }
+    function validDailyFeedbackReport(report) {
+      return report is map
+        && report.keys().hasOnly(['source', 'reportedBy', 'reportedAt', 'effort', 'discomfort', 'note'])
+        && report.source == 'self_report' && report.reportedBy == request.auth.uid
+        && report.reportedAt is string && report.reportedAt.size() <= 40
+        && report.effort in ['not_practiced', 'easy', 'somewhat_hard', 'very_hard', 'unknown']
+        && report.discomfort in ['no', 'yes', 'unknown']
+        && report.note is string && report.note.size() <= 500;
+    }
+    match /dailyTrainingFeedback/{id} {
+      // A transaction must also be able to read a not-yet-existing daily document.
+      allow get: if request.auth != null
+        && (resource == null || resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow list: if request.auth != null
+        && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && validDailyFeedback(request.resource.data, id)
+        && request.resource.data.revision == 1 && request.resource.data.createdAt == request.time
+        && validDailyFeedbackReport(request.resource.data.reports[0]);
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid
+        && validDailyFeedback(request.resource.data, id)
+        && request.resource.data.patientId == resource.data.patientId
+        && request.resource.data.dateKey == resource.data.dateKey
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.reports[0:resource.data.reports.size()] == resource.data.reports
+        && validDailyFeedbackReport(request.resource.data.reports[resource.data.reports.size()]);
+      allow delete: if false;
+    }
+
     // Other data records are scoped in the client by patientId/therapistId and
     // are loaded only after authentication. Cross-account clinical sharing for
     // these needs a relation-aware layer before they can be tightened.

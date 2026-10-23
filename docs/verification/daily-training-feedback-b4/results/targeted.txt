@@ -1,0 +1,3 @@
+dailyTrainingFeedback: validation, append-only corrections, conflict, failure, account and relation isolation, UI escaping passed
+d5TherapistReview: all assertions passed (including B3 manual no-auto continuation)
+patient00DemoCloudSafety: all assertions passed

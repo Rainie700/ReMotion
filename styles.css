@@ -3670,3 +3670,10 @@ body.local-demo .phone { height: calc(100dvh - var(--local-demo-bar-h, 104px)); 
   padding-left: 18px;
 }
 .week-arrangement .week-arr-items li { font-size: 13px; line-height: 1.6; }
+/* B04 subjective daily report, shared patient/therapist layout. */
+.daily-feedback-card { margin-top: 14px; }
+.daily-feedback-label { display: grid; gap: 7px; margin: 14px 0; font-size: 14px; }
+.daily-feedback-label select, .daily-feedback-label textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ccd4c5; border-radius: 12px; background: #fff; color: inherit; font: inherit; }
+.daily-feedback-card details { margin: 12px 0; }
+.daily-feedback-card summary { cursor: pointer; line-height: 1.7; }
+.daily-feedback-card li, .daily-feedback-card p { overflow-wrap: anywhere; }

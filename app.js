@@ -306,6 +306,8 @@ import { trainingEventService, summarizeTrainingWeek, filterTrainingEventsBySour
 import { functionalProgressService } from "./js/data/functionalProgressService.js";
 import { D5_DECISION, D5_DECISION_LABEL, CONFIRMATION_MODE, TRANSITION_TYPE, measuredDateKeyOf } from "./js/data/f01ProgressionDecision.js";
 import { describeTimeDifference } from "./js/data/trackingComparison.js";
+import { dailyTrainingFeedbackService } from "./js/data/dailyTrainingFeedbackService.js";
+import { renderDailyFeedbackCard, renderDailyFeedbackHistory } from "./js/ui/dailyTrainingFeedbackView.js";
 import { isCurrentFa5xMeasurement } from "./js/data/fa5xMeasurementCompatibility.js";
 import { describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL } from "./js/data/fa5xConditionReport.js";
 import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView } from "./js/data/trackingCycle.js";
@@ -4480,7 +4482,8 @@ function therapistCaseDetailPage() {
       const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER });
       return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
     })();
-    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId);
+    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId)
+      + renderDailyFeedbackHistory(dailyTrainingFeedbackService.listForTherapist(state.user.id, patientId), { cloudStatus: dailyTrainingFeedbackService.cloudStatus() });
     bodyHtml = `
       <h3 class="section-title">今日復健狀況</h3>
       <div class="card"><div class="small">今日課表完成 <b>${cs.todayDone} / ${cs.todayTotal}</b>${lastCompleted ? `｜最近完成：${lastCompleted.exerciseName}` : ""}</div></div>
@@ -12478,7 +12481,7 @@ patientHome = function() {
   // (functionalAssessmentSectionHtml) is once again Home's first featured
   // card, its primary action now opening the six-Functional-Domain grid
   // (goFunctionalDomainHome()).
-  return `<div class="top-profile-container"><div class="header"><h1 class="page-title">Re<span class="logo-dark">Motion</span></h1><div class="top-actions">${accountIconHtml}</div></div></div>${companionBannerHtml}${levelXpCardHtml}${successBannerHtml}${functionalAssessmentSectionHtml}${renderTrackingSecondaryActions(patientId)}${inviteCardHtml}${myScheduleCardHtml}${selfPracticeSectionHtml}<div class="home-two-col">${progressCardHtml}${achievementPreviewHtml}</div>`;
+  return `<div class="top-profile-container"><div class="header"><h1 class="page-title">Re<span class="logo-dark">Motion</span></h1><div class="top-actions">${accountIconHtml}</div></div></div>${companionBannerHtml}${levelXpCardHtml}${successBannerHtml}${functionalAssessmentSectionHtml}${renderTrackingSecondaryActions(patientId)}${renderDailyTrainingFeedback(patientId)}${inviteCardHtml}${myScheduleCardHtml}${selfPracticeSectionHtml}<div class="home-two-col">${progressCardHtml}${achievementPreviewHtml}</div>`;
 };
 // DEPRECATED (Phase 6.5 report section 21) — this was the "Training
 // Landing" page previously rendered by the bottom-nav 訓練 tab. It only
@@ -15680,6 +15683,56 @@ const TRACKING_CTA_FN = {
 };
 
 /** The patient's active (else latest) F01 tracking cycle — what the Home hero shows. */
+// B04 daily self-report: explicit entry, no automatic popup after each exercise.
+function renderDailyTrainingFeedback(patientId) {
+  const dateKey = toLocalDateKey(new Date());
+  if (!patientId) return "";
+  const old = state.dailyFeedbackUi;
+  if (!old || old.patientId !== patientId || old.dateKey !== dateKey) {
+    state.dailyFeedbackUi = { patientId, dateKey, editing: false, message: old?.patientId === patientId && old.editing ? "日期已變更，請確認今天的感受後重新填寫。" : "" };
+  }
+  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus() });
+}
+function editDailyFeedbackFromUi() {
+  const patientId = getCurrentPatientId();
+  if (!patientId) return;
+  const dateKey = toLocalDateKey(new Date());
+  const record = dailyTrainingFeedbackService.getForDay(patientId, dateKey);
+  state.dailyFeedbackUi = { patientId, dateKey, expectedRevision: record?.revision || 0, editing: true, draft: {}, message: "" };
+  render();
+}
+function cancelDailyFeedbackEdit() {
+  if (state.dailyFeedbackUi?.busy) return;
+  state.dailyFeedbackUi = null;
+  render();
+}
+async function saveDailyFeedbackFromUi(event) {
+  event.preventDefault();
+  const ui = state.dailyFeedbackUi;
+  if (!ui || !ui.editing || ui.busy || ui.patientId !== getCurrentPatientId()) return;
+  const draft = { effort: document.getElementById("dailyFeedbackEffort").value, discomfort: document.getElementById("dailyFeedbackDiscomfort").value, note: document.getElementById("dailyFeedbackNote").value };
+  Object.assign(ui, { draft, busy: true, message: "" });
+  render();
+  const result = await dailyTrainingFeedbackService.save({ patientId: ui.patientId, dateKey: ui.dateKey, expectedRevision: ui.expectedRevision, ...draft });
+  if (getCurrentPatientId() !== ui.patientId || state.dailyFeedbackUi !== ui) return;
+  ui.busy = false;
+  const errors = {
+    invalid_input: "請選擇吃力程度及是否不舒服，補充說明最多 500 字。",
+    day_changed: "日期已變更，請重新回報今天的感受。",
+    conflict: "資料已在另一個畫面或裝置更新。請取消編輯，確認最新回報後再修改。",
+    not_signed_in: "登入狀態已失效，請重新登入後再回報。",
+    revision_limit: "今日修正次數已達上限，請聯絡復健師說明。",
+    invalid_record: "無法確認原回報版本，請重新登入確認。",
+    cloud_save_failed: "尚未確認雲端儲存成功，輸入仍保留。請確認網路與登入狀態後重試。",
+  };
+  if (result.error) ui.message = errors[result.error] || errors.cloud_save_failed;
+  else Object.assign(ui, { editing: false, draft: {}, message: "已儲存今日回報；修改前的回報也會保留。" });
+  render();
+}
+window.editDailyFeedbackFromUi = editDailyFeedbackFromUi;
+window.cancelDailyFeedbackEdit = cancelDailyFeedbackEdit;
+window.saveDailyFeedbackFromUi = saveDailyFeedbackFromUi;
+
 function getHomeTrackingCycle(patientId) {
   return patientId
     ? trackingCycleService.getActiveTrackingCycle(patientId) || trackingCycleService.getLatestTrackingCycle(patientId)

@@ -1,0 +1,16 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node dailyFeedbackBrowserCheck.mjs
+PASS | mobile-width patient creates explicit unknown report through real UI and transaction
+PASS | second device conflict preserves draft; stored original and correction unchanged
+PASS | linked therapist sees cloud-loaded report and correction history in case overview
+PASS | no page errors or dialogs; requests restricted to local Auth, Firestore and Vite; no camera or Gemini
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
