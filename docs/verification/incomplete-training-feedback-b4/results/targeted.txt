@@ -1,0 +1,3 @@
+incompleteTrainingFeedback: targets, saved attempts, missing values, filtering, no inferred completion, optional reasons, old-report compatibility and stale progress passed
+dailyTrainingFeedback: validation, append-only corrections, conflict, failure, account and relation isolation, UI escaping passed
+d5TherapistReview: all assertions passed (including B3 manual no-auto continuation)

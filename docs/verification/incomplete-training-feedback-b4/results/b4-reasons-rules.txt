@@ -1,0 +1,337 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: firestore
+i  emulators: Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node dailyFeedbackRulesCheck.mjs && node firestoreRulesCheck.mjs && node fa5xSessionRulesCheck.mjs
+PASS | owner transaction can read missing document
+[2026-10-23T09:37:12.137Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | outsider cannot create for owner
+[2026-10-23T09:37:12.220Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | therapist cannot report as patient
+[2026-10-23T09:37:12.272Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | invalid subjective enum rejected
+[2026-10-23T09:37:12.304Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | AI source rejected
+[2026-10-23T09:37:12.337Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | forged relation rejected
+[2026-10-23T09:37:12.364Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f2f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | noncanonical document ID rejected
+PASS | self-report with explicit unknown saved
+PASS | owner reads
+PASS | linked therapist reads
+PASS | outsider read denied
+PASS | owner query loads
+PASS | linked scoped query loads
+PASS | unscoped list denied
+[2026-10-23T09:37:12.625Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f33 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | therapist cannot correct patient report
+[2026-10-23T09:37:12.646Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f30 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | old report overwrite denied
+[2026-10-23T09:37:12.676Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f34 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | forged author denied
+[2026-10-23T09:37:12.696Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f35 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | invalid appended value denied
+[2026-10-23T09:37:12.740Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f36 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | created timestamp cannot change
+PASS | valid correction appends
+[2026-10-23T09:37:12.784Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f37 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | stale device cannot overwrite second report
+[2026-10-23T09:37:12.796Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f38 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L307, false for 'delete' @ L315
+PASS | cannot delete history
+[2026-10-23T09:37:12.813Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f39 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | cannot reassign patient
+[2026-10-23T09:37:12.833Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f3a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | cannot insert fake AI score
+PASS | revoked therapist cannot read
+[2026-10-23T09:37:12.915Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | revoked relation cannot be claimed on write
+PASS | owner may save unlinked report
+PASS | single online transaction append
+[2026-10-23T09:37:13.089Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f3d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | reason invalid enum rejected
+[2026-10-23T09:37:13.110Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f45 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | reason cannot reference another patient's cycle
+[2026-10-23T09:37:13.131Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f46 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | reason cannot reference another plan
+[2026-10-23T09:37:13.149Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f47 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | reason date must match daily document
+[2026-10-23T09:37:13.167Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f48 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | complete context cannot claim incompletion
+[2026-10-23T09:37:13.199Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f49 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | reason fake measured source rejected
+[2026-10-23T09:37:13.214Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f4a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | malformed context item rejected
+[2026-10-23T09:37:13.228Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f4b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L296, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'create' @ L315, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'create' @ L296, false for 'create' @ L315
+PASS | fake score in context attempt rejected
+PASS | missing numeric amount can remain null
+PASS | reason correction preserves earlier context
+[2026-10-23T09:37:13.299Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a8d0f4c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L299, Unable to evaluate the expression as the maximum of 1000 expressions to evaluate has been reached. for 'update' @ L315, false for 'update' @ L299, false for 'update' @ L315
+PASS | old context cannot be overwritten
+PASS | concurrent devices: one commit and one conflict; history retained
+40/40 feedback rule checks passed
+[2026-10-23T09:37:14.116Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ea9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L315, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'create' @ L43, false for 'create' @ L315
+[2026-10-23T09:37:14.156Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eaa error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L315, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'create' @ L43, false for 'create' @ L315
+[2026-10-23T09:37:14.182Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eab error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L43, false for 'create' @ L315, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'create' @ L43, false for 'create' @ L315
+[2026-10-23T09:37:14.321Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eb0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'update' @ L47, false for 'update' @ L315
+[2026-10-23T09:37:14.363Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eb2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'update' @ L47, false for 'update' @ L315
+[2026-10-23T09:37:14.394Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eb3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'update' @ L47, false for 'update' @ L315
+[2026-10-23T09:37:14.414Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eb4 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L52, false for 'delete' @ L315
+[2026-10-23T09:37:14.557Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eba error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L43:24 for 'create' @ L43, false for 'create' @ L315, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'create' @ L43, false for 'create' @ L315
+[2026-10-23T09:37:14.577Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ebb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L43:24 for 'create' @ L43, false for 'create' @ L315, evaluation error at L47:24 for 'update' @ L47, false for 'update' @ L315, false for 'create' @ L43, false for 'create' @ L315
+[2026-10-23T09:37:14.658Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ebe error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'create' @ L122, false for 'create' @ L315
+[2026-10-23T09:37:14.686Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ebf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:14.707Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec0 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:14.725Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec1 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L133:24 for 'delete' @ L133, false for 'delete' @ L315, false for 'delete' @ L133, false for 'delete' @ L315
+[2026-10-23T09:37:14.784Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec3 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L122:24 for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "d5TherapistReviews"
+  }
+  segments {
+    simple: "prop-1"
+  }
+}
+]. for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:14.890Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec7 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L148, false for 'create' @ L315, false for 'update' @ L150, false for 'update' @ L315
+[2026-10-23T09:37:14.912Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L148:24 for 'create' @ L148, false for 'create' @ L315, evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, false for 'update' @ L150, false for 'update' @ L315
+[2026-10-23T09:37:14.935Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ec9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L148:24 for 'create' @ L148, false for 'create' @ L315, evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, false for 'update' @ L150, false for 'update' @ L315
+[2026-10-23T09:37:14.970Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eca error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L148:24 for 'create' @ L148, false for 'create' @ L315, evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, false for 'update' @ L150, false for 'update' @ L315
+[2026-10-23T09:37:15.009Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ecb error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L148:24 for 'create' @ L148, false for 'create' @ L315, evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, Service call error. Function: [get], Argument: [path_value {
+  segments {
+    simple: "databases"
+  }
+  segments {
+    simple: "(default)"
+  }
+  segments {
+    simple: "documents"
+  }
+  segments {
+    simple: "recommendationResults"
+  }
+  segments {
+    simple: "prop-other"
+  }
+}
+]. for 'create' @ L148, false for 'create' @ L315
+[2026-10-23T09:37:15.030Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ecc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L153, false for 'delete' @ L315
+[2026-10-23T09:37:15.172Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ed2 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:15.235Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ed5 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, false for 'update' @ L150, false for 'update' @ L315
+[2026-10-23T09:37:15.315Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ed8 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L122:24 for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:15.338Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5ed9 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L122:24 for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:15.360Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5eda error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:15.411Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5edc error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L122:24 for 'create' @ L122, false for 'create' @ L315, evaluation error at L126:24 for 'update' @ L126, false for 'update' @ L315, false for 'update' @ L126, false for 'update' @ L315
+[2026-10-23T09:37:15.510Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x6e4f5edf error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L148:24 for 'create' @ L148, false for 'create' @ L315, evaluation error at L150:24 for 'update' @ L150, false for 'update' @ L315, false for 'update' @ L150, false for 'update' @ L315
+PASS | patient starts a relation (invite code)
+PASS | outsider cannot create a relation for the patient
+PASS | therapist cannot create a relation on its own
+PASS | patient cannot link to itself
+PASS | outsider cannot read the relation
+PASS | patient reads own relation
+PASS | therapist reads own relation
+PASS | therapist may end the relation
+PASS | therapist cannot re-activate it
+PASS | patient may re-activate it
+PASS | parties never change
+PASS | outsider cannot update it
+PASS | nobody deletes a relation
+PASS | login query: therapist's relations
+PASS | login query: patient's relations
+PASS | outsider cannot list the patient's relations
+PASS | source therapist creates the transferred relation
+PASS | outsider cannot fake a transfer
+PASS | transfer only to the recorded target
+PASS | patient creates own recommendation
+PASS | outsider cannot create one for the patient
+PASS | therapist cannot write the patient's proposal
+PASS | outsider cannot update it
+PASS | outsider cannot delete it
+PASS | patient re-evaluates own draft (status check)
+PASS | patient cannot claim a review that does not exist
+PASS | linked therapist writes the review
+PASS | linked therapist updates the review
+PASS | patient cannot write a review
+PASS | patient cannot forge one as the therapist
+PASS | outsider cannot write a review
+PASS | review must target that patient's proposal
+PASS | review id must be the proposal id
+PASS | nobody deletes a review
+PASS | patient reads the review
+PASS | outsider cannot read the review
+PASS | login query: patient's reviews
+PASS | login query: therapist's reviews
+PASS | patient accepts exactly the reviewed plan
+PASS | accepted items are frozen
+PASS | linking the next cycle keeps working after the relation ended
+PASS | ended relation: therapist can no longer write the review
+PASS | other items than the review -> refused
+PASS | changed patient report (limitations) -> refused
+PASS | review id of another doc -> refused
+PASS | review of an ended relation -> refused
+PASS | acceptance without a review claim (rule-ready plan) is a patient write
+PASS | therapist cannot review an accepted proposal
+
+48 / 48 rule checks passed
+[2026-10-23T09:37:16.314Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef24 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'create' @ L206, false for 'create' @ L315
+[2026-10-23T09:37:16.345Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef25 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'create' @ L206, false for 'create' @ L315
+[2026-10-23T09:37:16.802Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef37 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:16.827Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef38 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:16.888Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef3b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:16.909Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef3c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:16.940Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef3d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:16.999Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef3f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.022Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef40 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.043Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef41 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.064Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef42 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.106Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef43 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.129Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef44 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'create' @ L206, false for 'create' @ L315
+[2026-10-23T09:37:17.148Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef45 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'create' @ L206, false for 'create' @ L315
+[2026-10-23T09:37:17.168Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef46 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.219Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef48 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.281Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef4b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L219, false for 'delete' @ L315
+[2026-10-23T09:37:17.301Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef4c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L219, false for 'delete' @ L315
+[2026-10-23T09:37:17.321Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef4d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:24 for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.343Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef4e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:24 for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.393Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef4f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:24 for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.436Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef51 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L206:24 for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+[2026-10-23T09:37:17.631Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x5fe7ef5a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L206, false for 'create' @ L315, evaluation error at L212:24 for 'update' @ L212, false for 'update' @ L315, false for 'update' @ L212, false for 'update' @ L315
+PASS | AR1 owner creates own session (no result, empty stamp)
+PASS | AR1 owner reads own session
+PASS | AR1 owner lists own sessions (patientId query)
+PASS | AR2 outsider cannot create a session for the patient
+PASS | AR2 therapist cannot create a session for the patient
+PASS | AR3 outsider cannot read the session
+PASS | AR3 outsider cannot list the whole collection
+PASS | AR3 outsider cannot query by the patient's id
+PASS | AR4 linked therapist reads the stamped session
+PASS | AR4 linked therapist 3-field query
+PASS | AR5 old single-field therapist query is refused
+PASS | AR5 other therapist cannot read
+PASS | AR5 therapist of an ENDED relation cannot read (stamp still on the doc)
+PASS | AR5 stamp naming another patient's relation grants nothing
+PASS | AR5 unstamped session is not readable by the therapist
+PASS | AR5 relation ended after stamping -> therapist read refused
+PASS | AR6 owner stores the result the first time (completeSession)
+PASS | AR6 owner cannot overwrite the stored result
+PASS | AR6 owner cannot remove the stored result
+PASS | AR7 owner appends one condition report
+PASS | AR7 owner appends a second report (first unchanged)
+PASS | AR8 cannot change an earlier report
+PASS | AR8 cannot drop a report
+PASS | AR8 cannot append two reports in one write
+PASS | AR9 report written as someone else is refused
+PASS | AR9 unknown source value is refused
+PASS | AR9 synthetic_demo source is refused
+PASS | AR9 invalid answer value is refused
+PASS | AR9 extra field in a report is refused
+PASS | AR9 a new session cannot start with reports
+PASS | AR10 client cannot create a demoSynthetic session
+PASS | AR10 client cannot add demoSynthetic to its session
+PASS | AR10 client cannot remove an existing demoSynthetic flag
+PASS | AR10 a write keeping the flag unchanged is allowed
+PASS | AR11 owner cannot delete
+PASS | AR11 therapist cannot delete
+PASS | AR12 stamp with an ended relation is refused
+PASS | AR12 stamp with another patient's relation is refused
+PASS | AR12 stamp whose therapist does not match the relation is refused
+PASS | AR13 owner stamps a legacy session with its accepted relation
+PASS | AR13 re-stamp that also changes the result is refused
+PASS | AR13 owner may clear the stamp
+PASS | AR14 5xSTS create
+PASS | AR14 5xSTS completeSession
+PASS | AR14 5xSTS append report
+PASS | AR14 shoulder create
+PASS | AR14 shoulder movement result
+PASS | AR14 shoulder completeSession
+PASS | AR15 linked therapist cannot update the patient's session
+
+49 / 49 rule checks as expected
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator

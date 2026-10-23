@@ -4,6 +4,8 @@ import { createCollection, storageService } from "./storageService.js";
 import { relationService } from "./relationService.js";
 import { toLocalDateKey } from "./trackingCycle.js";
 import { buildDailyFeedbackRecord, feedbackId } from "./dailyTrainingFeedback.js";
+import { currentIncompleteTrainingProgress } from "./incompleteTrainingFeedbackService.js";
+import { progressFingerprint } from "./incompleteTrainingFeedback.js";
 
 const records = createCollection("dailyTrainingFeedback");
 function cache(record) {
@@ -54,7 +56,9 @@ export const dailyTrainingFeedbackService = {
     const date = now();
     if (input.dateKey !== toLocalDateKey(date)) return { error: "day_changed" };
     const relation = relationService.findAcceptedByPatientId(input.patientId)[0];
-    const context = { reportedAt: date.toISOString(), therapistId: relation?.therapistId || "", relationId: relation?.id || "" };
+    const progress = input.incompleteReason ? currentIncompleteTrainingProgress(input.patientId, input.dateKey) : null;
+    if (input.incompleteReason && (!progress || progressFingerprint(progress) !== input.progressFingerprint)) return { error: "progress_changed" };
+    const context = { reportedAt: date.toISOString(), therapistId: relation?.therapistId || "", relationId: relation?.id || "", incompleteProgress: progress };
     const check = buildDailyFeedbackRecord(input, records.getById(feedbackId(input.patientId, input.dateKey)), context);
     if (check.error) return check;
     try {

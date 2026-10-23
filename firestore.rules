@@ -234,12 +234,58 @@ service cloud.firestore {
     }
     function validDailyFeedbackReport(report) {
       return report is map
-        && report.keys().hasOnly(['source', 'reportedBy', 'reportedAt', 'effort', 'discomfort', 'note'])
+        && report.keys().hasOnly(['source', 'reportedBy', 'reportedAt', 'effort', 'discomfort', 'note', 'incompletion'])
         && report.source == 'self_report' && report.reportedBy == request.auth.uid
         && report.reportedAt is string && report.reportedAt.size() <= 40
         && report.effort in ['not_practiced', 'easy', 'somewhat_hard', 'very_hard', 'unknown']
         && report.discomfort in ['no', 'yes', 'unknown']
-        && report.note is string && report.note.size() <= 500;
+        && report.note is string && report.note.size() <= 500
+        && (!('incompletion' in report) || validIncompleteFeedback(report.incompletion));
+    }
+    // Context is a patient/device-loaded snapshot, not certified measurement data.
+    function validFeedbackAmount(value) {
+      return value == null || (value is number && value >= 0);
+    }
+    function validFeedbackAttempt(a) {
+      return a is map && a.keys().hasOnly(['recordId', 'totalReps', 'leftReps', 'rightReps'])
+        && a.recordId is string && a.recordId.size() <= 128
+        && validFeedbackAmount(a.totalReps) && validFeedbackAmount(a.leftReps) && validFeedbackAmount(a.rightReps);
+    }
+    function validFeedbackItem(item) {
+      return item is map && item.keys().hasOnly(['exerciseId', 'name', 'targetText', 'targetBasis', 'completed', 'savedAttemptCount', 'attempts'])
+        && item.exerciseId is string && item.exerciseId.size() <= 100
+        && item.name is string && item.name.size() <= 60
+        && item.targetText is string && item.targetText.size() <= 100
+        && item.targetBasis in ['frozen', 'current_plan_unfrozen'] && item.completed is bool
+        && item.savedAttemptCount is int && item.savedAttemptCount >= 0
+        && item.attempts is list && item.attempts.size() <= 3 && item.attempts.size() <= item.savedAttemptCount
+        && (item.attempts.size() < 1 || validFeedbackAttempt(item.attempts[0]))
+        && (item.attempts.size() < 2 || validFeedbackAttempt(item.attempts[1]))
+        && (item.attempts.size() < 3 || validFeedbackAttempt(item.attempts[2]));
+    }
+    function validIncompleteFeedback(value) {
+      let p = value.progress;
+      let cycle = get(/databases/$(database)/documents/trackingCycles/$(p.cycleId)).data;
+      return value.keys().hasOnly(['reason', 'progress'])
+        && value.reason in ['no_time', 'too_hard', 'discomfort', 'recognition_problem', 'save_problem', 'not_practiced', 'in_progress', 'other', 'unknown']
+        && p.keys().hasOnly(['schemaVersion', 'source', 'cycleId', 'recommendationId', 'dateKey', 'snapshotted', 'requiredCount', 'completedCount', 'savedAttemptCount', 'omittedItemCount', 'items'])
+        && p.schemaVersion == 'incomplete-training-context-1' && p.source == 'device_loaded_records'
+        && p.dateKey == request.resource.data.dateKey
+        && p.cycleId is string && p.recommendationId is string
+        && cycle.patientId == request.auth.uid && cycle.userId == request.auth.uid
+        && cycle.recommendationId == p.recommendationId
+        && p.snapshotted is bool && p.requiredCount is int && p.requiredCount > 0
+        && p.completedCount is int && p.completedCount >= 0 && p.completedCount < p.requiredCount
+        && p.savedAttemptCount is int && p.savedAttemptCount >= 0
+        && p.omittedItemCount is int && p.omittedItemCount >= 0
+        && p.items is list && p.items.size() <= 6
+        && p.items.size() + p.omittedItemCount == p.requiredCount
+        && (p.items.size() < 1 || validFeedbackItem(p.items[0]))
+        && (p.items.size() < 2 || validFeedbackItem(p.items[1]))
+        && (p.items.size() < 3 || validFeedbackItem(p.items[2]))
+        && (p.items.size() < 4 || validFeedbackItem(p.items[3]))
+        && (p.items.size() < 5 || validFeedbackItem(p.items[4]))
+        && (p.items.size() < 6 || validFeedbackItem(p.items[5]));
     }
     match /dailyTrainingFeedback/{id} {
       // A transaction must also be able to read a not-yet-existing daily document.

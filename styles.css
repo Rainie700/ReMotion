@@ -3677,3 +3677,6 @@ body.local-demo .phone { height: calc(100dvh - var(--local-demo-bar-h, 104px)); 
 .daily-feedback-card details { margin: 12px 0; }
 .daily-feedback-card summary { cursor: pointer; line-height: 1.7; }
 .daily-feedback-card li, .daily-feedback-card p { overflow-wrap: anywhere; }
+.daily-training-progress { margin: 14px 0; padding: 12px; border-radius: 12px; background: var(--bg); }
+.daily-training-progress-item { padding: 10px 0; border-top: 1px solid var(--line); }
+.daily-incomplete-reason { margin: 10px 0; }

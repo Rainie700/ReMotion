@@ -64,7 +64,29 @@ assert.equal(successes, 1); assert.equal(conflicts, 1);
 results.push("PASS | concurrent devices: one commit and one conflict; history retained");
 const saved = (await getDoc(reference(p))).data();
 assert.equal(saved.reports.length, 5); assert.deepEqual(saved.reports[1], correction);
-for (const result of results) console.log(result);
+// B04 second slice: optional incompletion context is backward compatible.
+const reasonId = `${P}_2026-10-24`;
+await seed(async s => {
+  await setDoc(doc(s, "trackingCycles", "reason-owned"), { patientId: P, userId: P, recommendationId: "reason-rec" });
+  await setDoc(doc(s, "trackingCycles", "reason-other"), { patientId: X, userId: X, recommendationId: "reason-rec" });
+});
+const progress = { schemaVersion: "incomplete-training-context-1", source: "device_loaded_records", cycleId: "reason-owned", recommendationId: "reason-rec", dateKey: "2026-10-24", snapshotted: true, requiredCount: 2, completedCount: 0, savedAttemptCount: 1, omittedItemCount: 1,
+  items: [{ exerciseId: "F01-01", name: "深蹲", targetText: "3 組 × 10 次", targetBasis: "frozen", completed: false, savedAttemptCount: 1, attempts: [{ recordId: "reason-attempt", totalReps: 4, leftReps: null, rightReps: null }] }] };
+const reasonFresh = incompletion => ({ ...fresh(), id: reasonId, dateKey: progress.dateKey, therapistId: "", relationId: "", reports: [{ ...report, incompletion }] });
+const reasonRef = doc(p, C, reasonId);
+await check("reason invalid enum rejected", false, () => setDoc(reasonRef, reasonFresh({ reason: "bad", progress })));
+await check("reason cannot reference another patient's cycle", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, cycleId: "reason-other" } })));
+await check("reason cannot reference another plan", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, recommendationId: "other" } })));
+await check("reason date must match daily document", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, dateKey: "2026-10-23" } })));
+await check("complete context cannot claim incompletion", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, completedCount: 2 } })));
+await check("reason fake measured source rejected", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, source: "clinical_verified" } })));
+await check("malformed context item rejected", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, items: [null] } })));
+await check("fake score in context attempt rejected", false, () => setDoc(reasonRef, reasonFresh({ reason: "save_problem", progress: { ...progress, items: [{ ...progress.items[0], attempts: [{ ...progress.items[0].attempts[0], score: 100 }] }] } })));
+await check("missing numeric amount can remain null", true, () => setDoc(reasonRef, reasonFresh({ reason: "recognition_problem", progress })));
+const reasonData = (await getDoc(reasonRef)).data();
+await check("reason correction preserves earlier context", true, () => updateDoc(reasonRef, { revision: 2, reports: [...reasonData.reports, { ...report, incompletion: { reason: "no_time", progress } }], updatedAt: serverTimestamp() }));
+await check("old context cannot be overwritten", false, () => updateDoc(reasonRef, { revision: 3, reports: [{ ...report }, ...reasonData.reports, { ...report }], updatedAt: serverTimestamp() }));
+for (const result of results.filter(x => x.includes("concurrent devices"))) console.log(result);
 await env.cleanup();
 const failed = results.filter(x => x.startsWith("FAIL"));
 console.log(`${results.length - failed.length}/${results.length} feedback rule checks passed`);

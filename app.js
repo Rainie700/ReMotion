@@ -308,6 +308,8 @@ import { D5_DECISION, D5_DECISION_LABEL, CONFIRMATION_MODE, TRANSITION_TYPE, mea
 import { describeTimeDifference } from "./js/data/trackingComparison.js";
 import { dailyTrainingFeedbackService } from "./js/data/dailyTrainingFeedbackService.js";
 import { renderDailyFeedbackCard, renderDailyFeedbackHistory } from "./js/ui/dailyTrainingFeedbackView.js";
+import { currentIncompleteTrainingProgress } from "./js/data/incompleteTrainingFeedbackService.js";
+import { progressFingerprint } from "./js/data/incompleteTrainingFeedback.js";
 import { isCurrentFa5xMeasurement } from "./js/data/fa5xMeasurementCompatibility.js";
 import { describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL } from "./js/data/fa5xConditionReport.js";
 import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView } from "./js/data/trackingCycle.js";
@@ -15691,7 +15693,9 @@ function renderDailyTrainingFeedback(patientId) {
   if (!old || old.patientId !== patientId || old.dateKey !== dateKey) {
     state.dailyFeedbackUi = { patientId, dateKey, editing: false, message: old?.patientId === patientId && old.editing ? "日期已變更，請確認今天的感受後重新填寫。" : "" };
   }
-  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus() });
+  const progress = currentIncompleteTrainingProgress(patientId, dateKey);
+  state.dailyFeedbackUi.progressFingerprint = progressFingerprint(progress);
+  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), progress });
 }
 function editDailyFeedbackFromUi() {
   const patientId = getCurrentPatientId();
@@ -15710,14 +15714,17 @@ async function saveDailyFeedbackFromUi(event) {
   event.preventDefault();
   const ui = state.dailyFeedbackUi;
   if (!ui || !ui.editing || ui.busy || ui.patientId !== getCurrentPatientId()) return;
-  const draft = { effort: document.getElementById("dailyFeedbackEffort").value, discomfort: document.getElementById("dailyFeedbackDiscomfort").value, note: document.getElementById("dailyFeedbackNote").value };
+  const draft = { effort: document.getElementById("dailyFeedbackEffort").value, discomfort: document.getElementById("dailyFeedbackDiscomfort").value, note: document.getElementById("dailyFeedbackNote").value, incompleteReason: document.getElementById("dailyIncompleteReason")?.value || "" };
+  const shownProgressFingerprint = ui.progressFingerprint;
   Object.assign(ui, { draft, busy: true, message: "" });
   render();
-  const result = await dailyTrainingFeedbackService.save({ patientId: ui.patientId, dateKey: ui.dateKey, expectedRevision: ui.expectedRevision, ...draft });
+  const result = await dailyTrainingFeedbackService.save({ patientId: ui.patientId, dateKey: ui.dateKey, expectedRevision: ui.expectedRevision, ...draft, progressFingerprint: shownProgressFingerprint });
   if (getCurrentPatientId() !== ui.patientId || state.dailyFeedbackUi !== ui) return;
   ui.busy = false;
   const errors = {
     invalid_input: "請選擇吃力程度及是否不舒服，補充說明最多 500 字。",
+    invalid_incomplete_reason: "目前無法回報這個原因，請確認今天的目標與紀錄。",
+    progress_changed: "今日目標或已儲存紀錄已變更，輸入仍保留。請先確認更新後的內容，再儲存回報。",
     day_changed: "日期已變更，請重新回報今天的感受。",
     conflict: "資料已在另一個畫面或裝置更新。請取消編輯，確認最新回報後再修改。",
     not_signed_in: "登入狀態已失效，請重新登入後再回報。",
