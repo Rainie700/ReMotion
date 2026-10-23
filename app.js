@@ -310,6 +310,8 @@ import { dailyTrainingFeedbackService } from "./js/data/dailyTrainingFeedbackSer
 import { renderDailyFeedbackCard, renderDailyFeedbackHistory } from "./js/ui/dailyTrainingFeedbackView.js";
 import { currentIncompleteTrainingProgress } from "./js/data/incompleteTrainingFeedbackService.js";
 import { progressFingerprint } from "./js/data/incompleteTrainingFeedback.js";
+import { selfReportedTrainingService } from "./js/data/selfReportedTrainingService.js";
+import { renderSelfReportedTrainingForm, renderSelfReportedTrainingHistory } from "./js/ui/selfReportedTrainingView.js";
 import { isCurrentFa5xMeasurement } from "./js/data/fa5xMeasurementCompatibility.js";
 import { describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL } from "./js/data/fa5xConditionReport.js";
 import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView } from "./js/data/trackingCycle.js";
@@ -4485,7 +4487,8 @@ function therapistCaseDetailPage() {
       return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
     })();
     const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId)
-      + renderDailyFeedbackHistory(dailyTrainingFeedbackService.listForTherapist(state.user.id, patientId), { cloudStatus: dailyTrainingFeedbackService.cloudStatus() });
+      + renderDailyFeedbackHistory(dailyTrainingFeedbackService.listForTherapist(state.user.id, patientId), { cloudStatus: dailyTrainingFeedbackService.cloudStatus() })
+      + renderSelfReportedTrainingHistory(selfReportedTrainingService.listForTherapist(state.user.id, patientId), { cloudStatus: selfReportedTrainingService.cloudStatus() });
     bodyHtml = `
       <h3 class="section-title">今日復健狀況</h3>
       <div class="card"><div class="small">今日課表完成 <b>${cs.todayDone} / ${cs.todayTotal}</b>${lastCompleted ? `｜最近完成：${lastCompleted.exerciseName}` : ""}</div></div>
@@ -10354,7 +10357,8 @@ function exerciseDetailPage() {
     sourceBadgeHtml: sourceTagHtml,
     statusPillHtml: isAssigned ? `<span class="pill ${statusClass}">${statusText}</span>` : "",
     ctaHtml,
-    extraHtml: analysisResultHtml ? `<details class="exp-fold"><summary>${isAssigned ? "分析結果" : "最近一次紀錄"}</summary>${analysisResultHtml}</details>` : "",
+    extraHtml: (analysisResultHtml ? `<details class="exp-fold"><summary>${isAssigned ? "分析結果" : "最近一次紀錄"}</summary>${analysisResultHtml}</details>` : "")
+      + (mode === "self_practice" && state.navigationOrigin === "self_practice" ? `<button class="btn btn-light full" onclick="goSelfReportedTraining()">不使用相機，自行回報</button>${renderSelfReportedTrainingHistory(selfReportedTrainingService.listForPatient(state.user.id, ex.exerciseId), { canVoid: true, cloudStatus: selfReportedTrainingService.cloudStatus() })}` : ""),
   });
 }
 
@@ -15686,6 +15690,84 @@ const TRACKING_CTA_FN = {
 
 /** The patient's active (else latest) F01 tracking cycle — what the Home hero shows. */
 // B04 daily self-report: explicit entry, no automatic popup after each exercise.
+function readSelfReportValues() {
+  const old = state.manualTrainingUi?.draft.values || {};
+  const values = { ...old };
+  for (const id of ["manualBasis","manualTotal","manualLeft","manualRight","manualSeconds","manualNote"]) {
+    const element = document.getElementById(id); if (element) values[id] = element.value;
+  }
+  const attested = document.getElementById("manualAttested"); if (attested) values.manualAttested = attested.checked;
+  return values;
+}
+function goSelfReportedTraining() {
+  const context = getExercisePageContext();
+  if (state.user?.role !== "patient" || !context || context.mode !== "self_practice" || state.navigationOrigin !== "self_practice") return;
+  const draft = selfReportedTrainingService.begin(state.user.id, context.ex.exerciseId);
+  if (!draft) return;
+  state.manualTrainingUi = { draft, busy: false, message: "", result: null };
+  state.f01TrainingContext = null;
+  state.f01RecommendationExecution = null;
+  state.route = "selfReportedTraining";
+  render();
+}
+function selfReportedTrainingPage() {
+  const ui = state.manualTrainingUi;
+  if (!ui || state.user?.role !== "patient" || ui.draft.patientId !== state.user.id) return `<div class="card">請重新登入患者帳號，再從自主練習進入。</div>`;
+  const exercise = exerciseService.getNormalizedById(ui.draft.exerciseId);
+  return exercise?.id === ui.draft.exerciseId ? renderSelfReportedTrainingForm(exercise, { ...ui, values: ui.draft.values }) : `<div class="card">找不到動作，請返回自主練習。</div>`;
+}
+function setSelfReportBasis(value) {
+  const ui = state.manualTrainingUi; if (!ui || ui.busy || ui.draft.patientId !== getCurrentPatientId()) return;
+  ui.draft.values = { ...readSelfReportValues(), manualBasis: value };
+  selfReportedTrainingService.keepDraft(ui.draft); render();
+}
+function leaveSelfReportedTraining() {
+  const ui = state.manualTrainingUi; if (ui?.busy) return;
+  if (ui && !ui.result && ui.draft.patientId === getCurrentPatientId()) {
+    ui.draft.values = readSelfReportValues(); selfReportedTrainingService.keepDraft(ui.draft);
+  }
+  state.route = "exerciseDetail"; render();
+}
+async function saveSelfReportedTrainingFromUi(event) {
+  event.preventDefault();
+  const ui = state.manualTrainingUi;
+  if (!ui || ui.busy || ui.result || ui.draft.patientId !== getCurrentPatientId()) return;
+  ui.draft.values = readSelfReportValues(); selfReportedTrainingService.keepDraft(ui.draft);
+  const v = ui.draft.values, exercise = exerciseService.getNormalizedById(ui.draft.exerciseId);
+  const number = id => v[id] == null || String(v[id]).trim() === "" ? null : Number(v[id]);
+  const actual = { basis: (exercise?.measurementType || exercise?.raw?.measurementType) === "duration" ? "duration" : v.manualBasis, durationSeconds: null, totalReps: null, leftReps: null, rightReps: null };
+  if (actual.basis === "duration") actual.durationSeconds = number("manualSeconds");
+  if (actual.basis === "total") actual.totalReps = number("manualTotal");
+  if (actual.basis === "per_side") { actual.leftReps = number("manualLeft"); actual.rightReps = number("manualRight"); }
+  ui.busy = true; ui.message = ""; render();
+  const result = await selfReportedTrainingService.save({ patientId: ui.draft.patientId, sessionId: ui.draft.sessionId, exerciseId: ui.draft.exerciseId, actual, note: v.manualNote || "", unrecordedPracticeAttested: v.manualAttested === true });
+  if (state.manualTrainingUi !== ui || getCurrentPatientId() !== ui.draft.patientId) return;
+  ui.busy = false;
+  if (result.error) ui.message = ({ invalid_input: "請確認回報方式、填寫正整數的實做量，並勾選未重複記錄的確認。左右分開時，未練的一側請填 0。", session_already_saved: "這次練習已經儲存過，沒有新增第二筆。請返回查看紀錄；填錯時可先作廢。", not_signed_in: "登入狀態已失效，請重新登入後再儲存。", cloud_save_failed: "尚未確認雲端儲存成功，輸入已保留。請確認連線後重試；重試沿用同一筆紀錄編號。" })[result.error] || "目前無法儲存。";
+  else { ui.result = result.record; ui.message = result.alreadySaved ? "這次練習先前已儲存，沒有重複新增。" : ""; }
+  render();
+}
+async function voidSelfReportedTrainingFromUi(id) {
+  if (!getCurrentPatientId() || state.manualVoidBusy) return;
+  if (!confirm("作廢後保留原紀錄供查閱；如果填錯，可以作廢後重新回報。確定作廢這筆嗎？")) return;
+  const patientId = getCurrentPatientId(); state.manualVoidBusy = true;
+  const result = await selfReportedTrainingService.void(patientId, id);
+  state.manualVoidBusy = false;
+  if (getCurrentPatientId() !== patientId) return;
+  if (result.error) alert("尚未確認作廢成功，請確認網路與登入狀態後重試。");
+  render();
+}
+window.goSelfReportedTraining = goSelfReportedTraining;
+window.setSelfReportBasis = setSelfReportBasis;
+window.leaveSelfReportedTraining = leaveSelfReportedTraining;
+window.saveSelfReportedTrainingFromUi = saveSelfReportedTrainingFromUi;
+window.voidSelfReportedTrainingFromUi = voidSelfReportedTrainingFromUi;
+const renderBeforeSelfReportedTraining = render;
+render = function () {
+  if (state.route === "selfReportedTraining") { app.innerHTML = phone(selfReportedTrainingPage(), false); attachImageFallbacks(app); }
+  else renderBeforeSelfReportedTraining();
+};
+
 function renderDailyTrainingFeedback(patientId) {
   const dateKey = toLocalDateKey(new Date());
   if (!patientId) return "";
@@ -15695,7 +15777,9 @@ function renderDailyTrainingFeedback(patientId) {
   }
   const progress = currentIncompleteTrainingProgress(patientId, dateKey);
   state.dailyFeedbackUi.progressFingerprint = progressFingerprint(progress);
-  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), progress });
+  const ownReports = selfReportedTrainingService.listForPatient(patientId);
+  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), progress })
+    + (ownReports.length || selfReportedTrainingService.cloudStatus() === "failed" ? renderSelfReportedTrainingHistory(ownReports, { canVoid: true, cloudStatus: selfReportedTrainingService.cloudStatus() }) : "");
 }
 function editDailyFeedbackFromUi() {
   const patientId = getCurrentPatientId();

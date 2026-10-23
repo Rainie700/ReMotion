@@ -307,6 +307,43 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // B04 independent self-report ledger. It never writes analysisRecords or credit.
+    function manualCount(n) { return n is int && n >= 0 && n <= 100000; }
+    function manualAmount(data) {
+      let a = data.actual;
+      return a is map && a.keys().hasOnly(['basis', 'durationSeconds', 'totalReps', 'leftReps', 'rightReps'])
+        && ((data.measurementType == 'duration' && a.basis == 'duration'
+          && a.durationSeconds is int && a.durationSeconds > 0 && a.durationSeconds <= 86400
+          && a.totalReps == null && a.leftReps == null && a.rightReps == null)
+        || (data.measurementType == 'repetition' && a.durationSeconds == null
+          && ((a.basis == 'total' && manualCount(a.totalReps) && a.totalReps > 0 && a.leftReps == null && a.rightReps == null)
+          || (a.basis == 'per_side' && a.totalReps == null && manualCount(a.leftReps) && manualCount(a.rightReps) && a.leftReps + a.rightReps > 0))));
+    }
+    match /selfReportedTraining/{id} {
+      allow get: if request.auth != null && (resource == null || resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow list: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['id', 'sessionId', 'schemaVersion', 'patientId', 'therapistId', 'relationId', 'exerciseId', 'exerciseName', 'measurementType', 'source', 'unrecordedPracticeAttested', 'actual', 'note', 'reportedAt', 'dateKey', 'status', 'voidedAt', 'voidReason', 'createdAt', 'updatedAt'])
+        && request.resource.data.id == id && id == request.auth.uid + '_' + request.resource.data.sessionId
+        && request.resource.data.sessionId is string && request.resource.data.sessionId.matches('^[A-Za-z0-9_-]{1,100}$')
+        && request.resource.data.schemaVersion == 'self-reported-training-1'
+        && request.resource.data.source == 'self_report' && request.resource.data.unrecordedPracticeAttested == true
+        && request.resource.data.exerciseId is string && request.resource.data.exerciseId.matches('^F0[1-6]-[0-9]{2}$')
+        && request.resource.data.exerciseName is string && request.resource.data.exerciseName.size() <= 100
+        && request.resource.data.note is string && request.resource.data.note.size() <= 500
+        && request.resource.data.reportedAt is string && request.resource.data.reportedAt.size() <= 40
+        && request.resource.data.dateKey is string && request.resource.data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.status == 'recorded' && request.resource.data.voidedAt == null && request.resource.data.voidReason == ''
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time
+        && sessionStampOk(request.resource.data) && manualAmount(request.resource.data);
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid
+        && resource.data.status == 'recorded' && request.resource.data.status == 'voided'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'voidedAt', 'voidReason', 'updatedAt'])
+        && request.resource.data.voidedAt == request.time && request.resource.data.updatedAt == request.time
+        && request.resource.data.voidReason == '本人作廢';
+      allow delete: if false;
+    }
+
     // Other data records are scoped in the client by patientId/therapistId and
     // are loaded only after authentication. Cross-account clinical sharing for
     // these needs a relation-aware layer before they can be tightened.

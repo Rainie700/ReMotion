@@ -63,7 +63,7 @@ const before = snapshot();
   assert.match(setup, /cloudWrites\.failed\.length === 0/, "ok requires no failed write");
   const storage = readFileSync(join(root, "js/data/storageService.js"), "utf8");
   const undeletable = JSON.parse(storage.match(/CLOUD_UNDELETABLE_COLLECTIONS = (\[[^\n]+\]);/)[1]);
-  for (const name of ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "dailyTrainingFeedback"]) assert.ok(undeletable.includes(name));
+  for (const name of ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "dailyTrainingFeedback", "selfReportedTraining"]) assert.ok(undeletable.includes(name));
   const rules = readFileSync(join(root, "firestore.rules"), "utf8");
   for (const name of undeletable) {
     const block = rules.slice(rules.indexOf(`match /${name}/`));

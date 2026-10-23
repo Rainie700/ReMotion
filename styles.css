@@ -3680,3 +3680,7 @@ body.local-demo .phone { height: calc(100dvh - var(--local-demo-bar-h, 104px)); 
 .daily-training-progress { margin: 14px 0; padding: 12px; border-radius: 12px; background: var(--bg); }
 .daily-training-progress-item { padding: 10px 0; border-top: 1px solid var(--line); }
 .daily-incomplete-reason { margin: 10px 0; }
+.self-report-attest { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; font-size: 14px; line-height: 1.6; }
+.self-report-history details { margin: 12px 0; overflow-wrap: anywhere; }
+.self-report-history summary { cursor: pointer; line-height: 1.6; }
+.daily-feedback-label input[type="number"] { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #ccd4c5; border-radius: 12px; font: inherit; }

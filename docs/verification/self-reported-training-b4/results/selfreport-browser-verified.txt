@@ -1,0 +1,16 @@
+⚠  emulators: You are not currently authenticated so some features may not work correctly. Please run firebase login to authenticate the CLI.
+i  emulators: Starting emulators: auth, firestore
+i  emulators: Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+i  firestore: Firestore Emulator logging to firestore-debug.log
+✔  firestore: Firestore Emulator UI websocket is running on 9150.
+i  Running script: node selfReportedTrainingBrowserCheck.mjs
+PASS | mobile UI saves self-reported side counts and explicit zero; retry same session produces one cloud document
+PASS | duration record saved, then owner voided it; amount and history retained
+PASS | separate therapist context loads both sources of self-reported amount with void status, no edit control
+PASS | no AI analysis, score, cycle/schedule credit, page error or unexpected dialog; local-only requests, no camera/Gemini
+✔  Script exited successfully (code 0)
+i  emulators: Shutting down emulators.
+i  firestore: Stopping Firestore Emulator
+i  auth: Stopping Authentication Emulator
+i  hub: Stopping emulator hub
+i  logging: Stopping Logging Emulator
