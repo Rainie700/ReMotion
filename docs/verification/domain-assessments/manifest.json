@@ -1,0 +1,94 @@
+{
+  "baseCommit": "b2456e94018c696ad193e6935061bfe5ff7bc117",
+  "date": "2026-10-29",
+  "files": [
+    {
+      "path": "app.js",
+      "sha256": "0452f60db562d40bd61e63328a92b17e64cb9a887253fe5b199bd71ff4cbf2e7"
+    },
+    {
+      "path": "styles.css",
+      "sha256": "1b05b8e4ec42f880486ff20d9c6a5ac5631a7fc489802fa48efe03be6bab0c85"
+    },
+    {
+      "path": "firestore.rules",
+      "sha256": "d2749dd131f826cb4ba9fd2cbb002dd17e2ed98c6a2d2f924836f80078498a97"
+    },
+    {
+      "path": "package.json",
+      "sha256": "80f191c231bb25e2231a7e98a4eaefc6e59376f961fae566471321f1df9a5193"
+    },
+    {
+      "path": "js/data/storageService.js",
+      "sha256": "7ccd6135e6a50f9d339fb706a49b7da3f7d8c810b37811c5d2c7bde69f46ac97"
+    },
+    {
+      "path": "js/data/domainAssessments.js",
+      "sha256": "175388603710546fb5d1db293b35fc42d39505a4f9d4765623c47e39876dc6d6"
+    },
+    {
+      "path": "js/data/domainAssessmentService.js",
+      "sha256": "d97bc2497440ade17bde024e1a77c2a57cca0e2bd28106297f3d3cb3962f0c94"
+    },
+    {
+      "path": "js/ai/domainAssessmentCandidates.js",
+      "sha256": "3be849adc81ea078290688c99c04e95683cd71b3070f4071c4f74e375a0322e0"
+    },
+    {
+      "path": "js/ui/domainAssessmentView.js",
+      "sha256": "26110fc493605339782b2651e0965455ecf0e9d5c4414af59e6bbd0ce02ab0d7"
+    },
+    {
+      "path": "tests/domainAssessmentProtocols.test.js",
+      "sha256": "043e39e3f23ee34dbc1f390c61b8b726c0fd09df9564878257e43ed9f7ce353f"
+    },
+    {
+      "path": "tests/domainAssessmentService.test.js",
+      "sha256": "aea9f375268558f7167cce41db30af048bc83e398e601e7c75451fade45c2450"
+    },
+    {
+      "path": "tests/domainAssessmentCandidates.test.js",
+      "sha256": "b2aac0cfa6dbe1899e26de781c4340eb68763151d3f2b0824d479609e750d8c2"
+    },
+    {
+      "path": "tests/fa5xConditionReport.test.js",
+      "sha256": "ddf33ee81111f8f203017ee25ffa534f2658356844592a017d2e530e377f3133"
+    },
+    {
+      "path": "tests/trainingTabLayout.test.js",
+      "sha256": "979ccd51ea4bc69090d59727e4ded97c59435026a85204ddc24b5bd75aef69b2"
+    },
+    {
+      "path": "tests/f01InitialPlanBaselineFlow.test.js",
+      "sha256": "f453b6e57896644052c3f6bc2f2c741cd8daf80e68d56600f06b327f5abf4f45"
+    },
+    {
+      "path": "scripts/domainAssessmentsBrowserCheck.mjs",
+      "sha256": "a1b4a7687648f7e053d6402d25947e921a427f0b7227591cd3cc0c2f8ffbfe7f"
+    },
+    {
+      "path": "DOMAIN_ASSESSMENTS_UPDATE_README.md",
+      "sha256": "c20951745dc39a15b9daf82bded14b2b79c71578f8e99779eeea6cbddb62f814"
+    },
+    {
+      "path": "docs/DOMAIN_ASSESSMENTS_2026-10-29.md",
+      "sha256": "4d71a4438bde46cd1a7b9aac2484e9c655c782e9862922fa68fef5b0f765f9f2"
+    },
+    {
+      "path": "docs/verification/domain-assessments/REPORT.md",
+      "sha256": "7e96840c5dd79647a0f4fec1a9d02ee1895556b1edfedba4c50e3f1e010605e9"
+    },
+    {
+      "path": "docs/verification/domain-assessments/results/npm-test.txt",
+      "sha256": "6cf2be70fbf32834072dfef29d92423687b7fef8302931199e85b6683b29e3c3"
+    },
+    {
+      "path": "docs/verification/domain-assessments/results/npm-build.txt",
+      "sha256": "b5f0a8d3bd1193390eed4aaf79e2a5d4ead72e6a2f907f8f6a3a4b0bccb89ab0"
+    },
+    {
+      "path": "docs/verification/domain-assessments/results/browser-and-rules.txt",
+      "sha256": "f3abdbf2c5f244f2bb5729f7348b136e758a55695127f2fe6dd29a258e37f503"
+    }
+  ]
+}

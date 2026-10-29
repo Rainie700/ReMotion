@@ -4149,3 +4149,29 @@ button.body-region-btn { width: 100%; }
 .prep-next { gap: 4px; margin-top: 4px; }
 .guest-note .prep-next + .small { margin: 0; }
 .guest-note > .fa5x-section-title { margin: 0; } /* 首次評估準備: no extra gap between 「接下來」 and its steps */
+/* Five-domain protocol assessment: scope all form/camera rules to this flow. */
+.da-protocol, .da-form, .da-latest, .da-result, .da-suggestion, .da-readonly { margin-block:12px; }
+.da-protocol ol { padding-left:24px; line-height:1.8; }
+.da-protocol li { margin-bottom:8px; }
+.da-field { display:grid; gap:6px; margin-block:12px; font-weight:600; }
+.da-field input, .da-field select { box-sizing:border-box; width:100%; min-width:0; padding:12px; font:inherit; border:1px solid #d6ddcf; border-radius:12px; background:#fff; color:#253222; }
+.da-check { display:grid; grid-template-columns:22px minmax(0,1fr); align-items:start; gap:10px; margin-block:16px; line-height:1.6; }
+.da-check input[type="checkbox"] { width:22px; height:22px; min-width:22px; padding:0; margin:3px 0 0; accent-color:#6c894e; }
+.da-notice { padding:12px; border-radius:12px; background:#edf2e8; line-height:1.65; }
+.da-value { font-size:clamp(24px,7vw,40px); font-weight:750; line-height:1.4; margin-block:12px; overflow-wrap:anywhere; }
+.da-value span { font-size:18px; }
+.da-history { display:grid; gap:6px; text-align:left; color:inherit; font:inherit; border:1px solid #e0e5dc; margin-block:10px; }
+.da-number-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.da-comparison { width:100%; table-layout:fixed; border-collapse:collapse; margin-top:12px; }
+.da-comparison th, .da-comparison td { padding:8px; text-align:left; overflow-wrap:anywhere; border-bottom:1px solid #e0e5dc; }
+.da-earlier { border-top:1px solid #e0e5dc; margin-top:12px; padding-top:8px; }
+.domain-primary .domain-primary-text { grid-column:2; justify-self:stretch; }
+.domain-primary .domain-primary-more { grid-column:3; }
+.da-domain-links { display:grid; gap:8px; }
+.da-domain-links .btn { display:grid; text-align:left; white-space:normal; }
+.da-camera[hidden] { display:none; }
+.da-illustration { width:100%; height:170px; object-fit:contain; margin-block:10px; }
+.da-illustration[hidden] { display:none; }
+.da-camera { min-height:240px; }
+.da-counter .squat-rep-counter-text { display:grid; justify-items:center; }
+.da-timer-card .btn, .da-form + .btn, .da-suggestion .btn { margin-top:10px; white-space:normal; }

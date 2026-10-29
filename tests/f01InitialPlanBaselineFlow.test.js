@@ -254,6 +254,9 @@ const notice = (u) => ADV.f01AdventureService.getAdventure(u, TODAY).initialPlan
   const b = functionalAssessmentService.getById(s.id);
   const gen = (minutes) => recommendationService.createF01GoalRecommendation({ patientId: u, createdBy: u, result: generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G04", limitationIds: ["L05"], availableMinutes: minutes, catalog, excludeAutoRecommendationPending: true }) }).recommendation;
   const oldRec = gen(10);
+  // This scenario requires an OLDER recommendation. Two synchronous creates can
+  // otherwise share a millisecond and make the "latest" fixture nondeterministic.
+  recs.update(oldRec.id, { createdAt: `${BEFORE}T08:00:00+08:00` });
   const old = trackingCycleService.createOrGetTrackingCycle({ userId: u, baselineSession: b, recommendation: oldRec, completionRulesVersion: V2 }).cycle;
   const rec = gen(20);
   assert.ok((await S.reviewInitialRecommendation({ recommendationId: rec.id, therapistId: T1, items: [{ exerciseId: "F01-09" }], reason: "x", expectedFingerprint: IR.initialPlanFingerprint(recs.getById(rec.id)) }, { syncWrites: syncOk, completionRulesVersion: V2 })).review);

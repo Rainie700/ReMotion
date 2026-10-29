@@ -4,6 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "test:domain-protocols": "node tests/domainAssessmentProtocols.test.js",
+    "test:domain-storage": "node tests/domainAssessmentService.test.js",
+    "test:domain-candidates": "node tests/domainAssessmentCandidates.test.js",
     "test:daily-training-feedback": "node tests/dailyTrainingFeedback.test.js",
     "test:incomplete-training-feedback": "node tests/incompleteTrainingFeedback.test.js",
     "test:self-reported-training": "node tests/selfReportedTraining.test.js",

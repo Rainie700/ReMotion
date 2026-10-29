@@ -1,0 +1,24 @@
+PASS F02 three sequential stages, score 4, cloud save
+PASS F03 ordered TUG events and 3m confirmed route
+PASS F04 measured 4m, two trials, faster time, calculated m/s
+PASS F05 full 30s, observer 12 repetitions, 5lb condition
+PASS F06 signed ruler cm, two trials per side
+PASS failed early balance stage prevents later stages
+PASS incomplete preserved, no fabricated speed
+PASS camera failure leaves observer flow available and result incomplete
+PASS background interruption invalidates timed arm test rather than filling 30 seconds
+PASS six clickable domains and 320/390/430/1280 no horizontal overflow
+PASS F01 original home and new-domain direct training route
+PASS second device cloud hydration
+PASS linked therapist reads five domains on desktop
+[2026-10-29T06:37:09.323Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a42d960 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+evaluation error at L541:24 for 'update' @ L541, false for 'update' @ L552, false for 'update' @ L541, false for 'update' @ L552
+[2026-10-29T06:37:09.340Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a42d961 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L544, false for 'delete' @ L552
+[2026-10-29T06:37:09.363Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a42d962 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L541, false for 'update' @ L552
+[2026-10-29T06:37:09.386Z]  @firebase/firestore: Firestore (10.14.1): GrpcConnection RPC 'Write' stream 0x3a42d963 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L540, false for 'create' @ L552, false for 'update' @ L541, false for 'update' @ L552
+PASS Firestore owner/accepted-relation read, stranger/anonymous denied, immutable measurements, no delete, revoked relation denied
+PASS failed cloud save visible, same-record retry persists once, history retained
+PASS no browser page errors

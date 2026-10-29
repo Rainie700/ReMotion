@@ -515,6 +515,35 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // F02–F06: observer measurements and separate CV candidates. Immutable after save.
+    function domainAssessmentShape(id, d) {
+      return d.keys().hasOnly(['id', 'patientId', 'domain', 'assessmentType', 'protocolVersion', 'method', 'raw', 'conditions', 'candidates', 'observerConfirmed', 'status', 'createdAt', 'therapistId', 'relationId'])
+        && d.id == id && d.patientId == request.auth.uid
+        && id.matches('da_' + request.auth.uid + '_[A-Za-z0-9_-]{8,100}')
+        && d.protocolVersion == 'six-domain-assessment-1' && d.method == 'observer_assisted'
+        && ((d.domain == 'F02' && d.assessmentType == 'sppb_balance')
+          || (d.domain == 'F03' && d.assessmentType == 'tug')
+          || (d.domain == 'F04' && d.assessmentType == 'gait_speed_4m')
+          || (d.domain == 'F05' && d.assessmentType == 'arm_curl_30s')
+          || (d.domain == 'F06' && d.assessmentType == 'chair_sit_reach'))
+        && d.raw is map && d.candidates is map && d.conditions is map
+        && d.conditions.keys().hasOnly(['pain', 'support', 'observer', 'setup'])
+        && d.conditions.pain in ['no', 'yes', 'unknown']
+        && d.conditions.support in ['none', 'aid', 'person', 'unknown']
+        && d.conditions.observer in ['helper', 'therapist'] && d.conditions.setup == true
+        && d.observerConfirmed is bool && d.status in ['completed', 'incomplete']
+        && (d.status != 'completed' || d.observerConfirmed == true)
+        && d.createdAt is string && sessionStampOk(d);
+    }
+    match /domainAssessmentRecords/{id} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && domainAssessmentShape(id, request.resource.data);
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid
+        && domainAssessmentShape(id, request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['therapistId', 'relationId']);
+      allow delete: if false;
+    }
+
     // Other data records are scoped in the client by patientId/therapistId and
     // are loaded only after authentication. Cross-account clinical sharing for
     // these needs a relation-aware layer before they can be tightened.

@@ -1,4 +1,7 @@
 import { authService } from "./js/data/authService.js";
+import { DOMAIN_ASSESSMENT_PROTOCOLS, getDomainProtocol } from "./js/data/domainAssessments.js";
+import { domainAssessmentService } from "./js/data/domainAssessmentService.js";
+import { createDomainAssessmentView, renderDomainMeasurement, formatDomainAssessmentTime } from "./js/ui/domainAssessmentView.js";
 import { storageService, isLocalDemoStorage, waitForCloudWrites } from "./js/data/storageService.js";
 import { isEmulatorMode, checkEmulatorsReachable, EMULATOR_PROJECT_ID } from "./js/data/firebase.js";
 // 本機隔離展示 (dev server + ?localDemo=d5 only): separate storage prefix, no Firebase login, no cloud.
@@ -1370,6 +1373,10 @@ function handleImageError(img, fallbackPath) {
 function attachImageFallbacks(root) {
   root.querySelectorAll("img").forEach((img) => {
     const originalSrc = img.getAttribute("src");
+    if (img.dataset.domainAssessmentMedia === "1") {
+      img.onerror = () => { img.onerror = null; img.hidden = true; };
+      return;
+    }
     if (img.dataset.exerciseMedia === "1") {
       img.onerror = () => {
         img.onerror = null;
@@ -6336,7 +6343,7 @@ function todaySchedulePage() {
       <h3 class="section-title">探索與練習</h3>
       <div class="today-explore">
         ${exploreCard("goF01FixedPracticeFrom('work')", "/images/exercise/exercise_sit_to_stand.png", "坐站練習", "固定練習，每次 5 次")}
-        ${exploreCard("goFunctionalDomainHome('work')", "/images/icon_body_lower_limb.png", "功能評估與練習", "目前開放下肢功能")}
+        ${exploreCard("goFunctionalDomainHome('work')", "/images/icon_body_lower_limb.png", "功能評估與練習", "六大構面評估與練習")}
       </div>
       <div class="today-utilities">
         ${hasAny || !plan.isToday ? utility("goSelfPracticeLibrary()", "/images/train.png", "自主練習", "自己選動作，不列入今日安排") : ""}
@@ -8077,11 +8084,11 @@ function functionalChangeTrendPage() {
  */
 const FUNCTIONAL_DOMAINS = [
   { key: "F01", label: "下肢功能", icon: "/images/Medical/body_health/medical_hip.png", available: true },
-  { key: "F02", label: "平衡", icon: null, available: false },
-  { key: "F03", label: "功能性移動", icon: null, available: false },
-  { key: "F04", label: "步行功能", icon: "/images/Medical/body_health/medical_foot.png", available: false },
-  { key: "F05", label: "上肢功能", icon: "/images/Medical/body_health/medical_shoulder.png", available: false },
-  { key: "F06", label: "柔軟度／活動能力", icon: "/images/Medical/body_health/medical_joint_mobility.png", available: false },
+  { key: "F02", label: "平衡", icon: null, available: true },
+  { key: "F03", label: "功能性移動", icon: null, available: true },
+  { key: "F04", label: "步行功能", icon: "/images/Medical/body_health/medical_foot.png", available: true },
+  { key: "F05", label: "上肢功能", icon: "/images/Medical/body_health/medical_shoulder.png", available: true },
+  { key: "F06", label: "柔軟度／活動能力", icon: "/images/Medical/body_health/medical_joint_mobility.png", available: true },
 ];
 
 /**
@@ -8089,11 +8096,13 @@ const FUNCTIONAL_DOMAINS = [
  * (goF01LowerLimbHomeFrom). The code (F01…F06) stays as an internal id (data-domain), not the visible title.
  */
 function renderFunctionalDomainButton(domain) {
-  const iconHtml = domain.icon ? `<img class="body-region-icon" src="${domain.icon}" alt="" />` : "";
+  const iconHtml = domain.icon ? `<img class="body-region-icon" src="${domain.icon}" alt="" />` : `<span class="body-region-icon" aria-hidden="true"></span>`;
   if (domain.available) {
-    return `<button type="button" class="card body-region-btn available domain-primary" data-domain="${domain.key}" onclick="goF01LowerLimbHomeFrom('domains')">
+    const action = domain.key === "F01" ? "goF01LowerLimbHomeFrom('domains')" : `goDomainAssessmentHome('${domain.key}')`;
+    const subtitle = domain.key === "F01" ? "五次坐站評估、坐站練習與訓練建議" : `${getDomainProtocol(domain.key)?.chineseName || "功能評估"}、練習與紀錄`;
+    return `<button type="button" class="card body-region-btn available domain-primary" data-domain="${domain.key}" onclick="${action}">
       ${iconHtml}
-      <span class="domain-primary-text"><b>${domain.label}</b><span class="small">五次坐站評估、坐站練習與訓練建議</span></span>
+      <span class="domain-primary-text"><b>${domain.label}</b><span class="small">${subtitle}</span></span>
       <span class="domain-primary-more" aria-hidden="true">›</span>
     </button>`;
   }
@@ -8117,12 +8126,12 @@ function functionalDomainHomePage() {
       <b>功能構面</b>
       <span></span>
     </div>
-    <p class="body-region-intro">目前可進行下肢功能評估與練習</p>
+    <p class="body-region-intro">選擇想了解的功能構面，進行評估或練習。</p>
     ${open.map(renderFunctionalDomainButton).join("")}
-    <details class="d5-more domain-closed">
+    ${closed.length ? `<details class="d5-more domain-closed">
       <summary>其他構面・尚未開放（${closed.length}）</summary>
       <ul class="domain-closed-list">${closed.map(renderFunctionalDomainButton).join("")}</ul>
-    </details>
+    </details>` : ""}
   `;
 }
 
@@ -18286,6 +18295,46 @@ if (LOCAL_DEMO_MODE) {
     localDemoAs("patient");
   });
 }
+
+// F02–F06 assessment protocols from the supplied six-domain workbook. F01 is unchanged.
+const domainAssessmentView = createDomainAssessmentView({
+  service: domainAssessmentService, getUser: () => state.user, getRoute: () => state.route,
+  navigate: route => { state.route = route; state.tab = state.domainFrom === "work" ? "work" : "home"; render(); },
+  refresh: () => render(), domains: () => goFunctionalDomainHome(state.domainFrom),
+  allExercises: () => exerciseService.listNormalized(), exerciseCard: e => renderSelfPracticeExerciseCard(e),
+  trainingRecords: patientId => analysisService.getByPatientId(patientId),
+  cloudLoadStatus: () => storageService.getOptionalCloudLoadStatus("domainAssessmentRecords"),
+});
+window.goDomainAssessmentHome = key => domainAssessmentView.open(key);
+window.domainAssessmentAction = (action, arg) => domainAssessmentView.action(action, arg);
+window.domainAssessmentInput = (name, value) => domainAssessmentView.input(name, value);
+const renderBeforeDomainAssessments = render;
+render = function () {
+  const html = domainAssessmentView.render(state.route);
+  if (html == null) return renderBeforeDomainAssessments();
+  app.innerHTML = phone(html, state.route !== "domainAssessmentSession");
+  attachImageFallbacks(app); domainAssessmentView.afterRender();
+};
+function renderOtherDomainPatientLinks() {
+  return `<h3 class="section-title">其他功能評估</h3><div class="card da-domain-links">${Object.values(DOMAIN_ASSESSMENT_PROTOCOLS).map(p => {
+    const last = domainAssessmentService.list(state.user.id, p.key)[0];
+    return `<button class="btn btn-light full" onclick="goDomainAssessmentHome('${p.key}')"><b>${p.label}</b><span class="small">${p.chineseName}｜${last ? "已有紀錄" : "尚未評估"}</span></button>`;
+  }).join("")}</div>`;
+}
+const patientDataBeforeDomainAssessments = patientDataOverviewPage;
+patientDataOverviewPage = function () { return patientDataBeforeDomainAssessments() + renderOtherDomainPatientLinks(); };
+const caseBeforeDomainAssessments = therapistCaseDetailPage;
+therapistCaseDetailPage = function () {
+  const html = caseBeforeDomainAssessments(), patientId = state.selectedPatientId;
+  const relation = state.user?.role === "therapist" && relationService.findAcceptedRelation(state.user.id, patientId);
+  if (!relation || !["overview", "assessment", undefined, null].includes(state.caseDetailTab)) return html;
+  const rows = domainAssessmentService.list(patientId).filter(r => r.therapistId === state.user.id && r.relationId === relation.id);
+  const failed = storageService.getOptionalCloudLoadStatus("domainAssessmentRecords") === "failed";
+  return html + `<h3 class="section-title">其他五構面評估</h3>${failed ? `<div class="card">五構面評估資料未成功載入；請檢查新規則部署後重新登入。</div>` : rows.length ? Object.values(DOMAIN_ASSESSMENT_PROTOCOLS).map(p => {
+    const history = rows.filter(r => r.domain === p.key), latest = history[0];
+    return latest ? `<div class="card da-readonly"><b>${p.label}｜${p.chineseName}</b><p class="small">${formatDomainAssessmentTime(latest.createdAt)}｜患者端填報，自述由${latest.conditions.observer === "therapist" ? "復健師" : "現場陪同者"}協助；未核驗協助者身分。</p>${renderDomainMeasurement(latest)}<p class="small">不適回報：${latest.conditions.pain === "no" ? "無" : latest.conditions.pain === "yes" ? "有" : "不確定"}；支撐：${({ none: "無", aid: "輔具", person: "他人", unknown: "不確定" })[latest.conditions.support]}</p>${history.length > 1 ? `<details><summary>較早評估（${history.length - 1}）</summary>${history.slice(1).map(r => `<div class="da-earlier"><p class="small">${formatDomainAssessmentTime(r.createdAt)}</p>${renderDomainMeasurement(r)}</div>`).join("")}</details>` : ""}</div>` : "";
+  }).join("") : `<div class="card">尚無已同步且屬於目前照護關係的五構面評估紀錄。</div>`}`;
+};
 
 // ── Guest entry (2026-10-29) — the OUTERMOST render layer (keep it last). Without a session only the public routes
 // render (boot, login / register, the guest 首頁 / 訓練 / 數據 / 我的, a public 動作介紹 and the 首次評估準備 page);

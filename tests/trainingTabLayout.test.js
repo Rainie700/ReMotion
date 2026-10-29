@@ -170,7 +170,7 @@ for (const dateKey of ["2026-09-28", "2026-10-01"]) {
   // 2026-10-28 (UX round 3/5): 快速功能 became 探索與練習 — fixed entries for 坐站練習 and the six domains, then the
   // same compact utilities; the running week's 本週訓練 card comes first on the page.
   const quick = between(html, ">探索與練習<");
-  assert.ok(quick.includes("goF01FixedPracticeFrom('work')") && quick.includes("<b>坐站練習</b>") && quick.includes("goFunctionalDomainHome('work')") && quick.includes("<b>功能評估與練習</b>") && quick.includes("目前開放下肢功能"), "fixed explore entries"); // 2026-10-29: renamed from 六大功能構面 (only 下肢功能 is open)
+  assert.ok(quick.includes("goF01FixedPracticeFrom('work')") && quick.includes("<b>坐站練習</b>") && quick.includes("goFunctionalDomainHome('work')") && quick.includes("<b>功能評估與練習</b>") && quick.includes("六大構面評估與練習"), "fixed explore entries, six domains now open");
   assert.ok(quick.includes("<b>自主練習</b>") && quick.includes("自己選動作，不列入今日安排") && quick.includes("<b>訓練紀錄</b>"), "compact utilities");
   assert.ok(html.indexOf(">探索與練習<") > html.indexOf("<b>ReMotion 建議</b>"), "utilities after the tasks");
   // UX round 5/5 (2026-10-28): the separate 本週訓練 card repeated the overview's X / Y; the week entry is now part of

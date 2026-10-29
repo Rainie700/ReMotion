@@ -38,14 +38,14 @@ const CLOUD_COLLECTIONS = [
 // fails (e.g. rules not yet deployed -> permission denied) the local copy is
 // kept and login is never blocked; if it succeeds, cloud and local records
 // are merged by id (cloud wins) instead of the local list being replaced.
-const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords"];
+const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords", "domainAssessmentRecords"];
 // Outcome of the last cloud load of each optional collection for the signed-in
 // user ("loaded" | "failed"), so a UI can tell "cloud copy not loaded" apart
 // from "no records" instead of showing a failed load as an empty list.
 const optionalCloudLoadStatus = new Map();
 // firestore.rules: `allow delete: if false` — a local remove() of these never reaches the cloud,
 // and the cloud copy is merged back on the next login.
-const CLOUD_UNDELETABLE_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords"];
+const CLOUD_UNDELETABLE_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords", "domainAssessmentRecords"];
 const isSyncedCollection = (name) => CLOUD_COLLECTIONS.includes(name) || OPTIONAL_CLOUD_COLLECTIONS.includes(name);
 
 function readRaw(key, fallback) {
@@ -168,7 +168,7 @@ function currentRelationStamp(patientId) {
 // therapist's read can be checked by firestore.rules (which re-reads the relation).
 // 5xSTS batch A added functionalAssessmentSessions; only the stamp fields change —
 // the rest of the record (incl. a stored measurement `result`) is written as it is.
-const RELATION_STAMPED_COLLECTIONS = ["trackingCycles", "functionalAssessmentSessions"];
+const RELATION_STAMPED_COLLECTIONS = ["trackingCycles", "functionalAssessmentSessions", "domainAssessmentRecords"];
 
 /** Plain objects without their undefined fields (deep); arrays mapped; anything else (Firestore sentinels, Dates) as is. */
 export function withoutUndefined(value) {

@@ -201,7 +201,8 @@ const done = (over = {}) => ({ ...CUR, status: "completed", repCount: 5, complet
   assert.ok(storage.includes('if (name === "functionalAssessmentSessions" && user.role === "therapist")'));
   const tq = storage.slice(storage.indexOf('if (name === "functionalAssessmentSessions" && user.role === "therapist")'));
   assert.ok(tq.indexOf('r.status === "accepted"') > 0 && tq.indexOf('where("relationId", "==", relation.id)') > 0, "therapist reads only via accepted, stamped relations");
-  assert.ok(storage.includes('const RELATION_STAMPED_COLLECTIONS = ["trackingCycles", "functionalAssessmentSessions"];'));
+  const stamped = JSON.parse(storage.match(/const RELATION_STAMPED_COLLECTIONS = (\[[^\n]+\]);/)[1]);
+  assert.ok(stamped.includes("trackingCycles") && stamped.includes("functionalAssessmentSessions"), "existing collections remain relation-stamped when a domain is added");
 }
 
 console.log("5xSTS batch A condition-report tests passed");
