@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ReMotion 畫面總覽</title>
+<style>
+  :root { --bg: #f5f6f4; --card: #fff; --text: #1e241d; --muted: #5f6a5b; --primary: #5f8d49; --line: #e2e6de; --warn-bg: #fff6e5; --warn-line: #efd9a8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: "Noto Sans TC", "Segoe UI", sans-serif; line-height: 1.55; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  h2 { margin: 36px 0 4px; font-size: 21px; color: var(--primary); }
+  h3 { margin: 22px 0 0; font-size: 16px; }
+  p { margin: 4px 0; }
+  .muted { color: var(--muted); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--warn-bg); border: 1px solid var(--warn-line); font-size: 13px; font-weight: 700; color: #7a5a12; }
+  .notice { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--warn-bg); border: 1px solid var(--warn-line); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 12px; }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+  figure img { display: block; width: 100%; height: auto; border-radius: 8px; background: #eee; }
+  figcaption { margin-top: 8px; font-size: 14px; }
+  figcaption b { display: block; font-size: 15px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .wide { grid-column: span 2; }
+  a { color: var(--primary); }
+  ul.videos { margin: 10px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ReMotion 畫面總覽（使用體驗改善第 1–5 輪）</h1>
+  <p class="muted">2026-10-28　本機開發伺服器＋Firebase 本機模擬器（demo-remotion）擷取的真實畫面。</p>
+  <p class="notice"><span class="badge">合成資料</span>　畫面中的帳號（示範患者、示範復健師）、評估秒數、訓練與回報紀錄全部是測試用的合成資料，不是真人成果。相機畫面是瀏覽器的假攝影機，骨架與計次是合成關節點，不代表真實辨識已通過（第 2 輪的真人 0/5 問題仍未解決）。</p>
+
+  <h2>第 5 輪：介面收尾與簡報素材（390 寬）</h2>
+  <p>簡報用 17 張素材與清單在 <a href="../ux-r5/presentation/index.html">ux-r5/presentation/index.html</a>（依簡報頁次排列；15 張可直接用、2 張需真人補拍）。</p>
+  <h3>修改前 → 修改後（同一份合成資料）</h3>
+  <div class="grid">
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/01-home.png" alt="首頁 修改前" /><img src="../ux-r5/before-after/after/01-home.png" alt="首頁 修改後" /></div><figcaption><b>首頁（左：第 4 輪　右：第 5 輪）</b>成就與邀請碼移到「我的」，自由練習只在「訓練」</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/02-training-tab.png" alt="訓練分頁 修改前" /><img src="../ux-r5/before-after/after/02-training-tab.png" alt="訓練分頁 修改後" /></div><figcaption><b>訓練分頁（左：第 4 輪　右：第 5 輪）</b>本週安排／今日復健／今日任務合併成一張概況卡</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/03-practice-result.png" alt="坐站練習結果 修改前" /><img src="../ux-r5/before-after/after/03-practice-result.png" alt="坐站練習結果 修改後" /></div><figcaption><b>坐站練習結果（左：第 4 輪　右：第 5 輪）</b>查看紀錄／返回訓練緊接在結果下方；補記次數改為點開才填</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/04-data-overview.png" alt="數據總覽 修改前" /><img src="../ux-r5/before-after/after/04-data-overview.png" alt="數據總覽 修改後" /></div><figcaption><b>數據總覽（左：第 4 輪　右：第 5 輪）</b>寫出近 7 天的實際日期範圍；坐站練習與自行回報各自一列</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/05-assessment-result.png" alt="評估結果 修改前" /><img src="../ux-r5/before-after/after/05-assessment-result.png" alt="評估結果 修改後" /></div><figcaption><b>評估結果（左：第 4 輪　右：第 5 輪）</b>「評估已保存」顯示真實保存狀態；版本碼移到量測說明</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/06-assessment-page.png" alt="功能評估 修改前" /><img src="../ux-r5/before-after/after/06-assessment-page.png" alt="功能評估 修改後" /></div><figcaption><b>功能評估（左：第 4 輪　右：第 5 輪）</b>移除重複的「目前」卡；訓練表現空狀態縮成一行</figcaption></figure>
+    <figure class="wide"><div class="pair"><img src="../ux-r5/before-after/before/07-profile.png" alt="我的 修改前" /><img src="../ux-r5/before-after/after/07-profile.png" alt="我的 修改後" /></div><figcaption><b>我的（左：第 4 輪　右：第 5 輪）</b>我的復健師內含邀請碼入口</figcaption></figure>
+  </div>
+  <h3>驗收畫面</h3>
+  <div class="grid">
+    <figure><img src="../ux-r5/browser/04-home-pending-unlinked.png" alt="待檢視但未連結復健師" /><figcaption><b>待檢視但未連結復健師</b>首頁直接有「輸入復健師邀請碼」</figcaption></figure>
+    <figure><img src="../ux-r5/browser/05-profile-invite-focused.png" alt="點入後" /><figcaption><b>點入後</b>到「我的」並把游標放在邀請碼</figcaption></figure>
+    <figure><img src="../ux-r5/browser/08-practice-result-early.png" alt="提前結束" /><figcaption><b>提前結束</b>結果 → 按鈕 → 無法確認原因 → 補記入口（收合）</figcaption></figure>
+    <figure><img src="../ux-r5/browser/09-practice-result-self-saved.png" alt="補記已保存" /><figcaption><b>補記已保存</b>自行回報（本人填寫）另外顯示</figcaption></figure>
+    <figure><img src="../ux-r5/browser/13-slow-save-pending.png" alt="保存較慢" /><figcaption><b>保存較慢</b>只顯示「儲存中…」，不會提早寫已同步</figcaption></figure>
+    <figure><img src="../ux-r5/browser/14-local-only.png" alt="沒有雲端帳號" /><figcaption><b>沒有雲端帳號</b>僅保存在這台裝置（本機隔離展示模式）</figcaption></figure>
+    <figure><img src="../ux-r5/presentation/raw/P07-03.png" alt="正式週期的坐姿起立訓練結果" /><figcaption><b>正式週期的坐姿起立訓練結果</b>新增與深蹲相同的訓練結果頁與保存狀態（合成輸入）</figcaption></figure>
+  </div>
+
+  <h2>第 4 輪：完成頁、數據、紀錄與評估圖表（390 寬）</h2>
+  <h3>首頁與回報（第 3 輪畫面，問候改為中性）</h3>
+  <div class="grid">
+    <figure><img src="../ux-r4/browser/01-home-new-patient.png" alt="新患者首頁" /><figcaption><b>1. 新患者首頁</b></figcaption></figure>
+    <figure><img src="../ux-r4/browser/02-home-running-week.png" alt="進行中首頁" /><figcaption><b>1. 進行中週期首頁</b>問候不再寫「今天沒有復健師安排」</figcaption></figure>
+    <figure><img src="../ux-r4/browser/03-report-sheet.png" alt="回報視窗" /><figcaption><b>1. 回報視窗</b></figcaption></figure>
+  </div>
+  <h3>評估結果與練習完成</h3>
+  <div class="grid">
+    <figure><img src="../ux-r4/browser/04-assessment-result.png" alt="評估結果" /><figcaption><b>2. 評估結果</b>完成時間為主角、標示用途；測試條件點開才回答</figcaption></figure>
+    <figure><img src="../ux-r4/browser/04b-assessment-result-conditions.png" alt="測試條件已回報" /><figcaption><b>測試條件已回報</b></figcaption></figure>
+    <figure><img src="../ux-r4/browser/05-practice-result-reached.png" alt="練習達標" /><figcaption><b>3. 練習完成（達標）</b>星星只在達到目標時出現</figcaption></figure>
+    <figure><img src="../ux-r4/browser/06-practice-result-ended-early.png" alt="提前結束" /><figcaption><b>練習結果（提前結束）</b>顯示實際紀錄、無法確認的動作與自行回報</figcaption></figure>
+    <figure><img src="../ux-r4/browser/06b-practice-result-self-report.png" alt="只有自行回報" /><figcaption><b>只有自行回報</b></figcaption></figure>
+    <figure><img src="../ux-r4/browser/07-practice-result-sync-failed.png" alt="同步失敗" /><figcaption><b>保存失敗</b>尚未同步＋重試（本機模擬：雲端規則缺少此集合）</figcaption></figure>
+  </div>
+  <h3>數據與紀錄</h3>
+  <div class="grid">
+    <figure><img src="../ux-r4/browser/08b-data-overview-running-week.png" alt="數據總覽" /><figcaption><b>4. 數據總覽</b>功能評估、訓練紀錄、感受回報</figcaption></figure>
+    <figure><img src="../ux-r4/browser/08-data-overview-new-patient.png" alt="數據總覽新患者" /><figcaption><b>數據總覽（新患者）</b></figcaption></figure>
+    <figure><img src="../ux-r4/browser/09-records-fixed-practice.png" alt="訓練紀錄坐站練習" /><figcaption><b>5. 訓練紀錄 → 坐站練習</b>與正式訓練、自行回報分開</figcaption></figure>
+    <figure><img src="../ux-r4/browser/10-record-detail.png" alt="單筆詳情" /><figcaption><b>5. 單筆詳情</b></figcaption></figure>
+  </div>
+  <h3>評估圖表</h3>
+  <div class="grid">
+    <figure><img src="../ux-r4/browser/11-chart-two-weeks-full.png" alt="跨週期圖表" /><figcaption><b>6. 跨週期評估圖表</b>依週分組；未來評估只標預計日期</figcaption></figure>
+    <figure><img src="../ux-r4/browser/11b-chart-single-week.png" alt="單次評估圖表" /><figcaption><b>只有一次追蹤評估</b></figcaption></figure>
+    <figure class="wide"><img src="../ux-r4/browser/L-1280-assessment.png" alt="桌面評估" /><figcaption><b>1280 × 800 功能評估</b></figcaption></figure>
+    <figure><img src="../ux-r4/browser/L-430-data.png" alt="430 數據" /><figcaption><b>430 × 932 數據總覽</b></figcaption></figure>
+  </div>
+  <p class="muted">跨週期圖表的第 1 週由本機介面建立，再由模擬器管理工具把日期往前移並加入一筆合成再次評估（標示 seededSynthetic）。</p>
+
+  <h2>第 3 輪：首頁、訓練分頁、回報（390 寬）</h2>
+  <h3>首頁：一個主要任務</h3>
+  <div class="grid">
+    <figure><img src="../ux-r3/browser/01-home-new-patient-full.png" alt="新患者首頁" /><figcaption><b>1. 新患者首頁</b>尚未建立安排 → 開始自主復健</figcaption></figure>
+    <figure><img src="../ux-r3/browser/02-home-running-week-full.png" alt="進行中週期首頁" /><figcaption><b>2. 進行中週期首頁</b>本週進行中 → 開始今日訓練</figcaption></figure>
+    <figure><img src="../ux-r3/browser/12-home-awaiting-review.png" alt="待檢視" /><figcaption><b>待檢視（已連結復健師）</b>查看待檢視安排</figcaption></figure>
+    <figure><img src="../ux-r3/browser/13-home-awaiting-review-unlinked.png" alt="待檢視未連結" /><figcaption><b>待檢視（沒有復健師）</b>說明目前無法完成檢視，不暗示有人處理</figcaption></figure>
+    <figure><img src="../ux-r3/browser/14-home-awaiting-acceptance.png" alt="待接受" /><figcaption><b>待接受</b>查看確認安排</figcaption></figure>
+    <figure><img src="../ux-r3/browser/15-home-needs-new-baseline.png" alt="待新基準" /><figcaption><b>待新基準</b>開始第一週基準評估</figcaption></figure>
+    <figure><img src="../ux-r3/browser/16-home-accepted-not-active.png" alt="已接受尚未啟用" /><figcaption><b>已接受、尚未啟用</b>原本的週期仍是主要任務，下方一行提示</figcaption></figure>
+    <figure><img src="../ux-r3/browser/02b-home-loading.png" alt="載入中" /><figcaption><b>安排載入中</b>不會顯示成「沒有安排」</figcaption></figure>
+    <figure><img src="../ux-r3/browser/02c-home-load-failed.png" alt="載入失敗" /><figcaption><b>安排載入失敗</b>說明不代表沒有安排＋重新載入</figcaption></figure>
+  </div>
+  <h3>訓練分頁</h3>
+  <div class="grid">
+    <figure><img src="../ux-r3/browser/L-390-training.png" alt="訓練分頁" /><figcaption><b>3. 訓練分頁（有週期）</b>本週訓練優先，下方有坐站練習與六大功能構面</figcaption></figure>
+    <figure><img src="../ux-r3/browser/03-training-tab-new-patient.png" alt="訓練分頁新患者" /><figcaption><b>訓練分頁（新患者）</b>同樣找得到坐站練習</figcaption></figure>
+  </div>
+  <h3>回報：點開才填</h3>
+  <div class="grid">
+    <figure><img src="../ux-r3/browser/04-report-sheet-step1.png" alt="回報視窗第一步" /><figcaption><b>4. 回報視窗</b>標題、回報對象、目前步驟，不預選答案</figcaption></figure>
+    <figure><img src="../ux-r3/browser/05-report-sheet-target-question.png" alt="未完成原因" /><figcaption><b>未完成原因</b>明確顯示對應的本週目標</figcaption></figure>
+    <figure><img src="../ux-r3/browser/06b-report-sheet-note.png" alt="補充說明" /><figcaption><b>補充說明與送出前摘要</b></figcaption></figure>
+    <figure><img src="../ux-r3/browser/07-report-done.png" alt="回報完成" /><figcaption><b>5. 回報完成</b>送出成功後才顯示</figcaption></figure>
+    <figure><img src="../ux-r3/browser/08-home-reported.png" alt="今日已回報" /><figcaption><b>首頁：今日已回報</b>查看／更新</figcaption></figure>
+    <figure><img src="../ux-r3/browser/10-report-overview.png" alt="查看回報" /><figcaption><b>查看／更新</b>目前採用的回答、歷次回報、週期回報分開</figcaption></figure>
+    <figure><img src="../ux-r3/browser/09-cycle-report-sheet.png" alt="本週期回報" /><figcaption><b>本週期今日回報</b>頂端標示對應週期</figcaption></figure>
+    <figure><img src="../ux-r3/browser/11-report-send-failed.png" alt="送出失敗" /><figcaption><b>送出失敗</b>保留內容，可重新送出</figcaption></figure>
+  </div>
+  <h3>不同尺寸</h3>
+  <div class="grid">
+    <figure><img src="../ux-r3/browser/L-430-home.png" alt="430 首頁" /><figcaption><b>430 × 932 首頁</b></figcaption></figure>
+    <figure><img src="../ux-r3/browser/L-430-sheet.png" alt="430 回報" /><figcaption><b>430 × 932 回報視窗</b></figcaption></figure>
+    <figure class="wide"><img src="../ux-r3/browser/L-1280-home.png" alt="桌面首頁" /><figcaption><b>1280 × 800 首頁</b></figcaption></figure>
+    <figure class="wide"><img src="../ux-r3/browser/L-1280-sheet.png" alt="桌面回報" /><figcaption><b>1280 × 800 回報視窗</b></figcaption></figure>
+  </div>
+
+  <h2>第 2 輪：相機頁（390 寬）</h2>
+  <p class="muted">影像區是瀏覽器的假攝影機；骨架與計次是合成關節點。</p>
+  <div class="grid">
+    <figure><img src="../le05-camera-r2/browser/1-model-loaded-fake-camera.png" alt="尚未完整入鏡" /><figcaption><b>尚未完整入鏡</b>真實模型已載入</figcaption></figure>
+    <figure><img src="../le05-camera-r2/browser/3-found-not-seated.png" alt="還沒確認起始坐姿" /><figcaption><b>還沒確認起始坐姿</b>站著入鏡不會顯示可以開始</figcaption></figure>
+    <figure><img src="../le05-camera-r2/browser/4-ready.png" alt="起始姿勢就緒" /><figcaption><b>起始姿勢就緒</b></figcaption></figure>
+    <figure><img src="../le05-camera-r2/browser/5-counted-1.png" alt="已計入第 1 次" /><figcaption><b>練習中</b>已計入第 1 次</figcaption></figure>
+    <figure><img src="../le05-camera-r2/browser/6-tracking-lost.png" alt="追蹤中斷" /><figcaption><b>追蹤中斷，需要重新就緒</b></figcaption></figure>
+    <figure><img src="../le05-camera-r2/browser/8-model-failed.png" alt="模型載入失敗" /><figcaption><b>無法開始</b>可重新開始</figcaption></figure>
+  </div>
+
+  <h2>第 1 輪：坐站練習入口、介紹頁、準備頁（390 寬，修改前 → 修改後）</h2>
+  <div class="grid">
+    <figure><div class="pair"><img src="../fixed-practice-ux-r1/before/before-390-4-intro-full.png" alt="修改前介紹頁" /><img src="../fixed-practice-ux-r1/after/after-390-4-intro-full.png" alt="修改後介紹頁" /></div><figcaption><b>介紹頁</b>左：修改前　右：修改後</figcaption></figure>
+    <figure><div class="pair"><img src="../fixed-practice-ux-r1/before/before-390-5-prep.png" alt="修改前準備頁" /><img src="../fixed-practice-ux-r1/after/after-390-5-prep.png" alt="修改後準備頁" /></div><figcaption><b>準備頁</b>左：修改前　右：修改後</figcaption></figure>
+    <figure><div class="pair"><img src="../fixed-practice-ux-r1/before/before-390-3-f01.png" alt="修改前 F01" /><img src="../fixed-practice-ux-r1/after/after-390-3-f01.png" alt="修改後 F01" /></div><figcaption><b>F01 下肢功能</b>「C｜坐站固定練習」→「坐站練習」</figcaption></figure>
+  </div>
+  <p class="muted">第 1 輪的訓練分頁入口在第 3 輪改成「探索與練習」中的坐站練習卡片（見上方訓練分頁）。</p>
+
+  <h2>操作錄影</h2>
+  <ul class="videos">
+    <li><a href="../ux-r4/browser/video/done-records-back-to-training-390.webm">第 4 輪：練習完成 → 查看練習紀錄 → 返回訓練</a></li>
+    <li><a href="../ux-r3/browser/video/home-report-then-training-390.webm">6. 第 3 輪：從首頁填回報，再進訓練（本週訓練 → 本週期回報 → 坐站練習）</a></li>
+    <li><a href="../le05-camera-r2/browser/video/camera-page-states-390.webm">第 2 輪：相機頁狀態與保存</a></li>
+    <li><a href="../fixed-practice-ux-r1/flow/video/entry-to-camera-390.webm">第 1 輪：訓練 → 坐站練習 → 開始準備 → 開啟鏡頭（當時的入口版本）</a></li>
+  </ul>
+  <p class="muted">含使用者本人影像的診斷錄影與回放截圖（reports/le05-camera-r2/replay）只放在開發紀錄，不在這份展示中。</p>
+</main>
+</body>
+</html>

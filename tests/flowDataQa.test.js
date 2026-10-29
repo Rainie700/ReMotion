@@ -89,7 +89,7 @@ const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name
   assert.ok(!/onclick="goFiveTimesSitToStandAssessment\(\)">返回/.test(header), "返回 never re-opens the pre-test page");
   const cycles = createCollection("trackingCycles");
   const st = { fa5xResultOrigin: "assessment" };
-  const back = load("fa5xResultBackAction", { state: st, trackingCycleService, REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE });
+  const back = load("fa5xResultBackAction", { state: st, trackingCycleService, REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE, INITIAL_PLAN_BASELINE_ROLE: "initial_plan_baseline" });
   const s = (result, id = "s1") => ({ id, result });
   // A. initial result -> F01 entry (never the explanation / camera / countdown)
   assert.equal(back(s({ status: "completed" })), "goF01LowerLimbHome()");
@@ -128,9 +128,10 @@ const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name
   assert.equal(setupState.f01RecSetup.selectedGoalId, null, "first visit starts empty");
   // D. 返回評估結果 -> the assessment result
   assert.ok(recPage.includes(`goFiveTimesSitToStandResult('\${rec.sourceAssessmentId}'\${fromTracking ? ", 'home'" : ""})">返回評估結果`));
-  // tracking 查看本週訓練 -> recommendation 返回 goes home
+  // tracking 查看本週訓練 -> recommendation 返回 goes back where it was opened: Home, or the 訓練 tab (2026-10-28)
   assert.ok(fnSource("goTrackingWeekTraining").includes('state.f01RecResultOrigin = "tracking";'));
-  assert.ok(recPage.includes(`\${sourceId && !fromTracking ? \`goFiveTimesSitToStandResult('\${sourceId}')\` : "switchTab('home')"}`));
+  assert.ok(fnSource("goTrackingWeekTraining").includes('state.weekTrainingFrom = from === "work" ? "work" : "home";'));
+  assert.ok(recPage.includes(`\${sourceId && !fromTracking ? \`goFiveTimesSitToStandResult('\${sourceId}')\` : \`switchTab('\${fromTracking && state.weekTrainingFrom === "work" ? "work" : "home"}')\`}`));
   assert.ok(fnSource("generateF01RecommendationFromSetup").includes('state.f01RecResultOrigin = "setup";'));
   // G. D5 status check 返回 -> D4 comparison
   assert.ok(fnSource("d5StatusCheckPage").includes(`onclick="goTrackingComparison('\${s.cycleId}')">返回</button>`));
@@ -184,7 +185,7 @@ const load = (name, deps) => new Function(...Object.keys(deps), `${fnSource(name
   assert.equal(recommendationService.getByAssessmentId(baseline.id).length, 0, "legacy getTodaysRecommendation cache (assessmentId) never sees F01 / D5 records");
   assert.equal(draft.assessmentId, null);
   // Consumers read the CYCLE's recommendationId, never "latest" — source checks
-  assert.ok(fnSource("renderTrackingCycleCard").includes("recommendationService.getById(cycle.recommendationId)"));
+  assert.ok(fnSource("trackingCardState").includes("recommendationService.getById(cycle.recommendationId)")); // UX round 5/5: moved with the card state
   assert.ok(fnSource("goTrackingWeekTraining").includes("goF01RecommendationResult(cycle.recommendationId)"));
   assert.ok(fnSource("armF01TrackingTraining").includes("cycle.recommendationId !== state.f01RecommendationId"));
   const svc = readFileSync(join(root, "js/data/trackingCycleService.js"), "utf8");

@@ -314,7 +314,9 @@ for (const fn of [
 // tests / patientDataOverviewPage call sites), just no longer Home's first
 // hop.
 {
-  const home = appJs.slice(appJs.indexOf("const functionalAssessmentSectionHtml ="), appJs.indexOf("const functionalAssessmentSectionHtml =") + 1200);
+  // 2026-10-28 (UX round 3/5): the default hero is built as defaultHeroHtml — shown when no week card, first plan or
+  // loading / failed state applies (homeResultRedesign.test.js checks that rule)
+  const home = appJs.slice(appJs.indexOf("const defaultHeroHtml ="), appJs.indexOf("const defaultHeroHtml =") + 1200);
   assert.ok(/onclick="goFunctionalDomainHome\(\)"/.test(home), "Home primary CTA opens the Functional Domain grid");
   assert.ok(home.includes("依目前身體狀況與訓練需求，安排適合你的復健內容。"), "Home supporting copy matches the entry");
   assert.ok(/functionalAssessmentResultActionHtml/.test(home), "the 評估結果 secondary action is still rendered");

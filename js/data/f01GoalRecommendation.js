@@ -1,5 +1,6 @@
 import { F01_GOALS, F01_EXERCISE_MAPPING, F01_EXERCISE_SPEC } from "./f01RecommendationSpec.js";
 import { F01_AUTO_RECOMMENDATION_EXCLUSIONS } from "./f01DailyTargets.js";
+import { F01_G01_SCREEN_GOAL_ID, G01_NOT_AUTO_INCLUDED, G01_SIT_TO_STAND_ID, G01_REASON_CATEGORY, buildG01ConditionSnapshot, screenG01SitToStand } from "./f01G01ConditionScreen.js";
 
 /**
  * F01 Recommendation Phase C — explainable, rule-ordered recommendation (pure).
@@ -171,8 +172,9 @@ export function orderF01GoalCandidates({ goal, limitationIds = [], catalog = [] 
  *   limitationIds: string[]          (optional)
  *   availableMinutes: 10|15|20      (optional; default: 3 items)
  *   catalog: normalized exercises   (exerciseService.listNormalized())
+ *   g01Conditions: buildG01ConditionSnapshot(...) of the assessment (G01 only; absent -> every field "missing")
  */
-export function generateF01GoalRecommendation({ assessment, selectedGoalId, limitationIds = [], availableMinutes = null, catalog = [], excludeAutoRecommendationPending = false }) {
+export function generateF01GoalRecommendation({ assessment, selectedGoalId, limitationIds = [], availableMinutes = null, catalog = [], excludeAutoRecommendationPending = false, g01Conditions = null }) {
   const base = { ruleVersion: F01_RECOMMENDATION_RULE_VERSION, items: [], excluded: [], missingExerciseIds: [] };
 
   // R00 — quality gate
@@ -195,7 +197,27 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
   // F01 batch 2 §3B — new-version automatic candidates skip exercises whose counting is pending
   // (F01-19). Applied BEFORE the R06 cut so the next candidate fills the slot; data untouched.
   const autoExcluded = excludeAutoRecommendationPending ? ordered.filter((c) => F01_AUTO_RECOMMENDATION_EXCLUSIONS[c.exercise.id]) : [];
-  const picked = ordered.filter((c) => !autoExcluded.includes(c)).slice(0, maxItems);
+  // G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md) — G01 only, before the R06 cut;
+  // an exercise it leaves out is stated in `excluded`, and no other exercise takes its slot.
+  const screenG01 = goal.goalId === F01_G01_SCREEN_GOAL_ID;
+  const conditionSnapshot = screenG01 ? (g01Conditions || buildG01ConditionSnapshot({})) : null;
+  const sitToStand = screenG01 ? screenG01SitToStand(conditionSnapshot) : null;
+  const screenExcluded = [];
+  const screenOut = (c) => {
+    if (!screenG01) return false;
+    const id = c.exercise.id;
+    if (G01_NOT_AUTO_INCLUDED[id]) {
+      screenExcluded.push({ exerciseId: id, exerciseName: c.exercise.name, reason: G01_NOT_AUTO_INCLUDED[id], reasonCategory: G01_REASON_CATEGORY.NOT_INCLUDED });
+      return true;
+    }
+    if (id === G01_SIT_TO_STAND_ID && !sitToStand.passed) {
+      screenExcluded.push({ exerciseId: id, exerciseName: c.exercise.name, reason: sitToStand.reasons[0].code, reasonCategory: sitToStand.reasons[0].category,
+        screenReasons: sitToStand.reasons.map((r) => ({ ...r, fields: r.fields.map((f) => ({ ...f })) })) });
+      return true;
+    }
+    return false;
+  };
+  const picked = ordered.filter((c) => !autoExcluded.includes(c) && !screenOut(c)).slice(0, maxItems);
   const limitationsApplied = limitations.length > 0;
   const items = picked.map((c, idx) => {
     const matchedConditions = [
@@ -204,6 +226,7 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
       { ruleId: "R02", text: c.matchLevel === MATCH_LEVEL.DIRECT ? `直接對應「${goal.label}」` : `「${goal.label}」相關輔助訓練` },
     ];
     if (limitationsApplied) matchedConditions.push({ ruleId: "R03", text: "動作注意事項未涉及你勾選的限制" });
+    if (screenG01 && c.exercise.id === G01_SIT_TO_STAND_ID) matchedConditions.push({ ruleId: "G01-C1", text: "通過本版協助條件篩選：你回報測驗時沒有用手撐、也沒有人協助（使用者回報，系統未驗證）" });
     if (c.aiSupported) matchedConditions.push({ ruleId: "R07", text: "支援即時動作辨識與回饋" });
     return {
       rank: idx + 1,
@@ -228,6 +251,7 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
     { key: "goal", label: "訓練目標", value: goal.label },
   ];
   if (timeOption) basis.push({ key: "time", label: "可用時間", value: `${timeOption.minutes} 分鐘（決定建議動作數量）` });
+  if (screenG01) basis.push({ key: "g01_conditions", label: "協助條件（使用者回報）", value: sitToStand.passed ? "沒有用手撐、沒有人協助（本版協助條件篩選）" : "未通過本版協助條件篩選" });
   if (limitationsApplied) basis.push({ key: "limitations", label: "排除條件", value: `${limitations.map((l) => l.label).join("、")}${excluded.length ? `（已排除 ${excluded.length} 個動作）` : "（沒有動作因此被排除）"}` });
 
   // F01 batch 2 §3B — fewer eligible exercises than the time option's slots is stated, never filled in.
@@ -236,6 +260,8 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
     ...base,
     status: items.length ? "ok" : "no_candidates",
     ...(shortfall ? { shortfall } : {}),
+    // G01 condition screen — the snapshot actually used, the rule version and the F01-04 outcome.
+    ...(screenG01 ? { conditionScreen: { ...conditionSnapshot, sitToStandPassed: sitToStand.passed, reasonCodes: sitToStand.reasons.map((r) => r.code) } } : {}),
     functionalDomain: F01_DOMAIN.id,
     sourceAssessmentId: assessment.sessionId || null,
     selectedGoalId: goal.goalId,
@@ -245,8 +271,9 @@ export function generateF01GoalRecommendation({ assessment, selectedGoalId, limi
     candidateCount,
     items,
     basis,
-    // limitation exclusions (R03) first, then the batch-2 automatic-candidate exclusions (with a reason, no limitation)
-    excluded: [...excluded, ...autoExcluded.map((c) => ({ exerciseId: c.exercise.id, exerciseName: c.exercise.name, reason: F01_AUTO_RECOMMENDATION_EXCLUSIONS[c.exercise.id] }))],
+    // limitation exclusions (R03) first, then the batch-2 automatic-candidate exclusions (with a reason, no limitation),
+    // then the G01 condition-screen exclusions (reason + reasonCategory; F01-04 also screenReasons)
+    excluded: [...excluded, ...autoExcluded.map((c) => ({ exerciseId: c.exercise.id, exerciseName: c.exercise.name, reason: F01_AUTO_RECOMMENDATION_EXCLUSIONS[c.exercise.id] })), ...screenExcluded],
     missingExerciseIds,
   };
 }

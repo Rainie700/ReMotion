@@ -1,0 +1,270 @@
+# 2026-10-27 integrity pass — local Firestore emulator (project demo-remotion), firebase-tools 13.35.1, @firebase/rules-unit-testing 3.0.4, firebase 10.14.1, JDK 22; rules = firestore.rules of this working tree
+### f01RecommendationIntegrityRulesCheck.mjs
+PASS  valid first recommendation (no review)
+PASS  valid first recommendation (review needed)
+PASS  exerciseIds missing -> refused
+PASS  exerciseIds not matching items -> refused
+PASS  exerciseIds in another order -> refused
+PASS  marker 'no review' while L05 + F01-11 -> refused
+PASS  marker 'review' without L05 -> refused
+PASS  marker missing -> refused
+PASS  more than 3 candidate items -> refused
+PASS  missing limitations with F01-11 must be marked as needing review
+PASS  exerciseIds cannot be removed
+PASS  exerciseIds cannot be changed
+PASS  items cannot drift from exerciseIds
+PASS  other fields still update
+PASS  legacy record (no exerciseIds) still updates its other fields
+PASS  draft first recommendation cannot be deleted
+PASS  accepted recommendation cannot be deleted
+PASS  next-stage proposal cannot be deleted
+PASS  other kinds keep owner delete
+PASS  outsider cannot delete
+PASS  cycle on a verified no-review plan
+PASS  cycle on a plan that needs review -> refused
+PASS  cycle on a legacy plan without marker -> refused
+PASS  cycle on a plan not in the cloud -> refused
+PASS  cycle without a recommendation -> refused
+PASS  cycle on another patient's plan -> refused
+PASS  next-stage cycle on an existing proposal (D5)
+PASS  running legacy week: progress still written
+PASS  re-link onto a verified plan
+PASS  re-link onto a legacy plan -> refused
+PASS  re-link onto a plan that needs review -> refused
+PASS  re-link onto a missing plan -> refused
+32/32 passed
+### exit 0
+### f01InitialPlanRulesCheck.mjs
+PASS  patient accepts exactly the confirmed items
+PASS  accepting other items than the confirmation -> refused
+PASS  accepting without a confirmation claim -> refused
+PASS  claiming a confirmation that does not exist -> refused
+PASS  confirmation of an ended relation -> refused
+PASS  changed conditions (limitations) vs the confirmation -> refused
+PASS  patient cannot drop the review marker
+PASS  outsider cannot accept for the patient
+PASS  an accepted confirmation never changes
+PASS  accepted items never change
+PASS  an accepted plan cannot be put back to draft
+PASS  other fields of an accepted plan may still be written
+PASS  first week with the plan's own id and acceptance
+PASS  a second device cannot overwrite it (different createdAt)
+PASS  its baseline cannot be swapped
+PASS  its acceptance link cannot change
+PASS  training progress on it is still written
+PASS  first week under another id -> refused
+PASS  first week not matching the accepted version -> refused
+PASS  first week before the plan is accepted -> refused
+PASS  ordinary cycle on a plan that needs review -> refused
+PASS  ordinary cycle on a plan that does not need review
+PASS  re-linking an ordinary cycle onto a plan that needs review -> refused
+PASS  progress on an ordinary cycle is still written
+PASS  ordinary cycle on a recommendation not yet in the cloud -> refused (integrity pass)
+25/25 passed
+### exit 0
+### f01InitialReviewRulesCheck.mjs
+PASS  linked therapist writes the confirmation
+PASS  linked therapist updates it
+PASS  patient cannot write a confirmation
+PASS  patient cannot forge one as the therapist
+PASS  outsider cannot write one
+PASS  must target that patient's recommendation
+PASS  doc id must be the recommendation id
+PASS  recommendationId must match the doc id
+PASS  nobody deletes a confirmation
+PASS  patient reads it
+PASS  linked therapist reads it
+PASS  outsider cannot read it
+PASS  login query: patient's confirmations
+PASS  login query: therapist's confirmations
+PASS  ended relation: therapist can no longer write
+PASS  ended relation: therapist can no longer read
+PASS  cannot confirm an accepted recommendation
+PASS  cannot target a next-stage proposal
+PASS  cannot target a recommendation marked as not needing review
+PASS  legacy recommendation without a marker can be confirmed
+PASS  missing recommendation cannot be targeted
+21/21 passed
+### exit 0
+### firestoreRulesCheck.mjs
+PASS | patient starts a relation (invite code)
+PASS | outsider cannot create a relation for the patient
+PASS | therapist cannot create a relation on its own
+PASS | patient cannot link to itself
+PASS | outsider cannot read the relation
+PASS | patient reads own relation
+PASS | therapist reads own relation
+PASS | therapist may end the relation
+PASS | therapist cannot re-activate it
+PASS | patient may re-activate it
+PASS | parties never change
+PASS | outsider cannot update it
+PASS | nobody deletes a relation
+PASS | login query: therapist's relations
+PASS | login query: patient's relations
+PASS | outsider cannot list the patient's relations
+PASS | source therapist creates the transferred relation
+PASS | outsider cannot fake a transfer
+PASS | transfer only to the recorded target
+PASS | patient creates own recommendation
+PASS | first recommendation without the verifiable fields -> refused
+PASS | outsider cannot create one for the patient
+PASS | therapist cannot write the patient's proposal
+PASS | outsider cannot update it
+PASS | outsider cannot delete it
+PASS | patient re-evaluates own draft (status check)
+PASS | patient cannot claim a review that does not exist
+PASS | linked therapist writes the review
+PASS | linked therapist updates the review
+PASS | patient cannot write a review
+PASS | patient cannot forge one as the therapist
+PASS | outsider cannot write a review
+PASS | review must target that patient's proposal
+PASS | review id must be the proposal id
+PASS | nobody deletes a review
+PASS | patient reads the review
+PASS | outsider cannot read the review
+PASS | login query: patient's reviews
+PASS | login query: therapist's reviews
+PASS | patient accepts exactly the reviewed plan
+PASS | accepted items are frozen
+PASS | linking the next cycle keeps working after the relation ended
+PASS | ended relation: therapist can no longer write the review
+PASS | other items than the review -> refused
+PASS | changed patient report (limitations) -> refused
+PASS | review id of another doc -> refused
+PASS | review of an ended relation -> refused
+PASS | acceptance without a review claim (rule-ready plan) is a patient write
+PASS | therapist cannot review an accepted proposal
+49 / 49 rule checks passed
+### exit 0
+### dailyFeedbackRulesCheck.mjs
+PASS | owner transaction can read missing document
+PASS | outsider cannot create for owner
+PASS | therapist cannot report as patient
+PASS | invalid subjective enum rejected
+PASS | AI source rejected
+PASS | forged relation rejected
+PASS | noncanonical document ID rejected
+PASS | self-report with explicit unknown saved
+PASS | owner reads
+PASS | linked therapist reads
+PASS | outsider read denied
+PASS | owner query loads
+PASS | linked scoped query loads
+PASS | unscoped list denied
+PASS | therapist cannot correct patient report
+PASS | old report overwrite denied
+PASS | forged author denied
+PASS | invalid appended value denied
+PASS | created timestamp cannot change
+PASS | valid correction appends
+PASS | stale device cannot overwrite second report
+PASS | cannot delete history
+PASS | cannot reassign patient
+PASS | cannot insert fake AI score
+PASS | revoked therapist cannot read
+PASS | revoked relation cannot be claimed on write
+PASS | owner may save unlinked report
+PASS | single online transaction append
+PASS | reason invalid enum rejected
+PASS | reason cannot reference another patient's cycle
+PASS | reason cannot reference another plan
+PASS | reason date must match daily document
+PASS | complete context cannot claim incompletion
+PASS | reason fake measured source rejected
+PASS | malformed context item rejected
+PASS | fake score in context attempt rejected
+PASS | missing numeric amount can remain null
+PASS | reason correction preserves earlier context
+PASS | old context cannot be overwritten
+PASS | concurrent devices: one commit and one conflict; history retained
+40/40 feedback rule checks passed
+### exit 0
+### selfReportedTrainingRulesCheck.mjs
+PASS | initial transaction may read absence
+PASS | outsider cannot report for patient
+PASS | therapist cannot report as patient
+PASS | anonymous write denied
+PASS | attestation required
+PASS | AI source cannot be forged
+PASS | AI score field rejected
+PASS | completed credit field rejected
+PASS | session ID must match document
+PASS | forged relation rejected
+PASS | zero total rejected
+PASS | fractional count rejected
+PASS | missing side cannot become zero
+PASS | mixed seconds and reps rejected
+PASS | valid self-report create
+PASS | owner reads
+PASS | linked therapist reads
+PASS | outsider read denied
+PASS | owner scoped list
+PASS | therapist scoped list
+PASS | unscoped list denied
+PASS | stored amount immutable
+PASS | duplicate session overwrite denied
+PASS | therapist cannot void
+PASS | owner cannot delete history
+PASS | revoked therapist cannot read
+PASS | owner can void after relation ended
+PASS | voided record cannot be restored
+PASS | left/right with explicit zero supported
+PASS | duration self-report supported
+PASS | repeated same-session transaction keeps one document
+31/31 manual report rule checks passed
+### exit 0
+### fa5xSessionRulesCheck.mjs
+PASS | AR1 owner creates own session (no result, empty stamp)
+PASS | AR1 owner reads own session
+PASS | AR1 owner lists own sessions (patientId query)
+PASS | AR2 outsider cannot create a session for the patient
+PASS | AR2 therapist cannot create a session for the patient
+PASS | AR3 outsider cannot read the session
+PASS | AR3 outsider cannot list the whole collection
+PASS | AR3 outsider cannot query by the patient's id
+PASS | AR4 linked therapist reads the stamped session
+PASS | AR4 linked therapist 3-field query
+PASS | AR5 old single-field therapist query is refused
+PASS | AR5 other therapist cannot read
+PASS | AR5 therapist of an ENDED relation cannot read (stamp still on the doc)
+PASS | AR5 stamp naming another patient's relation grants nothing
+PASS | AR5 unstamped session is not readable by the therapist
+PASS | AR5 relation ended after stamping -> therapist read refused
+PASS | AR6 owner stores the result the first time (completeSession)
+PASS | AR6 owner cannot overwrite the stored result
+PASS | AR6 owner cannot remove the stored result
+PASS | AR7 owner appends one condition report
+PASS | AR7 owner appends a second report (first unchanged)
+PASS | AR8 cannot change an earlier report
+PASS | AR8 cannot drop a report
+PASS | AR8 cannot append two reports in one write
+PASS | AR9 report written as someone else is refused
+PASS | AR9 unknown source value is refused
+PASS | AR9 synthetic_demo source is refused
+PASS | AR9 invalid answer value is refused
+PASS | AR9 extra field in a report is refused
+PASS | AR9 a new session cannot start with reports
+PASS | AR10 client cannot create a demoSynthetic session
+PASS | AR10 client cannot add demoSynthetic to its session
+PASS | AR10 client cannot remove an existing demoSynthetic flag
+PASS | AR10 a write keeping the flag unchanged is allowed
+PASS | AR11 owner cannot delete
+PASS | AR11 therapist cannot delete
+PASS | AR12 stamp with an ended relation is refused
+PASS | AR12 stamp with another patient's relation is refused
+PASS | AR12 stamp whose therapist does not match the relation is refused
+PASS | AR13 owner stamps a legacy session with its accepted relation
+PASS | AR13 re-stamp that also changes the result is refused
+PASS | AR13 owner may clear the stamp
+PASS | AR14 5xSTS create
+PASS | AR14 5xSTS completeSession
+PASS | AR14 5xSTS append report
+PASS | AR14 shoulder create
+PASS | AR14 shoulder movement result
+PASS | AR14 shoulder completeSession
+PASS | AR15 linked therapist cannot update the patient's session
+### exit 0
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT

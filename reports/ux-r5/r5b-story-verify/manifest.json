@@ -1,0 +1,310 @@
+{
+  "storyDays": {
+    "1": "2026-10-22",
+    "2": "2026-10-23",
+    "3": "2026-10-24",
+    "4": "2026-10-25",
+    "5": "2026-10-26",
+    "6": "2026-10-27",
+    "7": "2026-10-28"
+  },
+  "seeded": [
+    "users/TP3ZEP86gKe1IspJALjEO83v4Y5y（示範復健師）",
+    "users/eDlXowWrbpAjMIxsIAZbr5DXDl6U（示範患者）",
+    "therapistPatientRelations/rel-ux5-1793201278012（accepted，2026-10-20）",
+    "trackingCycles/trackingCycle_mviv6ub7_3_e8zm8w.completedTrainingDates = 2026-10-22、2026-10-23、2026-10-24、2026-10-25、2026-10-26（第 1–5 天完成日；同時標記 demoSynthetic，畫面會顯示「展示合成資料」）",
+    "analysisRecords × 17（第 1–5 天深蹲／迷你深蹲／坐姿起立、第 6 天深蹲／迷你深蹲；仿第 6 天介面紀錄的欄位，標記 demoSynthetic）",
+    "trackingCycles/trackingCycle_mviv6ub7_3_e8zm8w.completedTrainingDates += 2026-10-27（第 6 天：介面上實際完成坐姿起立（合成輸入），深蹲與迷你深蹲沒有合成輸入工具，當天完成日由模擬器寫入）"
+  ],
+  "manifest": [
+    {
+      "id": "P05-01",
+      "full": false,
+      "day": 1,
+      "role": "患者",
+      "path": "首頁 → 開始自主復健 → F01 下肢功能 → A｜先進行功能評估",
+      "data": "介面頁面（無資料）"
+    },
+    {
+      "id": "P05-02",
+      "full": false,
+      "day": 1,
+      "role": "患者",
+      "path": "P05-01 → 開始評估",
+      "data": "Chromium 假鏡頭（測試圖樣，沒有人）＋真實 MediaPipe 模型"
+    },
+    {
+      "id": "P05-03",
+      "full": true,
+      "day": 1,
+      "role": "患者",
+      "path": "P05-02 → 評估結束（合成完成結果）→ 評估結果",
+      "data": "合成完成結果 12.4 秒（emulatorSynthetic，經真實結果處理流程保存）"
+    },
+    {
+      "id": "P06-01",
+      "full": true,
+      "day": 1,
+      "role": "患者",
+      "path": "評估結果 → 查看訓練建議",
+      "data": "介面頁面（目標清單）"
+    },
+    {
+      "id": "P06-02",
+      "full": true,
+      "day": 1,
+      "role": "患者",
+      "path": "選擇「加強整體下肢力量」→ 選擇 20 分鐘，限制條件不勾選",
+      "data": "本人選擇"
+    },
+    {
+      "id": "P06-03",
+      "full": true,
+      "day": 1,
+      "role": "患者",
+      "path": "產生訓練建議 →",
+      "data": "推薦規則（f01-goal-rec）依評估結果、目標與時間產生；不是 Gemini"
+    },
+    {
+      "id": "P03-01",
+      "full": true,
+      "day": 6,
+      "role": "患者",
+      "path": "登入 → 首頁",
+      "data": "第 1–5 天完成日為模擬器寫入（展示合成資料）；週期與評估為第 1 天介面操作產生"
+    },
+    {
+      "id": "P07-01",
+      "full": false,
+      "day": 6,
+      "role": "患者",
+      "path": "訓練 → 今日任務「坐姿起立」→ 開始",
+      "data": "第 1 天建立的正式週期（F01-04 坐姿起立）"
+    },
+    {
+      "id": "P07-02",
+      "full": false,
+      "day": 6,
+      "role": "患者",
+      "path": "P07-01 → 開啟鏡頭（計次中）",
+      "data": "合成輸入示範：Chromium 假鏡頭＋程式產生的關節點（__emulatorFeedLe05Landmarks），不是真人辨識"
+    },
+    {
+      "id": "P07-03",
+      "full": false,
+      "day": 6,
+      "role": "患者",
+      "path": "P07-02 → 完成 24 次 → 結束練習 → 訓練結果",
+      "data": "合成輸入示範的計次結果；「已同步到雲端」為本機模擬器實際回應"
+    },
+    {
+      "id": "P08-02",
+      "full": true,
+      "day": 6,
+      "role": "患者",
+      "path": "訓練 → 查看本週訓練 → 本週期今天練習感覺如何？→ 填寫回報",
+      "data": "本人於第 6 天填寫（選項為介面點選）"
+    },
+    {
+      "id": "P08-03",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "首頁 → 進行再次評估 → 開始評估（合成完成結果 10.9 秒）→ 回答測試條件 → 查看前後比較",
+      "data": "同一週期：第 1 天 12.4 秒（合成）→ 第 7 天 10.9 秒（合成），經真實流程保存與比較"
+    },
+    {
+      "id": "P08-01",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "數據 → 訓練紀錄",
+      "data": "第 1–5 天與第 6 天深蹲／迷你深蹲紀錄為模擬器寫入（展示合成資料）；第 6 天坐姿起立為介面操作（合成輸入）"
+    },
+    {
+      "id": "X-05",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "數據（總覽）",
+      "data": "同一故事的總覽",
+      "extra": true
+    },
+    {
+      "id": "X-01",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "前後比較 → 查看下一階段建議 → 有新的不適（補充說明）→ 查看下一階段建議",
+      "data": "規則依「有新的不適」要求復健師檢視（不是 Gemini）",
+      "extra": true
+    },
+    {
+      "id": "P03-02",
+      "full": false,
+      "day": 7,
+      "role": "復健師",
+      "path": "復健師登入 → 首頁",
+      "data": "示範復健師與示範患者的合作關係為模擬器寫入；待辦來自患者在介面產生的下一階段建議"
+    },
+    {
+      "id": "P09-01",
+      "full": true,
+      "day": 7,
+      "role": "復健師",
+      "path": "首頁 → 示範患者 → AI 週摘要 → 產生新草稿",
+      "data": "示範摘要，非本次模型產出：本機模擬器模式不呼叫模型，畫面為 App 既有的規則備用摘要（安全備用摘要），依同一週期資料整理"
+    },
+    {
+      "id": "P09-02",
+      "full": true,
+      "day": 7,
+      "role": "復健師",
+      "path": "P09-01 → 檢視並確認下一週安排",
+      "data": "復健師於介面檢視；候選清單與訓練量來自既有規則"
+    },
+    {
+      "id": "X-02",
+      "full": true,
+      "day": 7,
+      "role": "復健師",
+      "path": "P09-02 → 確認這份安排",
+      "data": "確認結果",
+      "extra": true
+    },
+    {
+      "id": "P09-03",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "首頁 → 下一階段建議（復健師已確認）",
+      "data": "復健師在介面確認的安排"
+    },
+    {
+      "id": "X-03",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "P09-03 → 接受這份安排",
+      "data": "接受後的既有流程畫面",
+      "extra": true
+    },
+    {
+      "id": "X-04",
+      "full": true,
+      "day": 7,
+      "role": "患者",
+      "path": "接受後 → 首頁",
+      "data": "接受後的首頁",
+      "extra": true
+    }
+  ],
+  "results": [
+    [
+      "PASS",
+      "S1 day 1: 首頁 → 開始自主復健 → F01 → A｜先進行功能評估 opens the 5xSTS preparation",
+      ""
+    ],
+    [
+      "PASS",
+      "S2 synthetic finished run (12.4 s) handed to the real completion handler",
+      "{\"ok\":true}"
+    ],
+    [
+      "PASS",
+      "S3 result: 12.4 秒, purpose, 評估已保存 (real save state), condition entry",
+      "返回 五次坐站｜評估結果 五次坐站｜首次評估 12.4秒 完成五次坐站所需時間（觀察時間） 2026.10.22 09:30 完成狀態 已完成 5 / 5 次 保存狀態 ✓ 評估已保存 測試條件 尚未回報（可在下方回答） 前後比較 不屬於 7 日追蹤，不做前後比較 訓練建議 可用來產生訓練建議（系統只確認評估已完成，秒數不決定動作） 測試條件 測試條件尚未回報 回答測試條件（約 30 秒） 由你回報，系統沒有驗證；不會改變上方的完成時間。 之後可以再次查看 可以在「數據 → 功能評估」再次查看。 下一步｜安排訓練 選擇你目前想加強的方向，取得適合的居家訓練建議。 查看訓練建議 → 返回 F01"
+    ],
+    [
+      "PASS",
+      "S4 first week created on day 1 from the plan (F01-01 / F01-02 / F01-04)",
+      "\"2026-10-22\""
+    ],
+    [
+      "PASS",
+      "S5 day 6 home: the week card (第 6 / 7 天, 5 days done) is the one primary task",
+      "ReMotion 早安，示範患者 今天也一起動一動吧 本週功能追蹤 F01 下肢功能 第 6 / 7 天 今日訓練 0 / 3 1 2 3 4 5 6 7 初次評估 12.4 秒 本週完成 5 天 再次評估 10/28 展示合成資料 訓練週期與紀錄為展示用合成資料，不是真實量測或訓練。 開始今日訓練 本週訓練 查看目前安排的訓練內容 本週紀錄 本週初次評估結果 今天練習感覺如何？ 花幾秒記下今天的感受 填寫回報 本週進度 1 Lv. 復健新手 0 / 100 XP 再獲得 100 XP 升級 Lv.2 · 復健旅程 › — 連續復健 我的進度 › 開始第一次練習吧 首頁 訓練 數據 我的"
+    ],
+    [
+      "PASS",
+      "S6 the formal cycle's 坐姿起立 preparation page (開啟鏡頭)",
+      "返回 準備開始 坐姿起立 拍攝角度 正面（全身入鏡，椅子固定且周圍無障礙物） 開鏡頭前確認 全身入鏡 光線充足 相機固定 ⚠ 控制重心前移 注意事項與 AI 說明 開啟鏡頭"
+    ],
+    [
+      "PASS",
+      "S7 synthetic landmarks counted by the page's own counter",
+      "{\"ok\":true,\"totalReps\":5,\"unconfirmed\":0,\"completed\":false,\"gate\":{\"state\":\"seated\",\"seatedObserved\":true,\"interrupted\":false,\"repInterrupted\":false,\"standConfirm\":0,\"seatConfirm\":0,\"sawUnobservedStand\":false}}"
+    ],
+    [
+      "PASS",
+      "S8 training result view: count, AI score, save state (no raw error)",
+      "返回 訓練結果 ✓ 完成本次訓練 坐姿起立 完成次數 24 / 24 次 AI 姿勢分數 100 已同步到雲端 ✓ 完成一項練習 本次獲得 +24 XP 基礎練習 +5 完成目標 +12 動作品質 +7 解鎖成就：初次啟程 解鎖成就：動作漸穩 解鎖成就：精準動作 查看訓練紀錄 動作觀察 起身、站直與坐下控制表現良好 詳細資料 完成"
+    ],
+    [
+      "PASS",
+      "S9 the training record reached the (local) cloud — undefined fields no longer block the write",
+      "[[\"F01-04\",24]]"
+    ],
+    [
+      "PASS",
+      "S10 cycle sheet names this week and day 6",
+      "本週期今日回報 回報對象：F01 7 日追蹤（10/22 開始）第 6 天的訓練 ✕ 第 1 / 4 步 今天練習時的吃力程度 今天還沒練習 輕鬆 有點吃力 很吃力 不確定 下一步"
+    ],
+    [
+      "PASS",
+      "S11 the cycle report saved with its subject (this week)",
+      "[{\"kind\":\"tracking_cycle\",\"cycleId\":\"trackingCycle_mviv6ub7_3_e8zm8w\",\"recommendationId\":\"recommendation_mviv6u59_2_9g1g4z\"}]"
+    ],
+    [
+      "PASS",
+      "S12 day 7 reassessment: synthetic finished run (10.9 s)",
+      "{\"ok\":true}"
+    ],
+    [
+      "PASS",
+      "S13 reassessment result: 10.9 秒, 再次評估, saved, next step 查看前後比較",
+      "返回 五次坐站｜再次評估結果 F01 7 日追蹤｜再次評估 10.9秒 完成五次坐站所需時間 2026.10.28 10:00 完成狀態 已完成 5 / 5 次 保存狀態 ✓ 評估已保存 測試條件 沒有用手撐、沒有人協助（本人回報，系統沒有驗證） 前後比較 可與本週初次評估比較（量測方式相容） 測試條件 本人回報｜沒有用手撐、沒有人協助｜2026.10.28 10:00 補充或更正測試條件 由你回報，系統沒有驗證；不會改變上方的完成時間。 已記錄為本週的再次評估 這次結果已記錄在同一個 7 日追蹤中。 下一步｜查看前後比較 本週追蹤已完成，看看初次評估與再次評估的前後變化。 查看前後比較 → "
+    ],
+    [
+      "PASS",
+      "S14 comparison: 12.4 → 10.9 (shown values), neutral wording",
+      "返回 五次坐站｜前後比較 F01 下肢功能｜7 日追蹤結果 初次評估 10/22 12.4 秒 → 再次評估 10/28 10.9 秒 完成時間差異 本次完成時間較初次少 1.5 秒 展示合成資料 訓練週期與紀錄為展示用合成資料，不是真實量測或訓練。 本週完成訓練：6 天 10/22 10/23 10/24 10/25 10/26 10/27 本週採用安排 展示合成資料 本週尚未產生下一階段建議。 這裡整理你在本次 7 日追蹤前後的五次坐站結果。初次評估與再次評估使用相同的量測方式，完成時間與訓練紀錄可作為後續追蹤比較的依據。 本次完成時間較初次少 1.5 秒。 查看下一階段建議 →返回首頁 首頁 訓練 數據 我的"
+    ],
+    [
+      "PASS",
+      "S14b 訓練紀錄: this week's sessions on 6 days (10/22–10/27), day 7 not yet",
+      "返回 訓練紀錄 總覽 功能評估 訓練紀錄 感受回報 訓練18 坐站練習0 自行回報0 近 7 天訓練 18 次 近 7 天開始累積訓練紀錄 6 訓練日 +468 近 7 天 XP 6 連續天數 近 7 天活動 18 次 四 10/22 3 次 五 10/23 3 次 六 10/24 3 次 日 10/25 3 次 一 10/26 3 次 二 10/27 3 次 三 10/28 — 近 7 天幾乎每天都有訓練紀錄 最近訓練 18 筆 全部 復健師安排 ReMotion 建議 自主練習 昨天 · 10/27（3 筆） 迷你深蹲 ReMotion 建議 展示合成資料 昨天 09:33 20 / 20"
+    ],
+    [
+      "PASS",
+      "S15 next-stage proposal stored; new discomfort → professional review (rule), no acceptance entry yet",
+      "{\"decision\":\"adjust\",\"mode\":\"professional_review_required\",\"reasons\":[\"unmapped_discomfort\"]}"
+    ],
+    [
+      "PASS",
+      "S16 therapist home: cases + pending items (the patient's next-stage review)",
+      "ReMotion 示 示範復健師 復健師工作台 今日待處理 追蹤個案 1 今日有課表 0 已完成 0 待完成 / 進行中 0 個案列表 今日待辦 示 示範患者 今日尚無課表 最近訓練 2026-10-27｜AI 姿勢分數 88 近期有訓練 ＋ 安排復健計畫 首頁 個案 計畫 我的"
+    ],
+    [
+      "PASS",
+      "S17 weekly summary draft = the app's rule fallback (model calls are refused in emulator mode), labelled 安全備用摘要",
+      "[\"id\",\"therapistId\",\"relationId\",\"cycleId\",\"patientId\",\"source\",\"model\",\"promptVersion\",\"createdAt\",\"draftId\",\"summary\",\"validation\",\"status\",\"confirmedAt\",\"confirmedBy\",\"published\"]"
+    ],
+    [
+      "PASS",
+      "S18 therapist confirmation written (local emulator)",
+      "[[\"F01-01\",\"F01-02\",\"F01-04\"]]"
+    ],
+    [
+      "PASS",
+      "S19 patient: 復健師已確認 + accept entry",
+      "返回 下一階段建議 展示合成資料 這份建議與其依據的評估、訓練為展示用合成資料。 目前安排狀態 復健師已確認，可以接受 可以決定是否接受這份安排。 規則判定 調整 實際動作與訓練量 本週動作與組次未變更 審閱與接受 復健師 10/28 已確認，尚未接受 復健師的說明 右膝緊繃已回報，下一週先維持原本三個動作與次數，請持續回報感受。 實際安排的改變 本週動作與組次未變更 下一週沿用相同的 3 個動作與訓練量。 接受代表採用復健師確認後的安排作為下一週訓練配置。 接受並開始下一週 修改狀況確認稍後確認 下一週的動作與訓練量 深蹲 3 組 × 每組 10 下（動作預設） 迷你深蹲 2 組 × 每組 10 下（動作預設） 坐姿起立 3 組 × 每組 8 下（動作預設） 目前沒有依個人狀況調整訓練量；更換動作時採用新動作的預設量，組次可能因此不同。 查看本週 → 下一週的完整比較 理由與參考資料 詳"
+    ],
+    [
+      "PASS",
+      "S20 accepted in the emulator",
+      "返回 下一階段建議 展示合成資料 這份建議與其依據的評估、訓練為展示用合成資料。 目前安排狀態 下一週已開始 下一個 7 日追蹤已經開始。 規則判定 調整 實際動作與訓練量 本週動作與組次未變更 審閱與接受 已接受（復健師 10/28 確認） 復健師的說明 右膝緊繃已回報，下一週先維持原本三個動作與次數，請持續回報感受。 實際安排的改變 本週動作與組次未變更 下一週沿用相同的 3 個動作與訓練量。 已建立下一個 7 日追蹤 第 1 天：10/28；預計再次評估：11/03 查看本週訓練 →返回首頁 下一週的動作與訓練量 深蹲 3 組 × 每組 10 下（動作預設） 迷你深蹲 2 組 × 每組 "
+    ]
+  ],
+  "errors": []
+}

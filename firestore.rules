@@ -52,10 +52,57 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ── First recommendation stage 2 (docs/F01_INITIAL_REVIEW_PLAN.md) ──
+    // A cycle may never run a first recommendation that needs professional review unless it is the
+    // plan's own first week: id = 'trackingCycle_initial_' + recommendationId (one per plan on every
+    // device), linked to an accepted, therapist-confirmed recommendation of this patient. Its links and
+    // creation time never change afterwards, so a second device cannot overwrite it. Any other cycle needs
+    // its recommendation to be in the cloud already (cycleRecOk): the app syncs the recommendation first.
+    function recPath(recId) { return /databases/$(database)/documents/recommendationResults/$(recId); }
+    function initialPlanCycleMatches(id, data) {
+      return data.get('recommendationId', null) is string
+        && id == 'trackingCycle_initial_' + data.recommendationId
+        && data.initialPlanAcceptance.recommendationId == data.recommendationId
+        && get(recPath(data.recommendationId)).data.patientId == request.auth.uid
+        && get(recPath(data.recommendationId)).data.status == 'accepted'
+        && get(recPath(data.recommendationId)).data.initialConfirmation.therapistReviewId == data.recommendationId
+        && data.initialPlanAcceptance.reviewVersionId == get(recPath(data.recommendationId)).data.initialConfirmation.reviewVersionId
+        && data.initialPlanAcceptance.acceptedItemsKey == get(recPath(data.recommendationId)).data.initialConfirmation.acceptedItemsKey;
+    }
+    // Integrity pass (docs/F01_INITIAL_REVIEW_PLAN.md 8-7): the recommendation an ORDINARY cycle runs must
+    // exist in the cloud, belong to the patient, be an F01 goal plan and — if it is a first recommendation —
+    // carry a marker that says no review is needed and that rules can re-check (firstRecIntegrityOk).
+    function cycleRecOk(data) {
+      return data.get('recommendationId', null) is string
+        && exists(recPath(data.recommendationId))
+        && get(recPath(data.recommendationId)).data.patientId == request.auth.uid
+        && get(recPath(data.recommendationId)).data.get('kind', '') == 'f01_goal'
+        && (get(recPath(data.recommendationId)).data.get('origin', null) != null
+          || (get(recPath(data.recommendationId)).data.get('exerciseIds', null) is list
+            && get(recPath(data.recommendationId)).data.exerciseIds.size() > 0
+            && get(recPath(data.recommendationId)).data.get('initialReview', {}).get('required', true) == false));
+    }
+    function initialPlanCycleCreateOk(id, data) {
+      return data.get('initialPlanAcceptance', null) == null
+        ? cycleRecOk(data)
+        : initialPlanCycleMatches(id, data);
+    }
+    function keepsInitialPlanLink() {
+      return resource.data.get('initialPlanAcceptance', null) == null
+        ? (request.resource.data.get('initialPlanAcceptance', null) == null
+          && (request.resource.data.get('recommendationId', null) == resource.data.get('recommendationId', null) || cycleRecOk(request.resource.data)))
+        : (request.resource.data.get('initialPlanAcceptance', null) == resource.data.initialPlanAcceptance
+          && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+          && request.resource.data.get('baselineAssessmentId', null) == resource.data.get('baselineAssessmentId', null)
+          && request.resource.data.get('recommendationId', null) == resource.data.get('recommendationId', null)
+          && request.resource.data.get('cycleStartDateKey', null) == resource.data.get('cycleStartDateKey', null));
+    }
     match /trackingCycles/{id} {
       allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
-      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.patientId == request.auth.uid && request.resource.data.patientId == resource.data.patientId && request.resource.data.userId == resource.data.userId;
+      allow create: if request.auth != null && request.resource.data.patientId == request.auth.uid && request.resource.data.userId == request.auth.uid
+        && initialPlanCycleCreateOk(id, request.resource.data);
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid && request.resource.data.patientId == resource.data.patientId && request.resource.data.userId == resource.data.userId
+        && keepsInitialPlanLink();
       allow delete: if false;
     }
     match /llmWeeklySummaries/{id} {
@@ -115,6 +162,58 @@ service cloud.firestore {
           && request.resource.data.d5.get('matrixDecision', '') == resource.data.d5.get('matrixDecision', '')
           && request.resource.data.d5.decisionRuleId == resource.data.d5.decisionRuleId);
     }
+    // First recommendation stage 2 — the patient accepts EXACTLY the linked therapist's confirmation
+    // (f01InitialReviews/{id}); a plan marked as needing review is never accepted without one; once
+    // accepted, the confirmation, items and candidate list never change; the marker never changes.
+    function claimsInitialAcceptance(next) { return next.get('initialConfirmation', null) != null; }
+    function initialAcceptanceMatches(docId, next) {
+      let review = get(/databases/$(database)/documents/f01InitialReviews/$(docId)).data;
+      let relation = get(relationDoc(review.relationId)).data;
+      return next.status == 'accepted'
+        && next.initialConfirmation.therapistReviewId == docId
+        && next.initialConfirmation.relationId == review.relationId
+        && review.recommendationId == docId
+        && review.patientId == request.auth.uid
+        && review.items == next.items
+        && review.basis.sourceAssessmentId == next.sourceAssessmentId
+        && review.basis.selectedGoalId == next.selectedGoalId
+        && review.basis.limitationIds == next.limitationIds
+        && relation.therapistId == review.therapistId
+        && relation.patientId == request.auth.uid
+        && relation.status == 'accepted';
+    }
+    function requiredReviewAcceptanceOk(next) {
+      return next.get('origin', null) != null || next.get('status', '') != 'accepted'
+        || next.get('initialReview', {}).get('required', false) != true
+        || claimsInitialAcceptance(next);
+    }
+    function keepsInitialAcceptance() {
+      return resource.data.get('initialConfirmation', null) == null
+        || (request.resource.data.get('initialConfirmation', null) == resource.data.initialConfirmation
+          && request.resource.data.items == resource.data.items
+          && request.resource.data.get('candidateItems', null) == resource.data.get('candidateItems', null)
+          && request.resource.data.get('status', '') == resource.data.status);
+    }
+    function keepsInitialReviewMarker() {
+      return resource.data.get('initialReview', null) == null || request.resource.data.get('initialReview', null) == resource.data.initialReview;
+    }
+    function isFirstRec(d) { return d.get('kind', '') == 'f01_goal' && d.get('origin', null) == null; }
+    function candidateOf(d) { return d.get('candidateItems', null) != null ? d.candidateItems : d.get('items', []); }
+    function idsMatch(items, ids) {
+      return items is list && ids is list && items.size() == ids.size() && items.size() <= 3
+        && (items.size() < 1 || items[0].exerciseId == ids[0])
+        && (items.size() < 2 || items[1].exerciseId == ids[1])
+        && (items.size() < 3 || items[2].exerciseId == ids[2]);
+    }
+    function markerMatches(d) {
+      return d.get('initialReview', null) is map && d.initialReview.get('required', null) is bool
+        && d.initialReview.required == ('F01-11' in d.exerciseIds && (!(d.get('limitationIds', null) is list) || 'L05' in d.limitationIds));
+    }
+    // A first recommendation always has at least one candidate (the G01 condition screen never saves an empty one).
+    function firstRecIntegrityOk(d) { return idsMatch(candidateOf(d), d.get('exerciseIds', null)) && d.exerciseIds.size() > 0 && markerMatches(d); }
+    function keepsExerciseIds() {
+      return resource.data.get('exerciseIds', null) == null || request.resource.data.get('exerciseIds', null) == resource.data.exerciseIds;
+    }
     match /recommendationResults/{id} {
       // Read stays open to signed-in users: these docs carry no therapistId / relationId,
       // so a linked therapist's read cannot be scoped here (see the report).
@@ -122,15 +221,27 @@ service cloud.firestore {
       allow create: if request.auth != null
         && request.resource.data.patientId == request.auth.uid
         && manualNoAutoAcceptanceOk(request.resource.data)
-        && (!claimsReview(request.resource.data) || reviewMatches(id, request.resource.data));
+        && (!claimsReview(request.resource.data) || reviewMatches(id, request.resource.data))
+        && requiredReviewAcceptanceOk(request.resource.data)
+        && (!claimsInitialAcceptance(request.resource.data) || initialAcceptanceMatches(id, request.resource.data))
+        && (!isFirstRec(request.resource.data) || firstRecIntegrityOk(request.resource.data));
       allow update: if request.auth != null
         && resource.data.patientId == request.auth.uid
         && request.resource.data.patientId == resource.data.patientId
         && keepsNoAutoJudgement()
         && manualNoAutoAcceptanceOk(request.resource.data)
         && (resource.data.status != 'accepted' || request.resource.data.items == resource.data.items)
-        && (!claimsReview(request.resource.data) || keepsAcceptedReview(id) || reviewMatches(id, request.resource.data));
-      allow delete: if request.auth != null && resource.data.patientId == request.auth.uid;
+        && (!claimsReview(request.resource.data) || keepsAcceptedReview(id) || reviewMatches(id, request.resource.data))
+        && keepsInitialReviewMarker()
+        && keepsInitialAcceptance()
+        && requiredReviewAcceptanceOk(request.resource.data)
+        && (!claimsInitialAcceptance(request.resource.data) || resource.data.get('initialConfirmation', null) != null || initialAcceptanceMatches(id, request.resource.data))
+        && keepsExerciseIds()
+        && (!isFirstRec(request.resource.data) || request.resource.data.get('exerciseIds', null) == null || firstRecIntegrityOk(request.resource.data));
+      // F01 goal plans (first recommendations and next-stage proposals) are never deleted by a client:
+      // cycles reference them by id and rules cannot look those references up. Other kinds keep owner delete.
+      allow delete: if request.auth != null && resource.data.patientId == request.auth.uid
+        && resource.data.get('kind', '') != 'f01_goal';
     }
 
     // ── Therapist review of a next-stage proposal ─────────────────────────
@@ -150,6 +261,31 @@ service cloud.firestore {
       allow update: if request.auth != null && linked(request.resource.data)
         && request.resource.data.patientId == resource.data.patientId
         && reviewTargetsProposal(proposalId, request.resource.data);
+      allow delete: if false;
+    }
+
+    // ── Therapist review of a FIRST (Phase C) recommendation — stage 1 ────
+    // docs/F01_INITIAL_REVIEW_PLAN.md. Only a therapist with an ACCEPTED relation to the
+    // patient writes it (doc id = recommendation id), only for that patient's first
+    // recommendation (kind f01_goal, no origin) that is not accepted and not marked as
+    // not needing review. The patient reads it, never writes it. Nothing here lets a
+    // cycle start: patient acceptance / cycle creation is stage 2 (not enforced yet).
+    function initialReviewTargets(recommendationId, data) {
+      let rec = get(/databases/$(database)/documents/recommendationResults/$(recommendationId)).data;
+      return data.id == recommendationId && data.recommendationId == recommendationId
+        && rec.patientId == data.patientId
+        && rec.kind == 'f01_goal'
+        && rec.get('origin', null) == null
+        && rec.get('status', '') != 'accepted'
+        && rec.get('initialReview', {}).get('required', true) == true;
+    }
+    match /f01InitialReviews/{recommendationId} {
+      allow read: if request.auth != null && (resource.data.patientId == request.auth.uid || linked(resource.data));
+      allow create: if request.auth != null && linked(request.resource.data)
+        && initialReviewTargets(recommendationId, request.resource.data);
+      allow update: if request.auth != null && linked(request.resource.data)
+        && request.resource.data.patientId == resource.data.patientId
+        && initialReviewTargets(recommendationId, request.resource.data);
       allow delete: if false;
     }
 
@@ -234,13 +370,27 @@ service cloud.firestore {
     }
     function validDailyFeedbackReport(report) {
       return report is map
-        && report.keys().hasOnly(['source', 'reportedBy', 'reportedAt', 'effort', 'discomfort', 'note', 'incompletion'])
+        && report.keys().hasOnly(['source', 'reportedBy', 'reportedAt', 'effort', 'discomfort', 'note', 'incompletion', 'subject'])
         && report.source == 'self_report' && report.reportedBy == request.auth.uid
         && report.reportedAt is string && report.reportedAt.size() <= 40
         && report.effort in ['not_practiced', 'easy', 'somewhat_hard', 'very_hard', 'unknown']
         && report.discomfort in ['no', 'yes', 'unknown']
         && report.note is string && report.note.size() <= 500
-        && (!('incompletion' in report) || validIncompleteFeedback(report.incompletion));
+        && (!('incompletion' in report) || validIncompleteFeedback(report.incompletion))
+        && (!('subject' in report) || validFeedbackSubject(report));
+    }
+    // A report saved from a tracking cycle's own entry names that cycle: it must be the reporter's own
+    // cycle and plan, and an incompletion in the same report must be about the same cycle.
+    function validFeedbackSubject(report) {
+      let s = report.subject;
+      let cycle = get(/databases/$(database)/documents/trackingCycles/$(s.cycleId)).data;
+      return s is map && s.keys().hasOnly(['kind', 'cycleId', 'recommendationId']) && s.keys().hasAll(['kind', 'cycleId', 'recommendationId'])
+        && s.kind == 'tracking_cycle'
+        && s.cycleId is string && s.cycleId.size() > 0 && s.cycleId.size() <= 128
+        && s.recommendationId is string && s.recommendationId.size() > 0 && s.recommendationId.size() <= 128
+        && cycle.patientId == request.auth.uid && cycle.userId == request.auth.uid
+        && cycle.recommendationId == s.recommendationId
+        && (!('incompletion' in report) || report.incompletion.progress.cycleId == s.cycleId);
     }
     // Context is a patient/device-loaded snapshot, not certified measurement data.
     function validFeedbackAmount(value) {
@@ -341,6 +491,27 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'voidedAt', 'voidReason', 'updatedAt'])
         && request.resource.data.voidedAt == request.time && request.resource.data.updatedAt == request.time
         && request.resource.data.voidReason == '本人作廢';
+      allow delete: if false;
+    }
+
+    // ── G01 坐站固定練習 (docs/F01_G01_PROGRAM_SELECTION.md 第六節) ─────────
+    // Owner-only. One document per run (id fixed at start: a retry re-sends the same document).
+    // The fixed target, the AI count and who/what/when are fixed at create; only the person's own
+    // self-report may be added later. Never deleted by a client.
+    function fixedPracticeCreateOk(id, d) {
+      return d.id == id && id.matches('f01FixedPractice_' + request.auth.uid + '_[A-Za-z0-9_-]{8,64}')
+        && d.kind == 'f01_fixed_practice' && d.patientId == request.auth.uid
+        && d.exerciseId == 'F01-04' && d.target == {'repetitions': 5, 'sets': null}
+        && (d.ai == null || d.ai is map) && (d.selfReport == null || d.selfReport is map)
+        && d.instructionsReadAt is string;
+    }
+    match /f01FixedPracticeRecords/{id} {
+      allow read: if request.auth != null && resource.data.patientId == request.auth.uid;
+      allow create: if request.auth != null && fixedPracticeCreateOk(id, request.resource.data);
+      allow update: if request.auth != null && resource.data.patientId == request.auth.uid
+        && fixedPracticeCreateOk(id, request.resource.data)
+        && request.resource.data.ai == resource.data.ai
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['selfReport', 'updatedAt']);
       allow delete: if false;
     }
 

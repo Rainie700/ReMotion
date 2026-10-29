@@ -1,0 +1,25 @@
+NOTE | status sequence seen: 正在開啟相機 → 模型載入中 → 尚未完整入鏡 (model load took ~15 s)
+PASS | M1 the real MediaPipe model loads (status leaves 模型載入中, not failed); with the fake camera (no person) it says so | 尚未完整入鏡 | 還看不到人，請站到鏡頭前方，讓全身入鏡
+PASS | M2 camera page: title 坐站練習, 0 / 5 次, no engineering values or empty score
+PASS | S0 joints missing before any ready frame -> 尚未完整入鏡 + what to fix (not 請調整位置) | 請讓雙腳也在畫面內，可以再退後一點
+PASS | S1 standing entry with the whole body in frame -> 還沒確認起始坐姿 / 請先坐好 (NOT 可以開始); count 0 | 已看到全身。請先坐好，雙腳踩穩、膝蓋彎曲
+PASS | S2 start posture observed -> 起始姿勢就緒 / 可以開始 | 起始姿勢就緒 | 可以開始了：慢慢站起來 | {"ok":true,"totalReps":0,"unconfirmed":1,"completed":false,"gate":{"state":"seated","seatedObserved":true,"interrupted":false,"repInterrupted":false,"standConfirm":0,"seatConfirm":0,"sawUnobservedStand":false}} | [{"t":39945,"ready":true,"missing":[],"knee":95,"kneeL":95,"kneeR":95,"framing":"OK","state":"seated","seatedObserved":true,"reps":0,"unconfirmed":null},{"t":40011,"ready":true,"missing":[],"knee":95,"kneeL":95,"kneeR":95,"framing":"OK","state":"seated","seatedObserved":true,"reps":0,"unconfirmed":null}]
+PASS | S3 rising/standing -> 練習中 with the next action | 站直了，慢慢坐下
+PASS | S4 full rep -> 1 counted, flashed 已計入第 1 次 | 已計入第 1 次。起身速度較快
+PASS | S5 half rise and back down -> still 1 (not counted, not carried over)
+PASS | S6a tracking lost mid-rep -> 追蹤中斷，需要重新就緒 | 追蹤中斷，需要重新就緒 | 請回到畫面內，再先坐好
+PASS | S6b back in frame standing -> must re-ready (還沒確認起始坐姿); the lost attempt not counted | {"ok":true,"totalReps":1,"unconfirmed":2,"completed":false,"gate":{"state":"seated","seatedObserved":false,"interrupted":false,"repInterrupted":false,"standConfirm":0,"seatConfirm":0,"sawUnobservedStand":true}}
+PASS | S7 slow rep (>10 s, fully tracked) still counted (slow-rep fix not regressed) | {"ok":true,"totalReps":2,"unconfirmed":2,"completed":false,"gate":{"state":"seated","seatedObserved":true,"interrupted":false,"repInterrupted":false,"standConfirm":0,"seatConfirm":0,"sawUnobservedStand":false}}
+PASS | S8 5 / 5 -> 已完成目標, camera stopped, 結束練習 still on screen | {"ok":true,"totalReps":5,"unconfirmed":2,"completed":true,"gate":{"state":"seated","seatedObserved":true,"interrupted":false,"repInterrupted":false,"standConfirm":0,"seatConfirm":0,"sawUnobservedStand":false}}
+PASS | S9 saved as the actual AI count (5/5; the unconfirmed attempts — standing entry, tracking loss — kept apart, not added), no self-report added, marked synthetic | {"method":"ai_pose","countedReps":5,"targetReached":true,"endedEarly":false,"unconfirmedAttemptCount":2,"unconfirmedReasons":["rise_not_observed","tracking_lost"],"longCycleRepCount":1,"abortedRiseCount":1,"handSupportVerified":false}
+PASS | F1 model download fails -> 無法開始, the reason, a 重新開始 button; 結束練習 still visible
+PASS | F2 重新開始 after the network is back -> the model loads | 尚未完整入鏡
+PASS | L 390x844: count, instruction and 結束練習 visible without scrolling; no horizontal overflow | {"vh":844,"vw":390,"sw":390,"count":[631,677,37,112],"guide":[626,682,126,353],"finish":[780,832,20,370],"scroll":0,"fontGuide":"20px","fontCount":"44px"}
+PASS | L 430x932: count, instruction and 結束練習 visible without scrolling; no horizontal overflow | {"vh":932,"vw":430,"sw":430,"count":[719,765,37,112],"guide":[714,770,126,393],"finish":[868,920,20,410],"scroll":0,"fontGuide":"20px","fontCount":"44px"}
+PASS | L 1280x800: count, instruction and 結束練習 visible without scrolling; no horizontal overflow | {"vh":800,"vw":1280,"sw":1280,"count":[587,633,437,512],"guide":[582,638,526,843],"finish":[736,788,420,860],"scroll":0,"fontGuide":"20px","fontCount":"44px"}
+PASS | E1 regular F01-04 training (坐姿起立) opens the same camera page with its catalog name and 結束練習
+PASS | E2 regular training with 0 reps: 結束練習 keeps the existing rule (nothing saved, asks for a rep) | 尚未偵測到完整動作，請至少完成一次後再儲存。
+PASS | O1 深蹲: its own detection page (not the 坐站 page)
+PASS | O2 5xSTS assessment page still opens with its own content (not the training camera page) | 返回 五次坐站測試 記錄你連續完成 5 次坐下、站起所需的時間，了解目前的下肢功能表現。 測試前準備 準備一張穩固、不易滑動的椅子 手機固定在前方，周圍保留足夠站立空間 系統會先協助你調整拍攝距離 測試怎麼做 先依畫面提示調整相機距離 距離
+PASS | no page errors | []
+23/23 steps passed

@@ -46,9 +46,14 @@ export function getD5Arrangement(proposal, { completionRulesVersion = null } = {
 
 /** Exercises the therapist may choose: the goal's pool, in Phase C order, minus those the current limitations exclude. */
 export function listD5ReviewOptions(proposal, catalog = exerciseService.listNormalized()) {
-  const goal = F01_GOALS.find((g) => g.goalId === (proposal && proposal.selectedGoalId));
+  return listGoalReviewOptions({ goalId: proposal && proposal.selectedGoalId, limitationIds: (proposal && proposal.d5 && proposal.d5.currentLimitations) || [], catalog });
+}
+
+/** Shared by the next-stage review and the first-recommendation review (js/data/f01InitialReviewService.js). */
+export function listGoalReviewOptions({ goalId, limitationIds = [], catalog = exerciseService.listNormalized() }) {
+  const goal = F01_GOALS.find((g) => g.goalId === goalId);
   if (!goal) return [];
-  return orderF01GoalCandidates({ goal, limitationIds: (proposal.d5 && proposal.d5.currentLimitations) || [], catalog }).ordered.map((c) => ({
+  return orderF01GoalCandidates({ goal, limitationIds, catalog }).ordered.map((c) => ({
     exerciseId: c.exercise.id,
     exerciseName: c.exercise.name,
     matchLevel: c.matchLevel,
@@ -72,7 +77,7 @@ export function listD5ReviewsForPatient({ therapistId, patientId, completionRule
       const loaded = trackingCycleService.loadD5Proposal({ proposalId: proposal.id, userId: patientId });
       return { proposal, loadError: loaded.error || null, ctx: loaded.ctx || null, arrangement: getD5Arrangement(proposal, { completionRulesVersion }) };
     })
-    .filter((x) => x.loadError || x.arrangement.status === "needs_review" || x.arrangement.status === "no_auto" || x.arrangement.status === "reviewed" || x.arrangement.staleReview)
+    .filter((x) => x.loadError || x.arrangement.status === "needs_review" || x.arrangement.status === "no_auto" || x.arrangement.status === "reviewed" || x.arrangement.status === "needs_regeneration" || x.arrangement.staleReview)
     .sort((a, b) => String(b.proposal.createdAt).localeCompare(String(a.proposal.createdAt)));
 }
 
@@ -127,6 +132,7 @@ export async function reviewD5Proposal({ proposalId, therapistId, items, reason,
   if (proposal.status === "accepted" || loaded.ctx.nextCycle) return { error: "proposal_already_accepted" };
   if (!expectedFingerprint || expectedFingerprint !== planFingerprint(proposal)) return { error: "proposal_changed" };
   const before = getD5Arrangement(proposal, { completionRulesVersion });
+  if (before.status === "needs_regeneration") return { error: "proposal_version_outdated" }; // an old-version G01 draft: regenerate first
   if (!["needs_review", "no_auto", "reviewed"].includes(before.status)) return { error: "review_not_needed" };
   const text = typeof reason === "string" ? reason.trim().slice(0, 500) : "";
   if (!text) return { error: "review_reason_required" };

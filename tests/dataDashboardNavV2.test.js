@@ -108,12 +108,17 @@ const sliceFn = (needle, span = 6000) => {
 
 // ── M — zero records still renders a structured dashboard ────────
 {
+  // 2026-10-28 (UX round 4/5): zero records is handled inside the category sections (one layout for every state),
+  // not a second page variant: the nav, the 訓練紀錄 numbers (0) with its first-practice line, and the AI trend's
+  // insufficient-data state are still all there.
   const ov = sliceFn("function patientDataOverviewPage()");
-  assert.ok(/records\.length === 0/.test(ov), "M: explicit zero-records branch");
+  // UX round 5/5: the first-practice line shows only when NOTHING is recorded (坐站練習 / 自行回報 count as records),
+  // and fewer than 2 scores render one compact trend line — both still explicit zero-records handling.
+  assert.ok(ov.includes("const nothingRecorded = records.length === 0 && fixedCount === 0 && selfCount === 0") && ov.includes("${nothingRecorded ?")
+    && ov.includes("const trendReady = records.length > 0 && trendPoints.length >= 2"), "M: explicit zero-records handling");
   assert.ok(/const nav = renderDataSegmentedNav\("overview"\)/.test(ov), "overview builds the segmented nav");
-  const zero = ov.slice(ov.indexOf("records.length === 0"));
-  for (const part of ["${nav}", "${weekHtml}", "AI 姿勢分數趨勢", "完成第一次練習後", 'onclick="goSelfRehabEntry()"']) {
-    assert.ok(zero.includes(part), `zero-state keeps structure: ${part}`);
+  for (const part of ["${nav}", "${weekHtml}", "${feedbackHtml}", "AI 姿勢分數趨勢", "完成第一次練習後"]) {
+    assert.ok(ov.includes(part), `zero-state keeps structure: ${part}`);
   }
 }
 

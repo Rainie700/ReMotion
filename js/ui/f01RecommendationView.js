@@ -14,6 +14,50 @@
  */
 import { orderF01GoalCandidates, MATCH_LEVEL, FIVE_TIMES_SIT_TO_STAND_TYPE } from "../data/f01GoalRecommendation.js";
 import { F01_GOALS, F01_EXERCISE_SPEC } from "../data/f01RecommendationSpec.js";
+import { getGoalEvidence, evidenceStatus, EVIDENCE_READ_LEVEL_LABEL, PROFESSIONAL_REVIEW_LABEL } from "../data/f01GoalEvidence.js";
+import { checkFirstRecommendationIntegrity } from "../data/f01InitialReview.js";
+import { G01_REASON_CATEGORY, G01_SCREEN_REASON } from "../data/f01G01ConditionScreen.js";
+
+/** Goals whose first-recommendation page shows the evidence trail (js/data/f01GoalEvidence.js). */
+export const F01_EVIDENCE_TRAIL_GOALS = Object.freeze(["G01"]);
+export const hasF01EvidenceTrail = (rec) => !!rec && !rec.origin && F01_EVIDENCE_TRAIL_GOALS.includes(rec.selectedGoalId);
+
+/** 「選取方式」 — only what the Phase C engine actually does (R02 / R03 / R06 / R11). */
+export const F01_SELECTION_METHOD_NOTE = "系統依你選的目標，從目標與動作的對應表取出候選動作（主要候選優先，輔助候選次之），再依可用時間決定數量、依你勾選的情況排除動作。評估秒數只用來確認這次評估有效，沒有參與動作排序、難度或訓練量的決定。";
+export const F01_MAPPING_STATUS_NOTE = "目標與動作的對應是 ReMotion 的系統設定，尚待專業人員驗證。";
+
+/**
+ * The evidence trail of one recommended item for the card's expanded area, or null
+ * (no record for this goal / exercise). Read level and professional review are
+ * reported separately — a found study never reads as "confirmed".
+ */
+export function describeF01ItemEvidence(item) {
+  const entry = item ? getGoalEvidence(item.selectedGoalId, item.exerciseId) : null;
+  if (!entry) return null;
+  const status = evidenceStatus(entry);
+  return {
+    shortReason: entry.shortReason,
+    relationLabel: entry.relation === "direct" ? "系統設定的主要候選" : "系統設定的輔助候選",
+    systemRationale: entry.systemRationale,
+    statusLines: [
+      `對應狀態：系統規則，待專業驗證（${entry.mappingStatus}）`,
+      `相關研究：${status.studyFound ? `已找到 ${entry.studies.length} 篇` : "尚未找到"}`,
+      `閱讀程度：${entry.studies.map((s) => EVIDENCE_READ_LEVEL_LABEL[s.readLevel]).join("；") || "—"}`,
+      `專業確認：${PROFESSIONAL_REVIEW_LABEL[entry.professionalReview]}`,
+    ],
+    studies: entry.studies.map((s) => ({
+      citation: `${s.authors}（${s.year}）${s.journal}`,
+      title: s.title,
+      url: s.url,
+      pmid: s.pmid,
+      population: s.population,
+      intervention: s.intervention,
+      mainResults: s.mainResults,
+      supports: s.supports,
+      cannotInfer: s.cannotInfer,
+    })),
+  };
+}
 
 export const F01_NOT_USED_IN_RANKING = Object.freeze(["過去的訓練紀錄", "動作難度分級", "器材條件"]);
 
@@ -171,6 +215,8 @@ export function listF01OtherOptions(rec, catalog) {
   const goal = F01_GOALS.find((g) => g.goalId === rec.selectedGoalId);
   if (!goal) return [];
   const picked = new Set((rec.items || []).map((it) => it.exerciseId));
+  // G01 condition screen — what this recommendation left out is never offered back here.
+  (rec.excluded || []).filter((e) => e.reasonCategory).forEach((e) => picked.add(e.exerciseId));
   return orderF01GoalCandidates({ goal, limitationIds: rec.limitationIds || [], catalog }).ordered
     .filter((c) => !picked.has(c.exercise.id))
     .map((c) => ({
@@ -185,7 +231,88 @@ export function listF01OtherOptions(rec, catalog) {
 /** How the main list was sized — so a top-N list is never presented as a complete prescription. */
 export function describeF01ListSize(rec) {
   if (rec && rec.origin) return "動作由你已接受的下一階段建議決定。";
+  // G01 condition screen — fewer items than the time choice is never presented as a full-length session.
+  if (rec && rec.conditionScreen && rec.shortfall) {
+    return `${rec.availableMinutes ? `你選了 ${rec.availableMinutes} 分鐘，` : "未選擇可用時間；"}本版目前只提供 ${rec.items.length} 個動作，不是${rec.availableMinutes ? ` ${rec.availableMinutes} 分鐘的` : ""}完整課表或處方。`;
+  }
   return rec && rec.availableMinutes
     ? `依你選的 ${rec.availableMinutes} 分鐘決定列出 ${rec.items.length} 個動作，不是完整課表或處方。`
     : `未選擇可用時間，依規則最多列出 3 個動作，不是完整課表或處方。`;
+}
+
+// ── Integrity pass: an ordinary first recommendation whose week did not start ──
+
+/** Why a first recommendation's week did not start, and what the patient can do (never "started"). */
+export const F01_CYCLE_START_ERROR_TEXT = Object.freeze({
+  recommendation_not_synced: "這份訓練建議尚未同步到雲端，所以本週追蹤還沒開始。請確認網路後按「重新開始本週追蹤」。",
+  cycle_sync_failed: "本週追蹤尚未同步到雲端，所以還沒開始。請確認網路後按「重新開始本週追蹤」。",
+  recommendation_integrity_missing: "這份訓練建議缺少確認是否需要專業檢視的資料（可能建立於較早的版本），因此不會開始本週追蹤。請按「重新設定訓練需求」產生新的建議。",
+});
+
+/**
+ * The 「本週追蹤尚未開始」 notice of an ordinary first recommendation without a running week, or null.
+ * `lastError` = { recommendationId, code } of the last start attempt on this device.
+ * @returns {{ code, text, action: "retry" | "reset" } | null}
+ */
+export function describeF01CycleStartNotice({ rec, isD5 = false, initialHold = false, activeCycle = null, cycleExists = false, lastError = null }) {
+  if (isD5 || initialHold || !rec || rec.origin || activeCycle || cycleExists) return null;
+  const integrity = checkFirstRecommendationIntegrity(rec);
+  const code = !integrity.ok ? "recommendation_integrity_missing" : lastError && lastError.recommendationId === rec.id ? lastError.code : null;
+  if (!code || !F01_CYCLE_START_ERROR_TEXT[code]) return null;
+  return { code, text: F01_CYCLE_START_ERROR_TEXT[code], action: code === "recommendation_integrity_missing" ? "reset" : "retry" };
+}
+
+// ── G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md) ──
+
+/** Selection-method addition shown on a screened G01 recommendation only (older records were not screened). */
+export const F01_G01_SCREEN_NOTE = "本版另依五次坐站的協助條件回報篩選坐姿起立，並暫不自動納入深蹲與橋式；這是本版的工程政策，不是臨床判斷。通過篩選只代表符合本版條件，不能據此判斷安全性、效果或訓練量是否合適。";
+
+export const G01_REASON_CATEGORY_LABEL = Object.freeze({
+  [G01_REASON_CATEGORY.NOT_INCLUDED]: "本版未納入",
+  [G01_REASON_CATEGORY.NOT_SUPPORTED]: "目前未支援",
+  [G01_REASON_CATEGORY.UNCONFIRMED]: "資料未確認",
+});
+const G01_POLICY_TEXT = Object.freeze({
+  g01_squat_version_unmatched: "本版暫不自動納入。App 的深蹲是不扶物、蹲到約 90° 的版本，與目前核對的公開衛教版本（扶著椅背、蹲到自己舒適的程度）不同，目前核對的資料也不足以支持它對應這個目標。這是本版的工程政策，不是禁忌，也不代表這個動作無效。",
+  g01_bridge_setting_unconfirmed: "本版暫不自動納入。目前核對的橋式衛教資料是在地面進行，維持時間與次數由治療人員依個人情況提供建議；App 目前無法確認你的練習表面，以及躺下、起身的情況。這是本版的工程政策，不是禁忌。",
+});
+const G01_FIELD_LABEL = Object.freeze({ armsUsed: "起身時是否用手撐", physicalAssistance: "測試時是否有人協助" });
+const G01_REPORTED_LABEL = Object.freeze({ armsUsed: "有用手撐", physicalAssistance: "有人協助" });
+const G01_STATE_LABEL = Object.freeze({ unknown: "回報為不確定", missing: "尚未回報", invalid: "回報內容無法辨識" });
+
+/**
+ * Reason lines of one excluded entry of a screened G01 recommendation, or null for any other entry.
+ * @returns {Array<{ category, label, text }> | null}
+ */
+export function describeG01Exclusion(entry) {
+  if (!entry || !entry.reasonCategory) return null;
+  if (G01_POLICY_TEXT[entry.reason]) return [{ category: entry.reasonCategory, label: G01_REASON_CATEGORY_LABEL[entry.reasonCategory], text: G01_POLICY_TEXT[entry.reason] }];
+  return (entry.screenReasons || []).map((r) => ({
+    category: r.category,
+    label: G01_REASON_CATEGORY_LABEL[r.category],
+    text: r.code === G01_SCREEN_REASON.ASSISTANCE_NOT_COVERED
+      ? `目前自動推薦未涵蓋這種協助方式：你回報測驗時${r.fields.map((f) => G01_REPORTED_LABEL[f.field]).join("、")}，而 App 的坐姿起立是以不用手、無人協助的方式示範與計次。這只是本版自動推薦的範圍限制，不是對你能否運動的判斷。`
+      : `評估條件尚未確認：${r.fields.map((f) => `${G01_FIELD_LABEL[f.field]}（${G01_STATE_LABEL[f.state] || G01_STATE_LABEL.invalid}）`).join("、")}。系統不會把未回報或不確定當成「沒有」。`,
+  }));
+}
+
+/**
+ * The full reason page of a G01 result with no candidate (status no_candidates, never saved).
+ * Backfilling the report is offered only when nothing was reported as "yes" and the assessment is the
+ * patient's own: a reported assistance is never "unlocked" by changing the answer.
+ * @returns {{ rows: Array<{ exerciseId, exerciseName, reasons }>, assistanceReported, canBackfill, sourceProblem } | null}
+ */
+export function describeG01NoCandidates(result) {
+  const screen = result && result.conditionScreen;
+  if (!screen || result.status !== "no_candidates") return null;
+  const rows = (result.excluded || [])
+    .map((e) => ({ exerciseId: e.exerciseId, exerciseName: e.exerciseName, reasons: describeG01Exclusion(e) }))
+    .filter((r) => r.reasons);
+  const assistanceReported = (screen.reasonCodes || []).includes(G01_SCREEN_REASON.ASSISTANCE_NOT_COVERED);
+  return {
+    rows,
+    assistanceReported,
+    canBackfill: !assistanceReported && !screen.sourceProblem && (screen.reasonCodes || []).includes(G01_SCREEN_REASON.CONDITION_UNCONFIRMED),
+    sourceProblem: screen.sourceProblem || null,
+  };
 }

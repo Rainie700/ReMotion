@@ -19,6 +19,7 @@ const D = await import("../js/data/f01ProgressionDecision.js");
 const S = await import("../js/data/f01ProgressionSpec.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
 const catalog = exerciseService.listNormalized();
 const engineSrc = readFileSync(join(root, "js/data/f01ProgressionDecision.js"), "utf8");
 const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
@@ -222,7 +223,8 @@ const select = (decision, goal, ids, lims = [], transitions) =>
   // Every proposed exercise passes the current limitations.
   for (const lims of [["L01"], ["L02"], ["L03"], ["L05"], ["L01", "L02", "L03", "L04", "L05"]]) {
     for (const goal of ["G01", "G02", "G03", "G04", "G05"]) {
-      const cur = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goal, catalog }).items.map((it) => item(it.exerciseId, it.matchLevel));
+      // current plans include existing (pre-screen) G01 plans, which D5 still selects from
+      const cur = generatePreScreenF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goal, catalog }).items.map((it) => item(it.exerciseId, it.matchLevel));
       for (const decision of [DEC.MAINTAIN, DEC.PROGRESS, DEC.ADJUST]) {
         const r = select(decision, goal, cur, lims);
         if (r.nextCycleReady) assert.equal(D.findHardFilterConflicts(r.proposedExerciseIds, lims).length, 0, `${goal} ${decision} ${lims}`);
@@ -394,9 +396,17 @@ const select = (decision, goal, ids, lims = [], transitions) =>
   const out = [];
   for (const g of ["G01", "G02", "G03", "G04", "G05"]) for (const t of [null, 10, 15, 20]) for (let m = 0; m < 32; m++) {
     const lims = L.filter((_, i) => m & (1 << i));
-    out.push({ g, t, lims, r: generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s1", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: g, limitationIds: lims, availableMinutes: t, catalog }) });
+    out.push({ g, t, lims, r: generatePreScreenF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s1", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: g, limitationIds: lims, availableMinutes: t, catalog }) });
   }
   assert.equal(out.length, 640);
+  // G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md): the hash below is kept on the pre-screen engine
+  // (current source, G01 switch off). The real generator must equal it byte for byte for G02–G05; for G01 it may
+  // differ only by the screen (fewer items, never another exercise, never more).
+  for (const o of out) {
+    const now = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: "s1", assessmentType: "five_times_sit_to_stand" }, selectedGoalId: o.g, limitationIds: o.lims, availableMinutes: o.t, catalog });
+    if (o.g !== "G01") assert.equal(JSON.stringify(now), JSON.stringify(o.r), `${o.g}/${o.t}/${o.lims}: unchanged`);
+    else assert.ok(now.items.every((it) => o.r.items.some((x) => x.exerciseId === it.exerciseId)) && now.items.length <= o.r.items.length, `G01/${o.t}/${o.lims}: screen only removes`);
+  }
   // F01 batch 2 §3B adds ONE disclosure field, `shortfall` (fewer eligible exercises than slots). Every other
   // byte of the 640 outputs must still equal the pre-D5 output; the field itself must be exact.
   const maxOf = (t) => (t === 10 ? 1 : t === 15 ? 2 : 3);

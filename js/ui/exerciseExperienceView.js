@@ -4,7 +4,7 @@
  * state, no data access, no per-exercise branches.
  *
  * Exercise Detail  header → media → meta → dose / AI → [怎麼做 | AI 會看 | 注意] → sticky CTA
- * AI Preparation   header → name → framing image → camera line → compact checklist → AI 觀察 → sticky CTA
+ * AI Preparation   header → name (+ target) → framing image → camera line → compact checklist → page-level CTA
  * Training Result  status → name → reps / AI 姿勢分數 → reward → observations → folded details → sticky CTA
  * Long lists show their first items; the rest opens in a bottom sheet.
  * Empty data never produces a block (or shows its neutral empty line).
@@ -127,38 +127,41 @@ export const PAGE_ACTION_OPEN = "<!--page-action-->";
 export const PAGE_ACTION_CLOSE = "<!--/page-action-->";
 
 /**
- * @param {{ backFn: string, ctaHtml: string, moreHtml?: string }} opts  moreHtml = the analyzer's own notice (kept, folded)
+ * Preparation = how to set up and open the camera. Nothing here may read as a detection result before the
+ * camera is on (no body-point chips). The CTA is a page-level action (lifted by phone() out of the
+ * scrolling content), so it never covers the last block.
+ * @param {{ backFn: string, ctaHtml: string, moreHtml?: string, targetHtml?: string, name?: string, showCare?: boolean }} opts
+ *   moreHtml = the analyzer's own notice (kept, folded); showCare=false drops the care line + fold (the
+ *   intro page already showed them)
  */
-export function renderPreparationView(model, { backFn, ctaHtml, moreHtml = "" }) {
-  const precautions = model.precautions;
-  const aiHtml = model.aiSupported && model.aiAnalysisItems.bodyPoints.length
-    ? `<div class="exp-prep-row"><span class="exp-label">AI 觀察</span><div class="exp-chip-row">${chips(model.aiAnalysisItems.bodyPoints, "exp-chip exp-chip--body")}</div></div>`
-    : model.aiSupported ? "" : `<div class="exp-prep-row"><span class="exp-label">AI</span><b>一般訓練（無 AI 姿勢辨識）</b></div>`;
-  const folded = [
+export function renderPreparationView(model, { backFn, ctaHtml, moreHtml = "", targetHtml = "", name = model.name, showCare = true }) {
+  const precautions = showCare ? model.precautions : [];
+  const aiHtml = model.aiSupported ? "" : `<div class="exp-prep-row"><span class="exp-label">AI</span><b>一般訓練（無 AI 姿勢辨識）</b></div>`;
+  const folded = showCare ? [
     precautions.length ? `<div class="exp-care-group"><span class="exp-label">注意事項</span>${bulletList(precautions)}</div>` : "",
     moreHtml,
-  ].filter(Boolean).join("");
+  ].filter(Boolean).join("") : "";
   return `<div class="exp-page exp-prep">
     <div class="header exp-header">
       <button class="btn btn-light detail-back-btn" onclick="${backFn}">返回</button>
       <b class="exp-header-title">準備開始</b>
       <span></span>
     </div>
-    <h2 class="exp-prep-name">${esc(model.name)}</h2>
+    <div class="exp-prep-title"><h2 class="exp-prep-name">${esc(name)}</h2>${targetHtml}</div>
     <div class="exp-prep-top">
       ${renderExerciseMedia(model, { size: "prep" })}
       <div class="exp-prep-camera"><span class="exp-label">拍攝角度</span><p class="exp-text">${esc(model.cameraGuidance || "請讓身體完整入鏡")}</p></div>
     </div>
     <div class="card exp-checklist">
-      <label class="exp-check"><input type="checkbox" /> 全身入鏡</label>
-      <label class="exp-check"><input type="checkbox" /> 光線充足</label>
-      <label class="exp-check"><input type="checkbox" /> 相機固定</label>
+      <span class="exp-label">開鏡頭前確認</span>
+      <label class="exp-check"><input type="checkbox" /><span>全身入鏡</span></label>
+      <label class="exp-check"><input type="checkbox" /><span>光線充足</span></label>
+      <label class="exp-check"><input type="checkbox" /><span>相機固定</span></label>
     </div>
     ${aiHtml}
     ${precautions.length ? `<p class="exp-prep-safety">⚠ ${esc(precautions[0])}</p>` : ""}
     ${folded ? `<details class="exp-fold"><summary>注意事項與 AI 說明</summary>${folded}</details>` : ""}
-    <div class="exp-cta-bar">${ctaHtml}</div>
-  </div>`;
+  </div>${PAGE_ACTION_OPEN}<div class="exp-cta-bar">${ctaHtml}</div>${PAGE_ACTION_CLOSE}`;
 }
 
 /**
@@ -167,7 +170,7 @@ export function renderPreparationView(model, { backFn, ctaHtml, moreHtml = "" })
  * @param {{ backFn: string, completed: boolean|null, totalReps: number|null, targetReps: number|null, score: number|null,
  *           rewardHtml: string, observations: string[], detailsHtml: string, ctaHtml: string }} opts
  */
-export function renderTrainingResultView(model, { backFn, completed, totalReps, targetReps, score, rewardHtml, observations = [], detailsHtml = "", ctaHtml }) {
+export function renderTrainingResultView(model, { backFn, completed, totalReps, targetReps, score, rewardHtml, observations = [], detailsHtml = "", saveHtml = "", ctaHtml }) {
   const statusText = completed === true ? "✓ 完成本次訓練" : completed === false ? "本次未完成" : "已儲存本次紀錄";
   const facts = [
     totalReps != null ? `<div><span class="exp-label">完成次數</span><b>${totalReps}${targetReps ? ` / ${targetReps}` : ""} 次</b></div>` : "",
@@ -183,6 +186,7 @@ export function renderTrainingResultView(model, { backFn, completed, totalReps, 
       <span class="exp-result-status${completed === false ? " is-incomplete" : ""}">${statusText}</span>
       <b class="exp-result-name">${esc(model.name)}</b>
       ${facts ? `<div class="exp-facts">${facts}</div>` : ""}
+      ${saveHtml}
     </div>
     ${rewardHtml}
     ${observations.length ? `<div class="card exp-observations"><span class="exp-label">動作觀察</span>${bulletList(observations.slice(0, 3))}</div>` : ""}

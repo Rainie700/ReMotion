@@ -207,9 +207,12 @@ const f01Ctx = { sourceType: "remotion", sourceSubtype: "f01_cycle", trackingCyc
   assert.ok(ov.indexOf("${functionalHtml}") < ov.indexOf("${weekHtml}"), "功能追蹤 comes first");
   assert.ok(ov.includes('week.averageAiPoseScore != null ? week.averageAiPoseScore : "—"') && ov.includes("最近一次 AI 姿勢分數"));
   assert.ok(!/平均品質|訓練品質|本週總覽/.test(ov), "no 品質 wording on the Data overview");
-  const f01 = stripComments(fnBody("renderDataFunctionalSection") + fnBody("renderF01DurationChart"));
+  // 2026-10-28 (UX round 4/5): the one 5xSTS chart is renderFa5xChart (the overview links to it)
+  const f01 = stripComments(fnBody("renderDataFunctionalSection") + fnBody("renderFa5xChart"));
   for (const w of ["改善", "退步", "療效", "正常", "異常", "repDurationsMs"]) assert.ok(!f01.includes(w), `no 「${w}」`);
-  assert.ok(f01.includes("goTrackingComparison(") && f01.includes("totalDurationMs"));
+  // UX round 5/5: each week's comparison is opened from the 功能評估 page (the overview has one entry to it)
+  assert.ok(fnBody("f01TrackingHistoryPage").includes("goTrackingComparison(") && f01.includes("fmtFa5xSec(p.ms)"));
+  assert.ok(readFileSync(join(root, "js/data/functionalProgressService.js"), "utf8").includes("ms: base.result.totalDurationMs"), "chart values are the stored totalDurationMs");
   const chips = fnBody("getTrainingHistorySourceChips");
   for (const label of ["全部", "TRAINING_SOURCE_LABEL.therapist", "TRAINING_SOURCE_LABEL.remotion", "TRAINING_SOURCE_LABEL.self"]) assert.ok(chips.includes(label));
   assert.ok(fnBody("normalizeTrainingSource").includes("normalizeTrainingEvent(record, { cycleIndex: buildCycleCompletionIndex(cycles) })"));

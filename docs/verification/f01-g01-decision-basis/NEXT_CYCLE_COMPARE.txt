@@ -1,0 +1,21 @@
+G01 下一階段決策修正 — 同一批合成案例修改前後（決策邏輯驗證，不是臨床準確率）
+rule: f01-g01-next-cycle-1.0; conditions: fa5x-comparison-conditions-1
+
+| # | 輸入 | 原判定 | 新比較狀態 | 新安排狀態 | 原因 |
+|---|---|---|---|---|---|
+| N01 | 差 −1.0 秒、6/6 天、條件一致 | maintain→maintain（R008／NC-M01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R008） |
+| N02 | 只改秒數：差 −4.0 秒 | progress→maintain（R005／NC-P01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005） |
+| N03 | 只改秒數：差 +4.0 秒 | adjust→adjust（R010／NC-A02；needs_review） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R010） |
+| N04 | 只改完成量：2/6 天 | maintain→maintain（R007／NC-M01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R007） |
+| N05 | 只改完成量：0/6 天 | no_auto_decision→no_auto_decision（R006／NC-N01；no_auto） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R006） |
+| N06 | 只改吃力：4 天很吃力（每日回報，D5 不讀） | maintain→maintain（R008／NC-M01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R008） |
+| N07 | 只改每日不適：3 天有不舒服，再評估未勾 | maintain→maintain（R008／NC-M01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R008） |
+| N08 | 再評估勾選新增或加重的不適 | adjust→adjust（R011／NC-A02；needs_review） | consistent | adjust（R011）；needs_review「待復健師檢視」 | 沿用既有保護（R011） |
+| N09 | 再評估無效 | no_auto_decision→no_auto_decision（R001／NC-N01；no_auto） | consistent | no_auto_decision（R001）；no_auto「等待復健師另行安排」 | 沿用既有保護（R001） |
+| N10 | 衝突：差 −4.0 秒，但每天很吃力（D5 不讀） | progress→maintain（R005／NC-P01；ready） | consistent | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005） |
+| N11 | 差 −4.0 秒，再評估有用手撐、換了椅子 | progress→maintain（R005／NC-P01；ready） | differ（不解讀） | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005）；不以參考值解讀：再次評估：回報起身時有用手撐、再次評估：回報與初次評估不是同一張椅子 |
+| N12 | 差 −4.0 秒，再評估條件未回報 | progress→maintain（R005／NC-P01；ready） | insufficient（不解讀） | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005）；不以參考值解讀：再次評估：沒有測試條件回報 |
+| N13 | 差 −4.0 秒，初次評估有人協助 | progress→maintain（R005／NC-P01；ready） | differ（不解讀） | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005）；不以參考值解讀：初次評估：回報測試時有人協助 |
+| N14 | 差 −4.0 秒，是否同椅回報「不確定」 | progress→maintain（R005／NC-P01；ready） | insufficient（不解讀） | no_auto_decision（G01-N01）；no_auto「等待復健師另行安排」 | 時間變化撤回為依據（原 R005）；不以參考值解讀：再次評估：是否同一張椅子回報為不確定 |
+| N15 | 條件不同＋回報新增不適（保護優先） | adjust→adjust（R011／NC-A02；needs_review） | differ（不解讀） | adjust（R011）；needs_review「待復健師檢視」 | 沿用既有保護（R011） |
+| N16 | 差 −4.0 秒、條件未回報，但有新增限制 L05 | adjust→adjust（R011／NC-A02；needs_review） | insufficient（不解讀） | adjust（R011）；needs_review「待復健師檢視」 | 沿用既有保護（R011） |

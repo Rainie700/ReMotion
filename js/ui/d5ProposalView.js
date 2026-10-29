@@ -13,9 +13,10 @@
  *              default), the goal, or the number of exercises.
  * Wording avoids thresholds and clinical words (same rule as d5ProposalPage).
  */
+import { COMPARISON_CONDITION_STATUS, COMPARISON_CONDITION_STATUS_TEXT, describeComparisonConditionReasons } from "../data/fa5xComparisonConditions.js";
 import { F01_TRAINING_EXPOSURE_STATES } from "../data/f01ProgressionSpec.js";
 import { F01_LIMITATIONS } from "../data/f01GoalRecommendation.js";
-import { describeTimeDifference } from "../data/trackingComparison.js";
+import { describeTimeDifference, describeShownTimeDifference } from "../data/trackingComparison.js";
 
 const DECISION_LABEL = { no_auto_decision: "不自動判定", maintain: "維持", progress: "進階", adjust: "調整" };
 const TRANSITION_TEXT = { progression: "已確認的進階動作", regression: "較保守的替代動作", same_goal_replacement: "同目標的替代動作" };
@@ -37,7 +38,9 @@ export function compareD5Weeks(d5, { nameOf = (id) => id, volumeOf = () => null,
   for (let i = 0; i < Math.max(before.length, after.length); i += 1) {
     const b = before[i] || null;
     const a = after[i] || null;
-    const doseSet = !!(itemAt(i) && itemAt(i).dose);
+    // UX round 5/5: an amount counts as therapist-set only when a value was actually entered (a dose of nulls = the default)
+    const dose = itemAt(i) && itemAt(i).dose;
+    const doseSet = !!(dose && [dose.sets, dose.repetitions, dose.durationSeconds].some((v) => v != null));
     const change = b && a ? (a === b ? (doseSet ? "dose_changed" : "kept") : "replaced") : b ? "removed" : "added";
     rows.push({
       position: i + 1,
@@ -63,15 +66,44 @@ export function describeD5ContentChange(d5, comparison) {
   return `下一週有 ${comparison.changedCount} 個動作與上一週不同。`;
 }
 
+/**
+ * UX round 5/5 — what ACTUALLY changes next week (exercises / amounts), kept apart from the rule's label
+ * (維持 / 進階 / 調整) and from the review / acceptance state. A reviewed plan's own change list wins.
+ * @returns {{ unchanged: boolean, title: string, changedRows: object[] }}
+ */
+export function summarizeD5ActualChange(comparison, review = null) {
+  const changedRows = comparison.rows.filter((r) => r.change !== "kept");
+  const unchanged = review ? !(review.changes || []).length && !changedRows.some((r) => r.change !== "dose_changed") : changedRows.length === 0;
+  if (unchanged) return { unchanged: true, title: "本週動作與組次未變更", sub: `下一週沿用相同的 ${comparison.rows.length} 個動作與訓練量。`, changedRows: [] };
+  return { unchanged: false, title: `下一週有 ${changedRows.length} 項變更`, sub: "其餘動作與訓練量沿用本週。", changedRows };
+}
+
 export const D5_DOSAGE_NOTE = "目前沒有依個人狀況調整訓練量；更換動作時採用新動作的預設量，組次可能因此不同。";
 
-/** The inputs the rule actually used, as plain lines (no thresholds, no clinical words). */
-export function explainD5Decision(d5) {
+/**
+ * The inputs the rule actually used, as plain lines (no thresholds, no clinical words).
+ * UX round 5/5: `shown` = the comparison's baselineMs / reassessmentMs, so the time sentence follows the two values
+ * ON SCREEN (describeShownTimeDifference), like every other page; the rule itself still uses the raw changeMs.
+ */
+export function explainD5Decision(d5, shown = null) {
   const lines = [];
-  if (!d5.assessmentValid) {
+  const diffText = () => (shown && Number.isFinite(shown.baselineMs) && Number.isFinite(shown.reassessmentMs)
+    ? describeShownTimeDifference(shown.baselineMs, shown.reassessmentMs) : describeTimeDifference(d5.changeMs)) || "完成時間差異無法計算";
+  const g01 = d5.g01NextCycle || null; // G01 next-cycle correction (docs/F01_G01_DECISION_BASIS_V1.md)
+  if (g01 && d5.assessmentValid) {
+    const diff = diffText();
+    const conditions = d5.comparisonConditions || {};
+    if (conditions.status === COMPARISON_CONDITION_STATUS.CONSISTENT) {
+      const beyond = d5.changeClass === "faster_beyond_reference_mdc" || d5.changeClass === "slower_beyond_reference_mdc";
+      lines.push(`${diff}；前後回報的測試條件一致。${beyond ? "差異超過系統採用的參考值" : "差異未超過系統採用的參考值，這不代表已證明沒有真實變化"}（參考值來自另一族群與測法的研究，未驗證適用於本 App 的相機量測）。`);
+    } else {
+      lines.push(`${diff}；${COMPARISON_CONDITION_STATUS_TEXT[conditions.status] || "測試條件資料不足"}，這次時間差不以參考值解讀：${describeComparisonConditionReasons(conditions).join("、")}。`);
+    }
+    if (g01.applied) lines.push("時間變化不能單獨決定下一週訓練。");
+  } else if (!d5.assessmentValid) {
     lines.push("前後兩次五次坐站無法比較，所以不自動判定。");
   } else {
-    const diff = describeTimeDifference(d5.changeMs) || "完成時間差異無法計算";
+    const diff = diffText();
     const cls = {
       faster_beyond_reference_mdc: "，差異超出系統採用的參考範圍",
       slower_beyond_reference_mdc: "，差異超出系統採用的參考範圍",
@@ -91,6 +123,11 @@ export function explainD5Decision(d5) {
   const effective = DECISION_LABEL[d5.decision] || d5.decision;
   lines.push(`規則判定：${matrix}（${d5.decisionRuleId}）${effective !== matrix ? `；實際下一週：${effective}` : ""}。`);
   return lines;
+}
+
+/** G01 next-cycle correction — the reported test-condition status of a proposal, or null when it was not checked. */
+export function describeD5ConditionStatus(d5) {
+  return d5 && d5.comparisonConditions ? COMPARISON_CONDITION_STATUS_TEXT[d5.comparisonConditions.status] || "—" : null;
 }
 
 /** Per-item line on the recommendation page of a next-stage plan (kept vs replaced). */

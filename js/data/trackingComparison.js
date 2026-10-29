@@ -42,6 +42,21 @@ export function describeTimeDifference(changeMs) {
   return changeMs < 0 ? `本次完成時間較初次少 ${amount} 秒` : `本次完成時間較初次多 ${amount} 秒`;
 }
 
+/** A time as SHOWN (formatSeconds, one decimal) in tenths of a second. */
+export const shownTenths = (ms) => Math.round(Number((ms / 1000).toFixed(1)) * 10);
+/**
+ * UX round 4/5 — the sentence follows the two values ON SCREEN (one decimal each), so 8.9 → 8.9 never reads
+ * 「少 0.1 秒」. Raw `changeMs` is unchanged for every rule that uses it; only the shown words come from here.
+ * Descriptive only: never 改善 / 退步.
+ */
+export function describeShownTimeDifference(baselineMs, reassessmentMs) {
+  if (!Number.isFinite(baselineMs) || !Number.isFinite(reassessmentMs)) return null;
+  const d = shownTenths(reassessmentMs) - shownTenths(baselineMs);
+  if (d === 0) return baselineMs === reassessmentMs ? "本次完成時間與初次相同" : "兩次顯示的完成時間相同（相差不到 0.1 秒）";
+  const amount = (Math.abs(d) / 10).toFixed(1);
+  return d < 0 ? `本次完成時間較初次少 ${amount} 秒` : `本次完成時間較初次多 ${amount} 秒`;
+}
+
 function sessionIsFiveTimesSitToStand(session) {
   // Same rule as functionalAssessmentService.resolveAssessmentType (a session
   // without assessmentType is a legacy shoulder session, never a 5xSTS).
@@ -136,7 +151,7 @@ export function buildTrackingComparison({ cycle, baselineAssessment, reassessmen
     changeSeconds: changeMs / 1000,
     baselineText: formatSeconds(baselineMs),
     reassessmentText: formatSeconds(reassessmentMs),
-    differenceText: describeTimeDifference(changeMs),
+    differenceText: describeShownTimeDifference(baselineMs, reassessmentMs),
     baselineDateKey,
     reassessmentDateKey,
     baselineDateText: formatDateKeyMonthDay(baselineDateKey),

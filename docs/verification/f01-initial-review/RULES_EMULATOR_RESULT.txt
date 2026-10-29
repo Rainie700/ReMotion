@@ -1,0 +1,75 @@
+# 2026-10-27 local Firestore emulator (project demo-remotion), firebase-tools 13.35.1, @firebase/rules-unit-testing 3.0.4, firebase 10.14.1, JDK 22
+# rules: firestore.rules of this working tree; scripts: scripts/f01InitialReviewRulesCheck.mjs, scripts/firestoreRulesCheck.mjs
+PASS  linked therapist writes the confirmation
+PASS  linked therapist updates it
+PASS  patient cannot write a confirmation
+PASS  patient cannot forge one as the therapist
+PASS  outsider cannot write one
+PASS  must target that patient's recommendation
+PASS  doc id must be the recommendation id
+PASS  recommendationId must match the doc id
+PASS  nobody deletes a confirmation
+PASS  patient reads it
+PASS  linked therapist reads it
+PASS  outsider cannot read it
+PASS  login query: patient's confirmations
+PASS  login query: therapist's confirmations
+PASS  ended relation: therapist can no longer write
+PASS  ended relation: therapist can no longer read
+PASS  cannot confirm an accepted recommendation
+PASS  cannot target a next-stage proposal
+PASS  cannot target a recommendation marked as not needing review
+PASS  legacy recommendation without a marker can be confirmed
+PASS  missing recommendation cannot be targeted
+21/21 passed
+PASS | patient starts a relation (invite code)
+PASS | outsider cannot create a relation for the patient
+PASS | therapist cannot create a relation on its own
+PASS | patient cannot link to itself
+PASS | outsider cannot read the relation
+PASS | patient reads own relation
+PASS | therapist reads own relation
+PASS | therapist may end the relation
+PASS | therapist cannot re-activate it
+PASS | patient may re-activate it
+PASS | parties never change
+PASS | outsider cannot update it
+PASS | nobody deletes a relation
+PASS | login query: therapist's relations
+PASS | login query: patient's relations
+PASS | outsider cannot list the patient's relations
+PASS | source therapist creates the transferred relation
+PASS | outsider cannot fake a transfer
+PASS | transfer only to the recorded target
+PASS | patient creates own recommendation
+PASS | outsider cannot create one for the patient
+PASS | therapist cannot write the patient's proposal
+PASS | outsider cannot update it
+PASS | outsider cannot delete it
+PASS | patient re-evaluates own draft (status check)
+PASS | patient cannot claim a review that does not exist
+PASS | linked therapist writes the review
+PASS | linked therapist updates the review
+PASS | patient cannot write a review
+PASS | patient cannot forge one as the therapist
+PASS | outsider cannot write a review
+PASS | review must target that patient's proposal
+PASS | review id must be the proposal id
+PASS | nobody deletes a review
+PASS | patient reads the review
+PASS | outsider cannot read the review
+PASS | login query: patient's reviews
+PASS | login query: therapist's reviews
+PASS | patient accepts exactly the reviewed plan
+PASS | accepted items are frozen
+PASS | linking the next cycle keeps working after the relation ended
+PASS | ended relation: therapist can no longer write the review
+PASS | other items than the review -> refused
+PASS | changed patient report (limitations) -> refused
+PASS | review id of another doc -> refused
+PASS | review of an ended relation -> refused
+PASS | acceptance without a review claim (rule-ready plan) is a patient write
+PASS | therapist cannot review an accepted proposal
+48 / 48 rule checks passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT

@@ -2,7 +2,7 @@ import { trackingCycleService } from "./trackingCycleService.js";
 import { functionalAssessmentService } from "./functionalAssessmentService.js";
 import { recommendationService } from "./recommendationService.js";
 import { getTrackingCycleViewState } from "./trackingCycle.js";
-import { resolveF01Adventure, selectCurrentF01Chapter } from "./f01AdventureProgress.js";
+import { resolveF01Adventure, selectCurrentF01Chapter, loadD5ArrangementInputs } from "./f01AdventureProgress.js";
 
 /**
  * Core Value Experience — 復健旅程 presentation (read-only). One chapter per
@@ -17,12 +17,14 @@ import { resolveF01Adventure, selectCurrentF01Chapter } from "./f01AdventureProg
 function loadCycleInputs(userId, cycle, todayKey) {
   const scoped = (session) => (session && session.patientId === userId ? session : null);
   const recommendation = cycle.recommendationId ? recommendationService.getById(cycle.recommendationId) : null;
+  const proposal = recommendationService.getF01D5ProposalForCycle(userId, cycle.id);
   return {
+    ...loadD5ArrangementInputs(userId, proposal),
     cycle,
     baseline: scoped(cycle.baselineAssessmentId ? functionalAssessmentService.getById(cycle.baselineAssessmentId) : null),
     recommendation: recommendation && recommendation.patientId === userId ? recommendation : null,
     reassessment: scoped(cycle.reassessmentId ? functionalAssessmentService.getById(cycle.reassessmentId) : null),
-    proposal: recommendationService.getF01D5ProposalForCycle(userId, cycle.id),
+    proposal,
     nextCycle: trackingCycleService.getNextTrackingCycle(userId, cycle.id),
     viewState: getTrackingCycleViewState(cycle, todayKey),
   };

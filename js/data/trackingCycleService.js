@@ -38,8 +38,20 @@ import {
 const checkRulesVersion = (v) => v == null || v === F01_FORMAL_COMPLETION_RULES_VERSION;
 const getCatalogRaw = (id) => exerciseService.getById(id);
 import { relationService } from "./relationService.js";
-import { resolveD5Arrangement, isPatientAcceptable, planFingerprint } from "./d5Arrangement.js";
+import { resolveD5Arrangement, isPatientAcceptable, planFingerprint, isOutdatedG01Proposal } from "./d5Arrangement.js";
+import {
+  resolveInitialReviewRequirement,
+  isInitialPlanAccepted,
+  isFirstF01Recommendation,
+  INITIAL_PLAN_BASELINE_ROLE,
+  initialPlanCycleId,
+  initialPlanFingerprint,
+  planItemsKey,
+  checkFirstRecommendationIntegrity,
+  isEmptyFirstRecommendation,
+} from "./f01InitialReview.js";
 import { F01_GOALS } from "./f01RecommendationSpec.js";
+import { checkFa5xComparisonConditions } from "./fa5xComparisonConditions.js";
 import {
   D5_RULE_VERSION,
   D5_DECISION_LABEL,
@@ -145,14 +157,37 @@ export const trackingCycleService = {
     if (baselineSession.result && baselineSession.result.assessmentRole === REASSESSMENT_ROLE) return { error: "reassessment_cannot_be_baseline" };
     // Phase D5 — a next-cycle baseline belongs to its D5 proposal, never to a Phase C recommendation.
     if (baselineSession.result && baselineSession.result.assessmentRole === NEXT_CYCLE_BASELINE_ROLE) return { error: "next_cycle_baseline_not_phase_c" };
+    // An initial-plan baseline belongs to its accepted, therapist-confirmed plan (createInitialPlanCycle).
+    if (baselineSession.result && baselineSession.result.assessmentRole === INITIAL_PLAN_BASELINE_ROLE) return { error: "initial_plan_baseline_not_phase_c" };
     if (!recommendation || recommendation.kind !== "f01_goal" || !recommendation.id) return { error: "missing_recommendation" };
     if (recommendation.patientId !== userId || recommendation.sourceAssessmentId !== baselineSession.id) return { error: "recommendation_not_for_baseline" };
+    // G01 condition screen — a recommendation without any item never creates or re-links a cycle.
+    if (isEmptyFirstRecommendation(recommendation)) return { error: "recommendation_has_no_items" };
+
+    // docs/F01_INITIAL_REVIEW_PLAN.md — a first recommendation that needs professional review never
+    // starts a cycle here and never re-links an existing one (that cycle keeps its own plan). Once
+    // accepted, its first week starts ONLY through createInitialPlanCycle (stage 2).
+    // Integrity pass — a first recommendation without a verifiable marker (legacy, or exerciseIds /
+    // marker not matching its candidate items) never starts or re-links a cycle: it is never read as
+    // "no review needed". A cycle already running on it is returned unchanged below.
+    const integrity = checkFirstRecommendationIntegrity(recommendation);
+    const initialReview = resolveInitialReviewRequirement(recommendation);
+    const reviewHold = !integrity.ok
+      ? { error: "recommendation_integrity_missing", reason: integrity.reason }
+      : initialReview.required
+      ? (isInitialPlanAccepted(recommendation)
+        ? { error: "initial_plan_starts_via_acceptance", triggerCodes: initialReview.triggerCodes }
+        : { error: "initial_review_required", triggerCodes: initialReview.triggerCodes })
+      : null;
 
     const sameBaseline = trackingCyclesCollection
       .query((c) => c.userId === userId && c.functionalDomain === F01_TRACKING.functionalDomain && c.baselineAssessmentId === baselineSession.id)
       .sort(byNewest)[0];
     if (sameBaseline) {
       if (!isActive(sameBaseline)) return { cycle: sameBaseline, created: false, reason: "baseline_cycle_completed" };
+      if (reviewHold && sameBaseline.recommendationId !== recommendation.id) return { ...reviewHold, cycle: sameBaseline };
+      // A week running a therapist-confirmed plan is never silently re-linked by a re-set of needs.
+      if (sameBaseline.initialPlanAcceptance && sameBaseline.recommendationId !== recommendation.id) return { error: "cycle_runs_confirmed_plan", cycle: sameBaseline };
       const updated = trackingCycleService.updateTrackingCycleRecommendation(sameBaseline.id, {
         selectedGoalId: recommendation.selectedGoalId,
         recommendationId: recommendation.id,
@@ -160,6 +195,7 @@ export const trackingCycleService = {
       });
       return { cycle: updated, created: false, reason: "same_baseline" };
     }
+    if (reviewHold) return reviewHold;
 
     const otherActive = trackingCycleService.getActiveTrackingCycle(userId);
     if (otherActive) return { cycle: otherActive, created: false, reason: "another_active_cycle" };
@@ -638,7 +674,9 @@ export const trackingCycleService = {
     // a current F01-19 kept by maintain stays, and §3D then asks for its counting definition).
     if (excludeAutoRecommendationPending) catalog = filterAutoRecommendationCatalog(catalog);
 
-    const d5 = buildD5Proposal({ sourceCycle: ctx.cycle, sourceRecommendation: ctx.recommendation, comparison: ctx.comparison, input: normalized.input, catalog });
+    // G01 next-cycle correction: the two tests' own reported conditions (shared check, stored as a snapshot in d5)
+    const comparisonConditions = checkFa5xComparisonConditions({ patientId: userId, baseline: ctx.baseline, reassessment: ctx.reassessment });
+    const d5 = buildD5Proposal({ sourceCycle: ctx.cycle, sourceRecommendation: ctx.recommendation, comparison: ctx.comparison, input: normalized.input, catalog, comparisonConditions });
     const goal = F01_GOALS.find((g) => g.goalId === d5.selectedGoalId) || { label: d5.selectedGoalId };
     const fields = {
       selectedGoalId: d5.selectedGoalId,
@@ -656,6 +694,11 @@ export const trackingCycleService = {
       llmDraft: null,
     };
     if (ctx.proposal) {
+      // An old-version G01 draft (docs/F01_G01_PROGRAM_SELECTION.md 一-1) is regenerated in place; its earlier content is kept.
+      if (isOutdatedG01Proposal(ctx.proposal)) {
+        const kept = JSON.parse(JSON.stringify({ d5: ctx.proposal.d5, items: ctx.proposal.items || [], basis: ctx.proposal.basis || [], recommendationRuleVersion: ctx.proposal.recommendationRuleVersion || null, updatedAt: ctx.proposal.updatedAt || null }));
+        fields.supersededDrafts = [...(ctx.proposal.supersededDrafts || []), { ...kept, supersededAt: nowIso(), reason: "decision_version_outdated" }];
+      }
       const updated = recommendationService.updateF01D5Proposal(ctx.proposal.id, fields);
       return updated ? { proposal: updated, created: false } : { error: "proposal_not_found" };
     }
@@ -833,6 +876,126 @@ export const trackingCycleService = {
       updatedAt: now,
     });
     recommendationService.updateF01D5Proposal(proposal.id, { d5: { ...proposal.d5, nextCycleId: cycle.id, nextCycleBaselineAssessmentId: baselineSession.id } });
+    return { cycle, created: true };
+  },
+
+  // ── First recommendation, stage 2 (docs/F01_INITIAL_REVIEW_PLAN.md) ────
+  // The ACCEPTED plan (therapist-confirmed items) and the baseline that starts its first week are
+  // kept apart: the recommendation keeps its original sourceAssessmentId; the cycle records which
+  // baseline started it (the original assessment on the same day, else a fresh one) in
+  // initialPlanAcceptance. A fresh baseline only starts the week — it was never reviewed.
+
+  /** The first week of an accepted first recommendation (or null). */
+  getInitialPlanCycle(userId, recommendationId) {
+    if (!userId || !recommendationId) return null;
+    return trackingCyclesCollection.getById(initialPlanCycleId(recommendationId))
+      || trackingCyclesCollection.query((c) => c.userId === userId && c.recommendationId === recommendationId)[0] || null;
+  },
+
+  /**
+   * May a fresh initial-plan baseline be taken now? (accepted, no first week yet, and the original
+   * assessment can no longer be Day 1 — accepted on a later date, or it is not a usable baseline.)
+   * `todayDateKey` must be the REAL local date. Never writes.
+   * @returns {{ ok: true, recommendation } | { ok: false, reason, cycle? }}
+   */
+  checkInitialPlanBaselineEligibility({ recommendationId, userId, todayDateKey }) {
+    const rec = recommendationId ? recommendationService.getById(recommendationId) : null;
+    if (!isFirstF01Recommendation(rec) || !userId || rec.patientId !== userId) return { ok: false, reason: "recommendation_not_found" };
+    if (!isInitialPlanAccepted(rec)) return { ok: false, reason: "plan_not_accepted" };
+    const existing = trackingCycleService.getInitialPlanCycle(userId, rec.id);
+    if (existing) return { ok: false, reason: "first_week_exists", cycle: existing };
+    const handoff = rec.initialConfirmation.handoff || {};
+    if (handoff.baselineReuseAllowed && handoff.originalAssessmentDateKey === todayDateKey) return { ok: false, reason: "original_assessment_usable_today" };
+    return { ok: true, recommendation: rec };
+  },
+
+  /**
+   * Creates the first week of an accepted first recommendation — or returns it. Local write only;
+   * the caller (f01InitialReviewService.startInitialPlanCycle) syncs it and rolls back on failure.
+   * Baseline: the original assessment ONLY on its own measured local date (= `startDateKey`, the
+   * real local date) with the acceptance allowing reuse; otherwise a completed current-version 5xSTS
+   * taken in the initial_plan_baseline context of THIS plan after the acceptance.
+   * Never replaces / re-links another running cycle.
+   * @returns {{ cycle, created: boolean } | { error, cycle? }}
+   */
+  createInitialPlanCycle({ userId, recommendationId, baselineSession, startDateKey, completionRulesVersion = null }) {
+    if (!checkRulesVersion(completionRulesVersion)) return { error: "unknown_completion_rules_version" };
+    const rec = recommendationId ? recommendationService.getById(recommendationId) : null;
+    if (!isFirstF01Recommendation(rec) || !userId || rec.patientId !== userId) return { error: "recommendation_not_found" };
+    if (!isInitialPlanAccepted(rec)) return { error: "plan_not_accepted" };
+    const existing = trackingCycleService.getInitialPlanCycle(userId, rec.id);
+    if (existing) return { cycle: existing, created: false };
+    const integrity = checkFirstRecommendationIntegrity(rec);
+    if (!integrity.ok) return { error: "recommendation_integrity_missing", reason: integrity.reason };
+    const confirmation = rec.initialConfirmation;
+    // The accepted content is exactly what was accepted (no edit afterwards).
+    if (confirmation.planFingerprint !== initialPlanFingerprint(rec) || confirmation.acceptedItemsKey !== planItemsKey(rec.items)) return { error: "accepted_plan_changed" };
+    const otherActive = trackingCycleService.getActiveTrackingCycle(userId);
+    if (otherActive) return { error: "another_active_cycle", cycle: otherActive };
+
+    if (!baselineSession || baselineSession.patientId !== userId) return { error: "baseline_not_owned" };
+    if (!isUsableNextCycleBaseline(baselineSession)) return { error: "baseline_not_completed" };
+    const r = baselineSession.result || {};
+    if ((r.completedReps ?? r.repCount) !== 5 || !Number.isFinite(r.totalDurationMs) || r.totalDurationMs <= 0) return { error: "baseline_not_completed" };
+    if (!isCurrentFa5xMeasurement(r)) return { error: "baseline_measurement_outdated" };
+    const baselineMeasuredAt = r.measuredAt || baselineSession.completedAt;
+    const baselineDateKey = toLocalDateKey(baselineMeasuredAt);
+    let baselineSource;
+    if (baselineSession.id === rec.sourceAssessmentId) {
+      const handoff = confirmation.handoff || {};
+      if (!handoff.baselineReuseAllowed || !isDateKey(startDateKey) || baselineDateKey !== startDateKey) return { error: "baseline_reuse_not_allowed" };
+      baselineSource = "original_assessment";
+    } else {
+      if (r.assessmentRole !== INITIAL_PLAN_BASELINE_ROLE || r.initialRecommendationId !== rec.id) return { error: "missing_initial_plan_baseline_context" };
+      // compared as instants (an ISO string with an offset never sorts as text against a "Z" one)
+      const measuredMs = Date.parse(r.measuredAt || "");
+      const acceptedMs = Date.parse(confirmation.confirmedAt || "");
+      if (!Number.isFinite(measuredMs) || !Number.isFinite(acceptedMs) || measuredMs < acceptedMs) return { error: "baseline_before_acceptance" };
+      // Same product time policy as the original assessment: a week starts on its baseline's own date,
+      // never later with training days already past (a later retry needs a new baseline).
+      if (!isDateKey(startDateKey) || baselineDateKey !== startDateKey) return { error: "baseline_not_today" };
+      baselineSource = "fresh_baseline";
+    }
+    const version = completionRulesVersion || confirmation.completionRulesVersion || null;
+    if (version) {
+      const defs = checkCountingDefinitions({ items: rec.items || [], getCatalog: getCatalogRaw });
+      if (!defs.ok) return { error: "counting_basis_undefined", undefinedItems: defs.undefinedItems };
+    }
+    if (!baselineDateKey) return { error: "baseline_date_missing" };
+    const now = nowIso();
+    const id = initialPlanCycleId(rec.id);
+    const cycle = trackingCyclesCollection.create({
+      ...(version ? { formalCompletionRulesVersion: version } : {}),
+      id,
+      cycleId: id,
+      userId,
+      patientId: userId,
+      functionalDomain: F01_TRACKING.functionalDomain,
+      assessmentType: F01_TRACKING.assessmentType,
+      baselineAssessmentId: baselineSession.id,
+      baselineMeasuredAt,
+      cycleStartDateKey: baselineDateKey,
+      plannedReassessmentDateKey: getPlannedReassessmentDateKey(baselineDateKey),
+      selectedGoalId: rec.selectedGoalId,
+      recommendationId: rec.id,
+      limitationsSnapshot: normalizeLimitationIds(rec.limitationIds),
+      initialPlanAcceptance: {
+        recommendationId: rec.id,
+        therapistReviewId: confirmation.therapistReviewId,
+        reviewVersionId: confirmation.reviewVersionId,
+        planFingerprint: confirmation.planFingerprint,
+        acceptedItemsKey: confirmation.acceptedItemsKey,
+        confirmedAt: confirmation.confirmedAt,
+        baselineSource,
+        originalAssessmentId: rec.sourceAssessmentId,
+      },
+      cycleStatus: TRACKING_STATUS.TRAINING,
+      completedTrainingDates: [],
+      reassessmentId: null,
+      trackingRuleVersion: TRACKING_RULE_VERSION,
+      createdAt: now,
+      updatedAt: now,
+    });
     return { cycle, created: true };
   },
 };

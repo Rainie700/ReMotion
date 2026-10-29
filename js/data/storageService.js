@@ -38,14 +38,14 @@ const CLOUD_COLLECTIONS = [
 // fails (e.g. rules not yet deployed -> permission denied) the local copy is
 // kept and login is never blocked; if it succeeds, cloud and local records
 // are merged by id (cloud wins) instead of the local list being replaced.
-const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "dailyTrainingFeedback", "selfReportedTraining"];
+const OPTIONAL_CLOUD_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords"];
 // Outcome of the last cloud load of each optional collection for the signed-in
 // user ("loaded" | "failed"), so a UI can tell "cloud copy not loaded" apart
 // from "no records" instead of showing a failed load as an empty list.
 const optionalCloudLoadStatus = new Map();
 // firestore.rules: `allow delete: if false` — a local remove() of these never reaches the cloud,
 // and the cloud copy is merged back on the next login.
-const CLOUD_UNDELETABLE_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "dailyTrainingFeedback", "selfReportedTraining"];
+const CLOUD_UNDELETABLE_COLLECTIONS = ["trackingCycles", "llmWeeklySummaries", "d5TherapistReviews", "f01InitialReviews", "dailyTrainingFeedback", "selfReportedTraining", "f01FixedPracticeRecords"];
 const isSyncedCollection = (name) => CLOUD_COLLECTIONS.includes(name) || OPTIONAL_CLOUD_COLLECTIONS.includes(name);
 
 function readRaw(key, fallback) {
@@ -80,6 +80,8 @@ async function getRecordsForField(name, field, value) {
 async function loadCloudCollection(name, user) {
   if (OPTIONAL_CLOUD_COLLECTIONS.includes(name)) {
     if (user.role !== "therapist") return getRecordsForField(name, "patientId", user.id);
+    // G01 坐站固定練習 records are owner-only (firestore.rules): a therapist account loads none.
+    if (name === "f01FixedPracticeRecords") return [];
     const relations = readRaw(collectionKey("therapistPatientRelations"), []).filter((r) => r.therapistId === user.id && r.status === "accepted");
     const records = await Promise.all(relations.map(async (relation) => {
       const snapshot = await getDocs(query(collection(firestore, name),
@@ -133,12 +135,25 @@ async function loadCloudCollection(name, user) {
 // caller that must not reload early (the dev demo setup) can wait for them.
 const pendingCloudWrites = new Set();
 let settledCloudWrites = [];
-const noteSettled = (entry) => { settledCloudWrites.push(entry); if (settledCloudWrites.length > 2000) settledCloudWrites.shift(); };
+// The LAST outcome per document ("name/id"), kept apart from the drained list above: waitForCloudWrites() hands the
+// settled list to whichever caller asks first, so a per-record status must not depend on who drained it.
+const lastCloudWriteOutcome = new Map();
+const noteSettled = (entry) => {
+  settledCloudWrites.push(entry); if (settledCloudWrites.length > 2000) settledCloudWrites.shift();
+  if (entry.name && entry.id) lastCloudWriteOutcome.set(`${entry.name}/${entry.id}`, { ok: entry.ok, code: entry.code || null, op: entry.op, at: Date.now() });
+};
+// Writes of one document still on their way ("name/id" -> count), for a per-record 「保存中」 state.
+const pendingCloudWriteIds = new Map();
 function trackCloudWrite(promise, meta) {
+  const key = meta && meta.name && meta.id ? `${meta.name}/${meta.id}` : null;
+  if (key) pendingCloudWriteIds.set(key, (pendingCloudWriteIds.get(key) || 0) + 1);
   const tracked = promise.then(
     () => { noteSettled({ ...meta, ok: true }); },
     (error) => { noteSettled({ ...meta, ok: false, code: error && error.code }); throw error; },
-  ).finally(() => pendingCloudWrites.delete(tracked));
+  ).finally(() => {
+    pendingCloudWrites.delete(tracked);
+    if (key) { const n = (pendingCloudWriteIds.get(key) || 1) - 1; if (n > 0) pendingCloudWriteIds.set(key, n); else pendingCloudWriteIds.delete(key); }
+  });
   pendingCloudWrites.add(tracked);
   return tracked;
 }
@@ -155,12 +170,27 @@ function currentRelationStamp(patientId) {
 // the rest of the record (incl. a stored measurement `result`) is written as it is.
 const RELATION_STAMPED_COLLECTIONS = ["trackingCycles", "functionalAssessmentSessions"];
 
+/** Plain objects without their undefined fields (deep); arrays mapped; anything else (Firestore sentinels, Dates) as is. */
+export function withoutUndefined(value) {
+  if (Array.isArray(value)) return value.map(withoutUndefined);
+  if (value && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = withoutUndefined(v);
+    return out;
+  }
+  return value;
+}
+
 function persistRecord(name, record) {
   if (RELATION_STAMPED_COLLECTIONS.includes(name) && cloudUser && record.patientId === cloudUser.id) {
     record = { ...record, ...currentRelationStamp(cloudUser.id) };
   }
   if (!cloudUser || !isSyncedCollection(name) || !record?.id) return;
-  trackCloudWrite(setDoc(doc(firestore, name, record.id), record), { op: "set", name, id: record.id }).catch((error) => {
+  // UX round 5/5 — the cloud copy matches the local (JSON) copy: fields set to undefined are left out instead of making
+  // setDoc throw (several detectors store summary: { ...s, repRecords: undefined }). A synchronous throw is a failed write.
+  let write;
+  try { write = setDoc(doc(firestore, name, record.id), withoutUndefined(record)); } catch (error) { write = Promise.reject(error); }
+  trackCloudWrite(write, { op: "set", name, id: record.id }).catch((error) => {
     console.error(`[storageService] failed to sync ${name}/${record.id}`, error);
   });
 }
@@ -192,7 +222,10 @@ export const storageService = {
   },
   async hydrateCloudForUser(user) {
     cloudUser = user;
+    // "loading" from the very start (not cleared): while the core collections load, a reader must never mistake
+    // "not loaded yet" for "no cloud" (e.g. Home showing 「沒有安排」 before the plans arrive).
     optionalCloudLoadStatus.clear();
+    for (const name of OPTIONAL_CLOUD_COLLECTIONS) optionalCloudLoadStatus.set(name, "loading");
     const userSnapshot = await getDocs(collection(firestore, "publicUsers"));
     writeRaw(collectionKey("users"), userSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
 
@@ -235,7 +268,23 @@ export const storageService = {
     cloudUser = null;
     optionalCloudLoadStatus.clear();
   },
-  /** "loading" | "loaded" | "failed" for an optional cloud collection of the current login; null when no cloud load ran (local / dev). */
+  /**
+   * "loading" | "loaded" | "failed" for an optional cloud collection of the current login; null when no cloud
+   * load ran (local / dev) AND during the first phase of hydrateCloudForUser (required collections), before
+   * the optional ones are marked "loading". "loaded" is set before the app's session is (setSession).
+   */
+  /** true when writes go to the cloud for a signed-in user; false = they stay on this device only (no write is tried). */
+  isCloudSyncActive() {
+    return !!cloudUser;
+  },
+  /** { ok, code, op, at } of the last cloud write of one document on this device, or null if none was tried. */
+  getLastCloudWriteOutcome(name, id) {
+    return lastCloudWriteOutcome.get(`${name}/${id}`) || null;
+  },
+  /** True while a cloud write of this document (started on this device) has not settled yet. */
+  isCloudWritePending(name, id) {
+    return pendingCloudWriteIds.has(`${name}/${id}`);
+  },
   getOptionalCloudLoadStatus(name) {
     return optionalCloudLoadStatus.get(name) || null;
   },

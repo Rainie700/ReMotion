@@ -30,7 +30,8 @@ const RV = await import("../js/ui/f01RecommendationView.js");
 const D5V = await import("../js/ui/d5ProposalView.js");
 const { getD5Arrangement } = await import("../js/data/d5TherapistReviewService.js");
 const { relationService } = await import("../js/data/relationService.js");
-const { describeTimeDifference } = await import("../js/data/trackingComparison.js");
+const { describeTimeDifference, describeShownTimeDifference } = await import("../js/data/trackingComparison.js"); // UX round 5/5: shown-value differences on the D5 page
+const { functionalProgressService } = await import("../js/data/functionalProgressService.js");
 
 function fnSource(name) {
   const start = appJs.indexOf(`function ${name}(`);
@@ -45,9 +46,12 @@ const constSource = (name) => {
   return appJs.slice(start, appJs.indexOf(";\n", start) + 1);
 };
 const DEMOL = await import("../js/ui/demoSyntheticLabel.js");
+// 本週練習回報 (G01 next-stage views) — real modules used by the lifted renderG01CycleDailyReports
+const CDR = { ...(await import("../js/data/cycleDailyReports.js")), ...(await import("../js/ui/cycleDailyReportsView.js")), dailyTrainingFeedbackService: (await import("../js/data/dailyTrainingFeedbackService.js")).dailyTrainingFeedbackService };
 const CR = await import("../js/data/fa5xConditionReport.js"); // 5xSTS batch A
 const B2 = await import("../js/data/f01DailyTargets.js"); // F01 batch 2: real helpers used by the rebuilt app functions
-const withB2 = (deps) => ({ F01_FORMAL_COMPLETION_RULES_VERSION: B2.F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays: B2.displayCompletedTrainingDays, ...deps });
+const withB2 = (deps) => ({ F01_FORMAL_COMPLETION_RULES_VERSION: B2.F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays: B2.displayCompletedTrainingDays, ...CDR, ...deps });
+const INIT = await import("../js/data/f01InitialReviewService.js"); // first-recommendation review (stage 1) used by the lifted pages
 const build = (deps, sources, names) => new Function(...Object.keys(withB2(deps)), `${[fnSource("fmtF01TrainingDays"), ...sources].join("\n")}\nreturn { ${names.join(", ")} };`)(...Object.values(withB2(deps)));
 const catalog = exerciseService.listNormalized();
 const U = "state-user";
@@ -56,13 +60,15 @@ const state = {};
 // ── 5xSTS result page, isolated ─────────────────────────────────────────
 const resultApi = build(
   {
-    state, getCurrentPatientId: () => U, functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES, trackingCycleService,
-    REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE, FA5X_RESULT_STATUS: C.FA5X_RESULT_STATUS, FA5X_END_REASON: C.FA5X_END_REASON,
+    state, getCurrentPatientId: () => U, functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES, trackingCycleService, functionalProgressService, // UX round 4/5: purpose label
+    REASSESSMENT_ROLE, NEXT_CYCLE_BASELINE_ROLE, INITIAL_PLAN_BASELINE_ROLE: "initial_plan_baseline", FA5X_RESULT_STATUS: C.FA5X_RESULT_STATUS, FA5X_END_REASON: C.FA5X_END_REASON,
     FA5X_TARGET_REPS: C.FA5X_TARGET_REPS, formatDateKeyMonthDay: T.formatDateKeyMonthDay, fa5xResultBackAction: () => "goF01LowerLimbHome()",
     // 5xSTS batch A: the real condition-report helpers used by the result page (no stubs)
     describeFa5xConditions: CR.describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT: CR.FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL: CR.FA5X_CONDITION_LABEL,
+    // UX round 5/5: the result shows its real save state (fa5xSaveState reads the real storageService)
+    storageService: (await import("../js/data/storageService.js")).storageService, renderKeepingScroll: () => {},
   },
-  [fnSource("getFa5xResultStatus"), constSource("FA5X_END_REASON_TEXT"), fnSource("fa5xResultPresentation"), fnSource("fmtFa5xDate"), fnSource("renderFa5xConditionSection"), fnSource("fiveTimesSitToStandResultPage")],
+  [fnSource("getFa5xResultStatus"), constSource("FA5X_END_REASON_TEXT"), fnSource("fa5xResultPresentation"), fnSource("fmtFa5xDate"), fnSource("renderFa5xConditionSection"), fnSource("fiveTimesSitToStandResultPage"), fnSource("fa5xSaveState")],
   ["fiveTimesSitToStandResultPage", "fa5xResultPresentation"],
 );
 function session(result) {
@@ -77,7 +83,8 @@ const renderResult = (s) => { state.fa5xResultSessionId = s.id; return resultApi
   const html = renderResult(session({ status: "completed", repCount: 5, completedReps: 5, totalDurationMs: 8900, repDurationsMs: [1111, 1222, 1333, 1444, 1055], rejectedAttempts: [] }));
   assert.ok(html.includes("result-state--completed"));
   assert.ok(html.includes('<div class="fa5x-hero-value">8.9<span>秒</span></div>'), "total time is the hero number");
-  assert.ok(html.includes("✓ 已完成 5 / 5"));
+  // UX round 5/5: completion, saving, test conditions and comparison are separate lines (no single ✓ for all)
+  assert.ok(html.includes("<dt>完成狀態</dt><dd>已完成 5 / 5 次</dd>") && html.includes("<dt>保存狀態</dt>") && html.includes("<dt>測試條件</dt><dd class=\"is-warn\">尚未回報（可在下方回答）</dd>") && html.includes("<dt>前後比較</dt>") && !html.includes("✓ 已完成"));
   assert.ok(html.includes(">查看訓練建議 →</button>") && html.includes("返回 F01 下肢功能"));
   assert.equal((html.match(/btn-primary/g) || []).length, 1, "one primary action");
   assert.equal((html.match(/class="fa5x-done-mark"/g) || []).length, 5, "five completion marks");
@@ -126,9 +133,9 @@ const d5Api = build(
   {
     state, getCurrentPatientId: () => U, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS,
     D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE,
-    describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService,
+    describeTimeDifference, describeShownTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService,
   },
-  [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderInviteCodeCard")],
+  [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderG01CycleDailyReports"), fnSource("renderInviteCodeCard")],
   ["d5ProposalPage", "d5ProposalPresentation"],
 );
 function completedCycle(user, goal = "G05", minutes = 15, limitationIds = []) {
@@ -175,8 +182,8 @@ const renderD5 = (proposal) => { state.d5ProposalId = proposal.id; return d5Api.
   const cycle = completedCycle(u2);
   const p = trackingCycleService.evaluateD5Proposal({ cycleId: cycle.id, userId: u2, input: { hasNewOrWorseningDiscomfort: false, discomfortNote: null, currentLimitations: [] }, catalog }).proposal;
   const html = new Function("s", "u", "api", "s.d5ProposalId = u; return api.d5ProposalPage();")(state, p.id, build(
-    { state, getCurrentPatientId: () => u2, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE, describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService },
-    [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderInviteCodeCard")],
+    { state, getCurrentPatientId: () => u2, trackingCycleService, exerciseService, F01_GOALS, F01_LIMITATIONS, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE, describeTimeDifference, describeShownTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey, ...D5V, ...RV, ...DEMOL, getD5Arrangement, relationService },
+    [constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"), fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderG01CycleDailyReports"), fnSource("renderInviteCodeCard")],
     ["d5ProposalPage"]));
   assert.ok(html.includes("result-state--completed") && !html.includes("result-state--review"));
   assert.ok(/confirmD5ProposalFromUi\('[^']+'\)">(接受並開始下一週|接受這份建議)<\/button>/.test(html), "normal proposal keeps its accept action");
@@ -199,7 +206,7 @@ const renderD5 = (proposal) => { state.d5ProposalId = proposal.id; return d5Api.
   const MAP = { "F01-17": "/images/exercise/exercise_double_calf_raise.png", "F01-18": "/images/exercise/exercise_double_toe_raise.png" };
   const recApi = build(
     { state, getCurrentPatientId: () => U, recommendationService, exerciseService, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, formatDateKeyMonthDay: T.formatDateKeyMonthDay, EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img src="${MAP[ex.id]}" alt="${ex.name}">`,
-      trackingCycleService, functionalAssessmentService, ...RV, ...D5V },
+      trackingCycleService, functionalAssessmentService, getInitialArrangement: INIT.getInitialArrangement, toLocalDateKey: T.toLocalDateKey, ...RV, ...D5V },
     [constSource("F01_MATCH_LEVEL_TEXT"), constSource("F01_DEMO_IMAGE_PENDING"), fnSource("renderF01RecommendationImage"), fnSource("f01RecommendationResultPage")],
     ["f01RecommendationResultPage"],
   );

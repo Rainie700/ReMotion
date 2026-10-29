@@ -1,0 +1,90 @@
+[33m[1m!  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode uxRound5BrowserCheck.mjs[22m
+NOTE | app: http://127.0.0.1:5188/?emulator=1 (Vite dev server started by this script in C:/Users/User/Downloads/ReMotion-main (6)/ReMotion-main)
+PASS | N1 home: greeting + one primary task + feedback entry + short progress; no achievements / invite card / free practice | ReMotion 早安，示範患者N 今天可以自由安排 開始自主復健 依目前身體狀況與訓練需求，安排適合你的復健內容。 開始自主復健 從六大功能構面開始，評估功能表現或直接安排訓練 最近評估 完成首次評估後查看 今天練習感覺如何？ 花幾秒記下今天的感受 填寫回報 本週進度 1 Lv. 復健新手 0 / 100 XP 再獲得 100 XP 升級 Lv.2 · 復健旅程 › — 連續復健 我的進度 › 開始第一次練習吧 首頁 訓練 數據 我的
+PASS | N2 我的: 我的復健師 carries the invite-code entry; 復健成就 there | 示 示範患者N Lv.1 復健新手 XP 0 / 100 我的復健設定 目前功能 尚未開始功能追蹤 目前訓練目標 — 限制條件 — 查看設定 › 我的復健師 尚未加入復健師 請輸入復健師提供的邀請碼，加入其個案管理名單。 查詢復健師 照護歷史（0） 復健成就 等級 Lv.1 復健新手 成就徽章 已解鎖 0 / 12 復健旅程 尚未開始旅程 完成第一次練習即可解鎖第一個成就。 查看成就 查看復健旅程 帳號與設定 登出 首頁 訓練 數據 我的
+PASS | N3 訓練: 坐站練習 + 功能評估與練習 entries; free practice (開始自主練習) reachable; one overview card
+PASS | N4 數據: the 7-day range is stated; first-practice hint (nothing recorded); compact empty trend | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 尚未開始功能追蹤 完成一次 F01 五次坐站評估後，這裡會顯示你的功能追蹤。 開始功能評估 訓練紀錄 近 7 天：10/23–10/29（含今天） 訓練次數 0 次 訓練天數 沒有紀錄 平均 AI 姿勢分數 — 10/23 — 10/24 — 10/25 — 10/26 — 10/27 — 10/28 — 10/29 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習（全部） 0 筆 自行回報（本人填寫，全部） 0 筆 坐站練習與自行回報分開保存，不計入上面的訓練次數與天數。 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 其中回報不舒服 0 天 查看感受回報 › 復健師已確認的週摘要 尚無復健師已確認的週摘要 復健師確認摘要後，會顯示在這裡。 AI 姿勢分數趨勢
+PASS | U1 home: 待復健師檢視 without a therapist → says so, plus 輸入復健師邀請碼 | 首次訓練安排 待復健師檢視 目前沒有連結的復健師，這份安排暫時無法完成檢視；可以查看說明與邀請碼入口。 查看待檢視安排 輸入復健師邀請碼 重新載入
+PASS | U2 → 我的, the invite-code field focused
+PASS | U3 the plan's own entry still opens the existing explanation + invite entry
+PASS | C0 week created (UI)
+PASS | C1 home: the week card is the one primary task (開始今日訓練); no achievements preview / free practice row
+PASS | C2 訓練: ONE overview card (date, X / Y, sources, 本週訓練 entry); tasks with 開始 below | 今日復健 10 月 29 日・星期四 今日安排 0 / 1 復健師 無安排 ReMotion 建議 1 項 本週訓練：F01 下肢功能・7 日追蹤 查看本週訓練
+PASS | C2b 本週訓練 → 返回 comes back to 訓練
+PASS | C3 result: hero → actions (查看練習紀錄 / 返回訓練) → unconfirmed reasons → closed 補記 entry | ["header","fpr-hero","fpr-actions","fpr-unconfirmed","fpr-self-entry"]
+PASS | C4 the existing fill rule still applies (0–1000 integers)
+PASS | C5 saved self-report easy to see (自行回報（本人填寫）3 次), the AI count unchanged and separate | 自行回報（本人填寫） 3 次 本人填寫，另外保存，沒有加入 AI 計次。
+PASS | C6 數據 overview: no 「完成第一次練習」 hint when a fixed-practice record exists; fixed practice / self-report each shown | 我的數據 總覽 功能評估 訓練紀錄 感受回報 目前階段 F01 7 日追蹤｜第 1 / 7 天 今日訓練 0 / 1 開始今日訓練 功能評估 最近一次 12.4 秒（10/29・7 日追蹤｜初次評估） 本週基準 12.4 秒 本週完成 0 天 下次評估 11/04，尚未量測 查看功能評估 › 訓練紀錄 近 7 天：10/23–10/29（含今天） 訓練次數 0 次 訓練天數 沒有紀錄 平均 AI 姿勢分數 — 10/23 — 10/24 — 10/25 — 10/26 — 10/27 — 10/28 — 10/29 — 坐站練習（全部） 1 筆 自行回報（本人填寫，全部） 0 筆 坐站練習與自行回報分開保存，不計入上面的訓練次數與天數。 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 其中回報不舒服 0 天 查看感受回報 › 復
+PASS | C6b 總覽: 目前階段 card first (= Home's state + its action); 功能評估 summary with ONE entry
+PASS | C7 訓練紀錄 (訓練 list empty): no first-practice hint, points to the other lists | 返回 訓練紀錄 總覽 功能評估 訓練紀錄 感受回報 訓練0 坐站練習1 自行回報0 還沒有訓練紀錄。你的坐站練習與自行回報在上方的分頁中。 開始自主復健 首頁 訓練 數據 我的
+PASS | C8 single record opened from 訓練紀錄
+PASS | C8b back to 訓練紀錄 (數據 tab)
+PASS | C9 功能評估: no separate 「目前」 card (目前基準); the running week's own card says 目前; compact 訓練表現 | 返回 功能評估 總覽 功能評估 訓練紀錄 感受回報 五次坐站完成時間 第 1 週 12.4 秒 10/29 初次評估 下次評估：11/04（第 1 週），尚未量測 只畫已量測的結果，單位為秒（越短代表完成得越快）。同一週的初次與再次評估以實線相連；不同週分開呈現，不直接比較。點選圓點可開啟該次評估。秒數差異只描述兩次測得的數值，不是醫療判斷，也不代表訓練有沒有效果。 目前只有一次追蹤評估；完成再次評估後，才會出現同一週的前後比較。 目前 第 1 週｜第 1 / 7 天 10/29 開始 基準 12.4 秒 完成 0 天 等待 11/04 再次評估 全部評估紀錄 10/29 7 日追蹤｜初次評估 12.4 秒 › 測試條件未回報 訓練表現 完成本週 F01 訓練後，這裡會顯示平均 AI 姿勢分數（目前 0 次訓練）。 首頁 訓練 數據 我的
+PASS | C9b chart: the coming reassessment is said outside the plot (下次評估：…，尚未量測), no value / marker for it
+PASS | C10 result: time, purpose, 評估已保存, condition entry closed, version codes only in 量測說明 (closed) | 返回 五次坐站｜評估結果 F01 7 日追蹤｜初次評估 12.4秒 完成五次坐站所需時間（觀察時間） 2026.10.29 10:25 完成狀態 已完成 5 / 5 次 保存狀態 ✓ 評估已保存 測試條件 尚未回報（可在下方回答） 前後比較 這是 7 日追蹤的基準；完成再次評估後才會判斷能否比較 訓練建議 可用來產生訓練建議（系統只確認評估已完成，秒數不決定動作） 測試條件 測試條件尚未回報 回答測試條件（約 30 秒） 由你回報，系統沒有驗證；不會改變上方的完成時間。 之後可以再次查看 可以在「數據 → 功能評估」再次查看。 下一步｜安排訓練 選擇你目前想加強的方向，取得適合的居家訓練建議。
+PASS | C10a result facts kept apart: 完成狀態 / 保存狀態 / 測試條件 (尚未回報, visible) / 前後比較 — no single ✓ for all | 完成狀態 已完成 5 / 5 次 保存狀態 ✓ 評估已保存 測試條件 尚未回報（可在下方回答） 前後比較 這是 7 日追蹤的基準；完成再次評估後才會判斷能否比較 訓練建議 可用來產生訓練建議（系統只確認評估已完成，秒數不決定動作）
+PASS | C10b condition questions: nothing pre-selected
+PASS | C10c 由誰回答 still required
+PASS | C11 返回 → 功能評估
+PASS | S1 slow save: 儲存中… shown, never a premature 已同步到雲端 | 坐站練習｜10/29 上午10:26 完成本次目標 5 / 5 次 AI 計次（相機辨識） 相機協助計次，無法確認是否使用手部支撐。計入的次數不代表動作品質合格。 儲存中…
+PASS | S2 the settle re-render keeps the open form and the typed number
+PASS | S3 then saved as 自行回報（本人填寫）4 次
+PASS | L1 no cloud account: 僅保存在這台裝置, never 已同步 | 坐站練習｜10/29 上午10:26 本人填寫 5 次 自行回報（這次沒有使用相機） 僅保存在這台裝置（目前沒有連上雲端帳號）
+PASS | D1 offline: says 沒有網路連線 (not a guess), answers kept, 重新送出 offered, nothing written, no completion | 今日訓練感受 回報對象：一般回報（不指定訓練週期） ✕ 第 4 / 4 步 補充說明（選填，最多 500 字） 吃力程度：有點吃力 不舒服：沒有不舒服 未完成原因：先不填 目前沒有網路連線，這次回報還沒有存到雲端，輸入仍保留。恢復連線後請按「重新送出」。 上一步 重新送出
+PASS | D2 back online → 重新送出 saves ONE report (revision 1); success only after the save | [[1,1]]
+PASS | D3 感受回報 7 days: today's answer, 6 × 未回報 (words, not colour only) | 近 7 天感受 7 天中有回報 1 天，其中回報不舒服 0 天；沒有回報的日子不代表沒有不舒服。 日期 吃力程度 不適 未完成原因 10/23（五） 未回報 10/24（六） 未回報 10/25（日） 未回報 10/26（一） 未回報 10/27（二） 未回報 10/28（三） 未回報 10/29（四） 有點吃力 沒有不舒服
+PASS | D3b the day opens its own record below
+PASS | V 260（390 寬放大 150%） 首頁: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 訓練: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 數據: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 我的: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 練習紀錄: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 功能評估: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） 評估結果: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":260,"sw":260,"bodySw":260,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 260（390 寬放大 150%） bottom sheet usable: panel inside the screen, its main button visible | {"vw":260,"vh":563,"panel":[0,260,563],"btn":[499,549]}
+PASS | V 320 首頁: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 訓練: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 數據: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 我的: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 練習紀錄: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 功能評估: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 評估結果: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":320,"sw":320,"bodySw":320,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 320 bottom sheet usable: panel inside the screen, its main button visible | {"vw":320,"vh":700,"panel":[0,320,700],"btn":[636,686]}
+PASS | V 390 首頁: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 訓練: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 數據: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 我的: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 練習紀錄: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 功能評估: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 評估結果: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":390,"sw":390,"bodySw":390,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 390 bottom sheet usable: panel inside the screen, its main button visible | {"vw":390,"vh":844,"panel":[0,390,844],"btn":[780,830]}
+PASS | V 430 首頁: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 訓練: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 數據: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 我的: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 練習紀錄: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 功能評估: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 評估結果: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":430,"sw":430,"bodySw":430,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V 430 bottom sheet usable: panel inside the screen, its main button visible | {"vw":430,"vh":932,"panel":[0,430,932],"btn":[868,918]}
+PASS | V desktop 首頁: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 訓練: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 數據: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 我的: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 練習紀錄: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 功能評估: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop 評估結果: no horizontal page overflow, no clipped text, actions on screen, the last button above the bottom nav | {"vw":1280,"sw":1280,"bodySw":1280,"wide":[],"bars":[true],"lastOk":true,"cut":0}
+PASS | V desktop bottom sheet usable: panel inside the screen, its main button visible | {"vw":1280,"vh":900,"panel":[400,880,900],"btn":[836,886]}
+PASS | no page errors | []
+75/75 steps passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

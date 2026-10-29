@@ -1,0 +1,55 @@
+PASS | N1 訓練 → F01 → 坐站練習 by clicks; intro shows name, 本次目標 5 次, short line, fixed-practice tag | 返回 坐站練習 固定練習，非個別訓練安排 本次目標 5 次 依照步驟練習，記錄本次完成次數。 動作步驟 1 坐在椅子前緣，雙腳與髖同寬，身體稍微前傾。 2 用腿、不用手臂，慢慢站起來；眼睛看前方，不要往下看。 3 站直後慢慢坐下；如果可以，手或手臂只用來引導。 動作越慢越好。 使用前提醒 使用穩固、沒有輪子、沒有扶手的椅子；坐下時雙腳平放，膝蓋約成直角。 如果很久沒有運動、有醫療狀況，或不確定是否適合你，請先詢問醫師或照護你的醫療人員。 關節會痛時，只在不痛的範圍內練習。 出現暈眩、胸痛、喘不過氣，或肌肉疼痛一直不退時，請停止並聯絡醫師。 這是單一動作的練習，不等於完整的運動建議。 相機協助計
+PASS | N1b intro: 3 ordered steps, plain reminders + camera limit; no sources / research / engineering text, no 10-row history | 次，無法確認是否使用手部支撐。 我已閱讀以上說明 勾選只代表你已閱讀，不代表系統已確認安全、適合你或通過評估。 自行記錄 查看練習紀錄 開始準備 看完步驟與提醒，勾選「我已閱讀以上說明」後即可開始。 首頁 訓練 數據 我的
+PASS | N1c 開始準備 and 自行記錄 disabled until the read row is ticked; 查看練習紀錄 always available
+PASS | N2 clicking the row's text ticks the box (whole row clickable), box on the same line as its text, no jump to the top; buttons enabled | {"before":445,"after":398,"rowY":1,"rowVisible":true}
+PASS | N3 prep: 準備開始, 坐站練習, 本次 5 次, placement + 3 checks, ONE 開啟鏡頭; no AI 觀察 chips, no repeated intro text | 返回 準備開始 坐站練習 本次 5 次 拍攝角度 正面（全身入鏡，椅子固定且周圍無障礙物） 開鏡頭前確認 全身入鏡 光線充足 相機固定 開啟鏡頭
+PASS | N3b checklist rows toggle by tapping their text
+PASS | N4 camera page (round 2 layout): 坐站練習, 0 / 5 次, 結束練習 on screen | 返回 坐站練習 無法開始 AI 動作偵測模型載入失敗，請確認網路連線後再試一次。 重新開始 0 / 5 次 請按畫面上的「重新開始」再試一次 結束練習
+NOTE | camera status with Chromium's FAKE device (no real camera; model download blocked offline): 「AI 動作偵測模型載入失敗，請確認網路連線後再試一次。」— only the opening / permission step is exercised
+PASS | N5 synthetic frames through the real LE05 session: 5 counted | {"ok":true,"totalReps":5,"unconfirmed":0,"completed":true,"last":null}
+PASS | N6 record page and cloud agree: AI 5 / 5, target 5, synced, synthetic; no version code on screen
+PASS | N7 back on the intro after a record: entry still there, 查看練習紀錄（1）
+PASS | N8 返回 from F01 (opened from 訓練) goes back to the 訓練 tab
+PASS | N9 re-entering 訓練 → F01 → 坐站練習 works again
+PASS | C0 an existing running week (G02) before any fixed practice | ["G02"]
+NOTE | home with a running week shows the 本週功能追蹤 hero; 開始自主復健 entry present: false (that is why the 訓練 → F01 entry is needed)
+PASS | C1 with a running week: 訓練 → F01 → 坐站練習 by clicks
+PASS | C2a synthetic early stop: 2 counted, 1 unconfirmed (not added) | {"ok":true,"totalReps":2,"unconfirmed":1,"completed":false,"last":null}
+PASS | C2b ended early saved as it is (2 / 5, 1 unconfirmed); cloud write refused -> NOT shown as synced
+PASS | C2c retry -> synced; exactly one document for that run (no duplicate) | [["u7y_3_f0ttkp",2]]
+PASS | C3 self-report added on the record: AI count still 2 in the cloud, self-report 4 kept apart
+PASS | C4a 自行記錄 page: no camera, saved as the person's own number
+PASS | C4b self-report only: no AI count; no analysisRecord created
+PASS | C5a 練習紀錄 page lists both records (AI and self-report lines, sync state) | ["10/28 AI 計次：本次沒有使用相機｜自行回報：5 次（本人填寫，與 AI 計次分開） 已同步到雲端","10/28 AI 計次：2 / 5 次（提早結束）｜另有 1 次動作無法確認，沒有計入｜自行回報：4 次（本人填寫，與 AI 計次分開） 已同步到雲端"]
+PASS | C5b record opened from 練習紀錄 returns to 練習紀錄
+PASS | C6 a new login reads back the same records (numbers + sync) | ["10/28 AI 計次：本次沒有使用相機｜自行回報：5 次（本人填寫，與 AI 計次分開） 已同步到雲端","10/28 AI 計次：2 / 5 次（提早結束）｜另有 1 次動作無法確認，沒有計入｜自行回報：4 次（本人填寫，與 AI 計次分開） 已同步到雲端"]
+PASS | C7 the running week is unchanged (same document, no completion days, no new cycle); no analysisRecord added
+PASS | L 390 訓練 tab | {"overflowX":0,"wide":0,"btn":[555,627],"navTop":766,"vh":844,"lastBottom":701,"contentBottom":766}
+PASS | L 390 F01 | {"overflowX":0,"wide":0,"btn":[309,397],"navTop":766,"vh":844,"lastBottom":397,"contentBottom":766}
+PASS | L 390 intro (unread) | {"overflowX":0,"wide":0,"btn":[655,707],"navTop":766,"vh":844,"lastBottom":613,"contentBottom":645}
+PASS | L 390 intro (read) | {"overflowX":0,"wide":0,"btn":[702,754],"navTop":766,"vh":844,"lastBottom":660,"contentBottom":692}
+PASS | L 390 練習紀錄 | {"overflowX":0,"wide":0,"btn":null,"navTop":766,"vh":844,"lastBottom":348,"contentBottom":766}
+PASS | L 390 自行記錄 | {"overflowX":0,"wide":0,"btn":[702,754],"navTop":766,"vh":844,"lastBottom":296,"contentBottom":692}
+PASS | L 390 prep: exactly one 開啟鏡頭
+PASS | L 390 prep | {"overflowX":0,"wide":0,"btn":[780,832],"navTop":null,"vh":844,"lastBottom":738,"contentBottom":770}
+PASS | L 430 訓練 tab | {"overflowX":0,"wide":0,"btn":[555,627],"navTop":854,"vh":932,"lastBottom":701,"contentBottom":854}
+PASS | L 430 F01 | {"overflowX":0,"wide":0,"btn":[309,397],"navTop":854,"vh":932,"lastBottom":397,"contentBottom":854}
+PASS | L 430 intro (unread) | {"overflowX":0,"wide":0,"btn":[762,814],"navTop":854,"vh":932,"lastBottom":720,"contentBottom":752}
+PASS | L 430 intro (read) | {"overflowX":0,"wide":0,"btn":[790,842],"navTop":854,"vh":932,"lastBottom":748,"contentBottom":780}
+PASS | L 430 練習紀錄 | {"overflowX":0,"wide":0,"btn":null,"navTop":854,"vh":932,"lastBottom":348,"contentBottom":854}
+PASS | L 430 自行記錄 | {"overflowX":0,"wide":0,"btn":[790,842],"navTop":854,"vh":932,"lastBottom":296,"contentBottom":780}
+PASS | L 430 prep: exactly one 開啟鏡頭
+PASS | L 430 prep | {"overflowX":0,"wide":0,"btn":[868,920],"navTop":null,"vh":932,"lastBottom":826,"contentBottom":858}
+PASS | L 1280 訓練 tab | {"overflowX":0,"wide":0,"btn":[550,622],"navTop":722,"vh":800,"lastBottom":690,"contentBottom":722}
+PASS | L 1280 F01 | {"overflowX":0,"wide":0,"btn":[309,391],"navTop":722,"vh":800,"lastBottom":391,"contentBottom":722}
+PASS | L 1280 intro (unread) | {"overflowX":0,"wide":0,"btn":[630,682],"navTop":722,"vh":800,"lastBottom":588,"contentBottom":620}
+PASS | L 1280 intro (read) | {"overflowX":0,"wide":0,"btn":[658,710],"navTop":722,"vh":800,"lastBottom":616,"contentBottom":648}
+PASS | L 1280 練習紀錄 | {"overflowX":0,"wide":0,"btn":null,"navTop":722,"vh":800,"lastBottom":331,"contentBottom":722}
+PASS | L 1280 自行記錄 | {"overflowX":0,"wide":0,"btn":[658,710],"navTop":722,"vh":800,"lastBottom":274,"contentBottom":648}
+PASS | L 1280 prep: exactly one 開啟鏡頭
+PASS | L 1280 prep | {"overflowX":0,"wide":0,"btn":[736,788],"navTop":null,"vh":800,"lastBottom":694,"contentBottom":726}
+PASS | O1 another exercise's prep (深蹲) keeps its own name, care line and folded notes; one 開啟鏡頭, no AI 觀察 chips | 返回 準備開始 深蹲 拍攝角度 正面（全身、骨盆、雙膝、腳跟與雙腳完整入鏡，預留左右空間） 開鏡頭前確認 全身入鏡 光線充足 相機固定 ⚠ 控制膝蓋對其腳尖 注意事項與 AI 說明 開啟鏡頭
+PASS | L 390 prep of 深蹲 (fold open) | {"overflowX":0,"wide":0,"btn":[780,832],"navTop":null,"vh":844,"lastBottom":738,"contentBottom":770}
+PASS | O2 深蹲: 開啟鏡頭 still opens its own detection page
+PASS | no page errors | []
+52/52 steps passed

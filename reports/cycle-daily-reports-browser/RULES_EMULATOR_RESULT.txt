@@ -1,0 +1,52 @@
+PASS | owner transaction can read missing document
+PASS | outsider cannot create for owner
+PASS | therapist cannot report as patient
+PASS | invalid subjective enum rejected
+PASS | AI source rejected
+PASS | forged relation rejected
+PASS | noncanonical document ID rejected
+PASS | self-report with explicit unknown saved
+PASS | owner reads
+PASS | linked therapist reads
+PASS | outsider read denied
+PASS | owner query loads
+PASS | linked scoped query loads
+PASS | unscoped list denied
+PASS | therapist cannot correct patient report
+PASS | old report overwrite denied
+PASS | forged author denied
+PASS | invalid appended value denied
+PASS | created timestamp cannot change
+PASS | valid correction appends
+PASS | stale device cannot overwrite second report
+PASS | cannot delete history
+PASS | cannot reassign patient
+PASS | cannot insert fake AI score
+PASS | revoked therapist cannot read
+PASS | revoked relation cannot be claimed on write
+PASS | owner may save unlinked report
+PASS | single online transaction append
+PASS | reason invalid enum rejected
+PASS | reason cannot reference another patient's cycle
+PASS | reason cannot reference another plan
+PASS | reason date must match daily document
+PASS | complete context cannot claim incompletion
+PASS | reason fake measured source rejected
+PASS | malformed context item rejected
+PASS | fake score in context attempt rejected
+PASS | missing numeric amount can remain null
+PASS | reason correction preserves earlier context
+PASS | old context cannot be overwritten
+PASS | subject: own cycle and plan accepted
+PASS | subject: another patient's cycle rejected
+PASS | subject: another plan rejected
+PASS | subject: missing cycle rejected
+PASS | subject: unknown kind rejected
+PASS | subject: extra field rejected
+PASS | subject: missing field rejected
+PASS | subject: incompletion about the same cycle accepted
+PASS | subject: incompletion about another cycle rejected
+PASS | subject: general report first, then a cycle report appended
+PASS | subject: an earlier general report cannot be re-labelled
+PASS | concurrent devices: one commit and one conflict; history retained
+51/51 feedback rule checks passed

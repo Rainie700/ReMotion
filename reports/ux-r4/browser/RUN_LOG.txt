@@ -1,0 +1,43 @@
+NOTE | app: http://127.0.0.1:5186/?emulator=1 (Vite dev server started by this script in C:/Users/User/Downloads/ReMotion-main (6)/ReMotion-main)
+PASS | H1 new patient home: neutral greeting, primary 開始自主復健
+PASS | D1 new patient 數據: three category entries; no chart; nothing reads as an error | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 尚未開始功能追蹤 完成一次 F01 五次坐站評估後，這裡會顯示你的功能追蹤。 開始功能評估 訓練紀錄 近 7 天訓練 0 次 近 7 天訓練天數 0 天 近 7 天平均 AI 姿勢分數 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習 0 筆・自行回報 0 筆（分開保存，不計入上面的次數） 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 查看感受回報 › 復健師已確認的週摘要 尚無復健師已確認的週摘要 復健師確認摘要後，會顯示在這裡。 AI 姿勢分數趨勢 完成 2 次以上 AI 訓練後即可查看趨勢 首頁 
+PASS | D2 功能評估 empty: 還沒有五次坐站評估 + 開始功能評估
+PASS | D3 訓練紀錄 → 坐站練習 empty: a way to the practice
+PASS | D4 感受回報 empty
+PASS | A0 single assessment outside any week: overview shows it with its purpose | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 五次坐站 最近一次評估 10.6 秒 10/27｜首次評估 尚未開始 7 日追蹤。 查看評估紀錄與圖表 → 訓練紀錄 近 7 天訓練 0 次 近 7 天訓練天數 0 天 近 7 天平均 AI 姿勢分數 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習 0 筆・自行回報 0 筆（分開保存，不計入上面的次數） 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 查看感受回報 › 復健師已確認的週摘要 尚無復健師已確認的週摘要 復健師確
+PASS | A0b 功能評估: listed (date · purpose · result), no trend chart
+PASS | A1 result page: time is the hero, purpose 五次坐站｜首次評估, condition questions behind an entry (not open), 數據 highlighted | 返回 五次坐站｜評估結果 五次坐站｜首次評估 ✓ 已完成 5 / 5 10.6秒 完成五次坐站所需時間 觀察時間｜測試條件尚未回報 2026.10.27 03:11 測試條件 測試條件尚未回報 回答測試條件（約 30 秒） 由你回報，系統沒有驗證；不會改變上方的完成時間。 本次評估已完成 已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。 下一步｜安排訓練 選擇你目前想加強的方向，取得適合的居家訓練建議。 查看訓練建議 → 返回 F01 下肢功能 首頁 訓練 數據 我的
+PASS | A2 tapping 回答測試條件 opens the questions with nothing pre-selected
+PASS | A3 the required answer is still required (who answered)
+PASS | A4 saved; the entry now offers 補充或更正
+PASS | A5 返回 from a result opened in 功能評估 goes back there
+PASS | H2 running week: greeting is neutral (not 今天沒有復健師安排); the week card says 開始今日訓練 | 早安，示範患者W 今天也一起動一動吧
+PASS | P1 target reached: 練習結果, 5 / 5 次, 完成本次目標 + star; AI count labelled; 查看練習紀錄 / 返回訓練 | 坐站練習｜10/28 上午03:12 完成本次目標 5 / 5 次 AI 計次（相機辨識） 相機協助計次，無法確認是否使用手部支撐。計入的次數不代表動作品質合格。 儲存中…
+PASS | P1b sync state: 已同步到雲端 (after 儲存中)
+PASS | P2 查看練習紀錄 → the record (練習紀錄)
+PASS | P2b 返回訓練 → the 訓練 tab
+PASS | P3 ended early: 2 / 5, 提前結束, no star, 另有 1 次無法確認 + its reason | 返回 練習結果 坐站練習｜10/28 上午03:12 提前結束 2 / 5 次 AI 計次（相機辨識） 相機協助計次，無法確認是否使用手部支撐。計入的次數不代表動作品質合格。 儲存中… 另有 1 次動作無法確認，沒有計入 沒有看到從坐姿起身（例如站著入鏡後才坐下） 另外記下自己數的次數（可略過） 會另外記為「本人填寫」，不會改變或加到 AI 計次。 保存自行回報 查看練習紀錄 返回訓練 首頁 訓練 數據 我的
+PASS | P4 self-report shown apart: AI still 2 in the cloud, self-report 4
+PASS | P5 self-report only: 5 次, 自行回報（這次沒有使用相機）, 本人填寫; no AI count | 坐站練習｜10/28 上午03:12 本人填寫 5 次 自行回報（這次沒有使用相機） 儲存中…
+PASS | F1 rules without the fixed-practice block: the save is refused and shown as 尚未同步 + 重試同步 (never 已同步) | permission-denied
+NOTE | error code recorded for the refused save: permission-denied
+PASS | F1b the recorded cloud error is permission-denied (a rules problem, not the network) | permission-denied
+PASS | F2 rules restored → 重試同步 → 已同步到雲端
+PASS | F3 four practice records, each once; the week is unchanged (no completion day added); no analysisRecord | [[5,null],[2,4],[null,5],[5,null]]
+PASS | D5 overview with records: 坐站練習 4 筆・自行回報 0 筆 (apart from the counts above), 感受回報 entry | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 F01 下肢功能 目前週期 目前週期 第 1 / 7 天 目前基準 12.4 秒 本週完成 0 天 再次評估 11/03 查看追蹤歷程 → 訓練紀錄 近 7 天訓練 0 次 近 7 天訓練天數 0 天 近 7 天平均 AI 姿勢分數 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習 4 筆・自行回報 0 筆（分開保存，不計入上面的次數） 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 查看感受回報 › 復健師已確認的週摘要 尚無復健師已確認的週摘要 復健師確認摘要後，會顯示在這裡。 AI 姿勢分數趨勢 完成 2 次以上 AI 訓練後即可查看趨勢 首頁 訓練 數據 我的
+PASS | D6 訓練紀錄 → 坐站練習: date · type · main result, newest first, read back after reload; never in the 訓練 counts | ["10/28 相機計次 5 / 5 次 › 已同步到雲端","10/28 只有自行回報 5 次 › 已同步到雲端","10/28 相機計次 2 / 5 次 › 自行回報 4 次（另外保存） 另有 1 次無法確認，未計入 已同步到雲端","10/28 相機計次 5 / 5 次 › 已同步到雲端"]
+PASS | D7 one record (opened from 數據): details, 回到訓練紀錄, 數據 highlighted
+PASS | D8 訓練 view: formal / AI trainings only (none yet) — fixed practice not mixed in
+PASS | D9 自行回報 view is its own list
+PASS | C1 one week, one assessment: one point + 預計 MM/DD marker (no 「?」, no line) | 返回 功能評估 總覽 功能評估 訓練紀錄 感受回報 五次坐站完成時間 第 1 週 12.4 秒 10/28 初次評估 預計 11/03 再次評估 第 1 週：預計 11/03 再次評估 同一週的初次與再次評估以實線相連；不同週分開呈現。秒數差異只描述兩次測得的數值，不是醫療判斷。 目前只有一次追蹤評估；完成再次評估後，才會出現同一週的前後比較。 目前 第 1 週｜第 1 / 7 天 目前基準 12.4 秒 再次評估 11/03 第 1 週｜進行中 基準 12.4 秒 完成 0 天 等待 11/03 再次評估 全部評估紀錄 10/28 7 日追蹤｜初次評估 12.4 秒 › 訓練表現 平均 AI
+PASS | C2 two weeks: 第 1 週 / 第 2 週 groups; 12.8 → 11.2 joined inside week 1; 11.2 shown once (再次評估／第 2 週基準); 預計 marker for week 2 | <rect class="fa5c-band" x="12.0" y="6" width="182.0" height="200" rx="14"></rect><text class="fa5c-week" x="103.0" y="26" text-anchor="middle">第 1 週</text><rect class="fa5c-band alt" x="126.0" y="6" w
+PASS | C3 the sentence matches the shown values (12.8 → 11.2 = 少 1.6 秒); no 改善 / 退步 | 返回 功能評估 總覽 功能評估 訓練紀錄 感受回報 五次坐站完成時間 第 1 週 第 2 週 12.8 秒 10/19 初次評估 11.2 秒 10/25 再次評估／第 2 週基準 預計 10/31 再次評估 第 1 週：本次完成時間較初次少 1.6 秒 第 2 週：預計 10/31 再次評估 同一週的初次與再次評估以實線相連；不同週分開呈現。秒數差異只描述兩次測得的數值，不是醫療判斷。 目前 第 2 週｜第 4 / 7 天 目前基準 11.2 秒 再次評估 10/31 第 1 週 ✓ 10/19 → 10/25 12.8 秒 → 11.2 秒 完成時間差異：少 1.6 秒 訓練完成：3 天 查看第 1 週前後比較 第 2 週｜進行中 基準 11.2 秒 完成 0 天 等待 10/31 再次評估 全部評估紀錄 10/25 7 日追蹤｜再次評估 11.
+PASS | C4 week 1 comparison page: the same values and the same sentence
+PASS | L 390 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":766}
+PASS | L 390 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":668,"navTop":766}
+PASS | L 430 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":854}
+PASS | L 430 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":668,"navTop":854}
+PASS | L 1280 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":722}
+PASS | L 1280 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":668,"navTop":722}
+PASS | no page errors | []
+40/40 steps passed

@@ -9,6 +9,7 @@ import {
 import { F01_GOALS } from "./f01RecommendationSpec.js";
 import { isCurrentFa5xMeasurement } from "./fa5xMeasurementCompatibility.js";
 import { getCompletedTrainingDaysStatus } from "./f01DailyTargets.js";
+import { COMPARISON_CONDITION_STATUS, describeComparisonConditionReasons } from "./fa5xComparisonConditions.js";
 import {
   F01_LIMITATIONS,
   MATCH_LEVEL,
@@ -43,7 +44,18 @@ import {
  * diagnosis cut-off or an MCID. Training exposure is a product-cycle
  * classification, not an adherence rating. "progress" is a candidate decision,
  * never a prescription; "adjust" is a re-check, never an automatic regression.
+ *
+ * G01 next-cycle correction (docs/F01_G01_DECISION_BASIS_V1.md, rule f01-g01-next-cycle-1.0): for a G01
+ * cycle, gates 1–2 run unchanged; a GATE-MATRIX result is withdrawn — a 5xSTS time change (with any number
+ * of training days) never becomes a progress / maintain / adjust conclusion — and the proposal goes to the
+ * existing no_auto_decision route (NC-N01: no next week is created automatically; a linked therapist may
+ * arrange one). The change is classified against the reference only when the two tests' reported
+ * conditions are consistent (js/data/fa5xComparisonConditions.js); otherwise it is not interpreted.
  */
+export const F01_G01_NEXT_CYCLE_RULE_VERSION = "f01-g01-next-cycle-1.0";
+export const G01_NEXT_CYCLE_RULE_ID = "G01-N01";
+/** changeClass stored when the reported conditions do not allow reading the change against the reference. */
+export const CHANGE_NOT_INTERPRETED = "not_interpreted_conditions";
 
 export const D5_RULE_VERSION = F01_PROGRESSION_SPEC_SOURCE.version; // "D5-0-V1"
 
@@ -498,7 +510,7 @@ export function buildD5ProposalItems({ selection, sourceItems = [], selectedGoal
  *   sourceCycle, sourceRecommendation, comparison (buildTrackingComparison output),
  *   input (normalizeD5Input().input), catalog
  */
-export function buildD5Proposal({ sourceCycle, sourceRecommendation, comparison, input, catalog = [] }) {
+export function buildD5Proposal({ sourceCycle, sourceRecommendation, comparison, input, catalog = [], comparisonConditions = null }) {
   const currentItems = ((sourceRecommendation && sourceRecommendation.items) || []).map((it) => ({ exerciseId: it.exerciseId, matchLevel: it.matchLevel }));
   const currentExerciseIds = currentItems.map((it) => it.exerciseId);
   const previous = resolvePreviousLimitationsSnapshot({ cycle: sourceCycle, recommendation: sourceRecommendation });
@@ -509,7 +521,7 @@ export function buildD5Proposal({ sourceCycle, sourceRecommendation, comparison,
   const assessmentValid = !!(comparison && comparison.eligible);
   const changeMs = assessmentValid ? comparison.changeMs : null;
 
-  const evaluation = evaluateD5Decision({
+  let evaluation = evaluateD5Decision({
     assessmentValid,
     changeMs,
     completedTrainingDays,
@@ -517,6 +529,20 @@ export function buildD5Proposal({ sourceCycle, sourceRecommendation, comparison,
     newLimitations,
     hardFilterConflictExerciseIds: conflicts.map((c) => c.exerciseId),
   });
+  // G01 next-cycle correction — see the header. Gates 1 (validity) and 2 (discomfort / limitations) keep their result.
+  const g01 = sourceCycle.selectedGoalId === "G01";
+  const conditions = g01 ? (comparisonConditions || { status: COMPARISON_CONDITION_STATUS.INSUFFICIENT, reasons: [{ code: "conditions_not_checked", kind: "insufficient" }] }) : null;
+  const interpretable = !g01 || conditions.status === COMPARISON_CONDITION_STATUS.CONSISTENT;
+  let g01NextCycle = null;
+  if (g01) {
+    const withdrawn = evaluation.gate === "GATE-MATRIX" ? { ruleId: evaluation.decisionRuleId, decision: evaluation.decision } : null;
+    if (withdrawn) {
+      evaluation = { ...evaluation, decision: D5_DECISION.NO_AUTO_DECISION, decisionRuleId: G01_NEXT_CYCLE_RULE_ID, decisionRuleReason: G01_TIME_NOT_BASIS_TEXT, gate: "GATE-G01-TIME" };
+    }
+    if (!interpretable && assessmentValid) evaluation = { ...evaluation, changeClass: CHANGE_NOT_INTERPRETED };
+    // withdrawnMatrix is kept only for traceability: never shown as a judgement, never sent to a model
+    g01NextCycle = { ruleVersion: F01_G01_NEXT_CYCLE_RULE_VERSION, applied: !!withdrawn, withdrawnMatrix: withdrawn, conditionStatus: conditions.status };
+  }
   const selection = selectNextCycleExercises({
     decision: evaluation.decision,
     selectedGoalId: sourceCycle.selectedGoalId,
@@ -571,8 +597,19 @@ export function buildD5Proposal({ sourceCycle, sourceRecommendation, comparison,
     confirmationMode: confirmation.confirmationMode,
     reviewReasons: confirmation.reviewReasons,
     nextCycleReady: confirmation.nextCycleReady,
-    reason: buildD5Reason({ selection, confirmation }),
+    reason: g01NextCycle && g01NextCycle.applied ? describeG01NextCycleReason(conditions) : buildD5Reason({ selection, confirmation }),
+    ...(g01 ? { g01NextCycle, comparisonConditions: JSON.parse(JSON.stringify(conditions)) } : {}),
   };
+}
+
+const G01_TIME_NOT_BASIS_TEXT = "五次坐站的時間變化不能單獨決定下一週訓練；目前沒有其他已核實、可執行的安排依據，系統不自動判定。";
+
+/** The reason of a G01 proposal whose time-matrix result was withdrawn (plain words, no clinical claim). */
+export function describeG01NextCycleReason(conditions) {
+  const head = conditions.status === COMPARISON_CONDITION_STATUS.CONSISTENT
+    ? "前後兩次回報的測試條件一致，但"
+    : `前後兩次的測試條件${conditions.status === COMPARISON_CONDITION_STATUS.DIFFER ? "不同" : "資料不足"}（${describeComparisonConditionReasons(conditions).join("；")}），這次的時間差不以參考值解讀；而且`;
+  return `${head}${G01_TIME_NOT_BASIS_TEXT}原本的訓練與紀錄都保留，但這不代表系統建議維持原訓練。`;
 }
 
 // ── Next-cycle handoff (pure) ───────────────────────────────────────────

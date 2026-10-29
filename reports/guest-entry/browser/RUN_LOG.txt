@@ -1,0 +1,57 @@
+NOTE | app: http://127.0.0.1:5194/?emulator=1 (Vite dev server started by this script in C:/Users/User/Downloads/ReMotion-main (6)/ReMotion-main)
+PASS | G1 first visit: the guest Home directly (boot → guest; no login page, no personal home) | ["boot","guest"]
+PASS | G1b order: brand + 登入 → purpose → 開始首次評估 → 使用流程 → 動作介紹 → 使用說明; no placeholders
+PASS | G2 訓練 (guest): 動作介紹 of the 20 F01 exercises, a sign-in note for a personal plan, no amounts
+PASS | G2b one 動作介紹: description + how-to + precautions, labelled not a plan; no amounts
+PASS | G2c 數據 (guest): what can be seen after sign-in + 登入 / 建立帳號; no numbers or empty charts
+PASS | G2d 我的 (guest): 登入 / 建立帳號 + 使用說明
+PASS | G3 without a session goFiveTimesSitToStandDetection() → still a guest page (no account page, no camera)
+PASS | G3 without a session goActionRecords() → still a guest page (no account page, no camera)
+PASS | G3 without a session goF01TrackingHistory() → still a guest page (no account page, no camera)
+PASS | G3 without a session goFeedbackHistory() → still a guest page (no account page, no camera)
+PASS | G3 without a session goF01FixedPractice() → still a guest page (no account page, no camera)
+PASS | G4 首次評估準備: the approved preparation text, 登入並繼續 / 建立帳號後繼續 + why sign-in
+PASS | G4b guest browsing: the camera was never requested and nothing was written | camera=0 writes=0
+PASS | G5 登入並繼續 → the existing login (role step) with 「登入後會接著進行首次評估」; intent stored
+PASS | G5b 返回 → back on the preparation page; the intent is cancelled
+PASS | G6 a failed login: the error is shown, the intent stays | 登入（患者） 電子郵件或密碼錯誤。 登入 返回選擇身分 還沒有帳號？建立帳號
+PASS | G7 a reload with a pending intent → the preparation page again (nothing lost, no personal data)
+PASS | G8 signed in (new patient): the existing required setup first, saying the assessment follows
+PASS | G8b after the setup → the existing 五次坐站 preparation (開始評估 →), not the Home; the intent is cleared; still no camera
+PASS | G9 register → success → login → the required setup, then the assessment (intent kept across the detour)
+PASS | G9b … → the 五次坐站 preparation
+PASS | G10 a patient with a 5xSTS result → their own Home + next step (never a new 「first」 assessment)
+PASS | G11 a returning session opens its own page directly (existing landing rule); no guest page, no login page flashes first | ["boot","intake"]
+PASS | G12 登出 → the guest Home; nothing of that account on screen; no intent left
+PASS | G12b the next account sees only itself (no earlier name, no carried-over assessment intent)
+PASS | G13 a therapist from the same entry → the therapist workspace (role rules), intent dropped
+PASS | V 260（390 寬放大 150%） guest 首頁: no horizontal overflow; the last button above the bottom navigation | {"vw":260,"sw":260,"wide":0,"lastOk":true}
+PASS | V 260（390 寬放大 150%） guest 訓練: no horizontal overflow; the last button above the bottom navigation | {"vw":260,"sw":260,"wide":0,"lastOk":true}
+PASS | V 260（390 寬放大 150%） guest 數據: no horizontal overflow; the last button above the bottom navigation | {"vw":260,"sw":260,"wide":0,"lastOk":true}
+PASS | V 260（390 寬放大 150%） 首次評估準備: no horizontal overflow; the last button above the bottom navigation | {"vw":260,"sw":260,"wide":0,"lastOk":true}
+PASS | V 260（390 寬放大 150%） login role step: no horizontal overflow; the last button above the bottom navigation | {"vw":260,"sw":260,"wide":0,"lastOk":true}
+PASS | V 320 guest 首頁: no horizontal overflow; the last button above the bottom navigation | {"vw":320,"sw":320,"wide":0,"lastOk":true}
+PASS | V 320 guest 訓練: no horizontal overflow; the last button above the bottom navigation | {"vw":320,"sw":320,"wide":0,"lastOk":true}
+PASS | V 320 guest 數據: no horizontal overflow; the last button above the bottom navigation | {"vw":320,"sw":320,"wide":0,"lastOk":true}
+PASS | V 320 首次評估準備: no horizontal overflow; the last button above the bottom navigation | {"vw":320,"sw":320,"wide":0,"lastOk":true}
+PASS | V 320 login role step: no horizontal overflow; the last button above the bottom navigation | {"vw":320,"sw":320,"wide":0,"lastOk":true}
+PASS | V 390 guest 首頁: no horizontal overflow; the last button above the bottom navigation | {"vw":390,"sw":390,"wide":0,"lastOk":true}
+PASS | V 390 guest 訓練: no horizontal overflow; the last button above the bottom navigation | {"vw":390,"sw":390,"wide":0,"lastOk":true}
+PASS | V 390 guest 數據: no horizontal overflow; the last button above the bottom navigation | {"vw":390,"sw":390,"wide":0,"lastOk":true}
+PASS | V 390 首次評估準備: no horizontal overflow; the last button above the bottom navigation | {"vw":390,"sw":390,"wide":0,"lastOk":true}
+PASS | V 390 login role step: no horizontal overflow; the last button above the bottom navigation | {"vw":390,"sw":390,"wide":0,"lastOk":true}
+PASS | V 430 guest 首頁: no horizontal overflow; the last button above the bottom navigation | {"vw":430,"sw":430,"wide":0,"lastOk":true}
+PASS | V 430 guest 訓練: no horizontal overflow; the last button above the bottom navigation | {"vw":430,"sw":430,"wide":0,"lastOk":true}
+PASS | V 430 guest 數據: no horizontal overflow; the last button above the bottom navigation | {"vw":430,"sw":430,"wide":0,"lastOk":true}
+PASS | V 430 首次評估準備: no horizontal overflow; the last button above the bottom navigation | {"vw":430,"sw":430,"wide":0,"lastOk":true}
+PASS | V 430 login role step: no horizontal overflow; the last button above the bottom navigation | {"vw":430,"sw":430,"wide":0,"lastOk":true}
+PASS | V desktop guest 首頁: no horizontal overflow; the last button above the bottom navigation | {"vw":1280,"sw":1280,"wide":0,"lastOk":true}
+PASS | V desktop guest 訓練: no horizontal overflow; the last button above the bottom navigation | {"vw":1280,"sw":1280,"wide":0,"lastOk":true}
+PASS | V desktop guest 數據: no horizontal overflow; the last button above the bottom navigation | {"vw":1280,"sw":1280,"wide":0,"lastOk":true}
+PASS | V desktop 首次評估準備: no horizontal overflow; the last button above the bottom navigation | {"vw":1280,"sw":1280,"wide":0,"lastOk":true}
+PASS | V desktop login role step: no horizontal overflow; the last button above the bottom navigation | {"vw":1280,"sw":1280,"wide":0,"lastOk":true}
+PASS | K1 Tab order on the guest Home: 登入 → 開始首次評估 | ["登入","開始首次評估"]
+PASS | K2 Enter on 開始首次評估 → the preparation page
+PASS | K3 keyboard: Tab to 登入並繼續 + Enter → the login role step
+PASS | no page errors | []
+55/55 steps passed

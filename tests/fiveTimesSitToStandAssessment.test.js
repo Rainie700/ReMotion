@@ -347,10 +347,14 @@ const firstEvent = (events, type, pred = () => true) => events.find((e) => e.typ
   [100, 130, 160, 162, 164, 140, 110, 108, 106].forEach(f);
   assert.equal(tr.getSummary().totalReps, 1, "training FSM still counts a knee-angle rep");
   try {
-    execFileSync("git", ["diff", "--quiet", "HEAD", "--", "js/ai/exercises/sitToStand/session.js", "js/ai/exercises/sitToStand/constants.js", "js/ai/exercises/sitToStand/poseMath.js", "js/ai/exercises/sitToStand/quality.js", "js/ai/exercises/sitToStand/score.js"], { cwd: root });
+    // session.js was changed on purpose by the F01-04 slow-rep fix (docs/verification/le05-slow-rep/); the other training
+    // files must still be unmodified, and the 5xSTS assessment must keep its own session (checked just below).
+    execFileSync("git", ["diff", "--quiet", "HEAD", "--", "js/ai/exercises/sitToStand/constants.js", "js/ai/exercises/sitToStand/poseMath.js", "js/ai/exercises/sitToStand/quality.js", "js/ai/exercises/sitToStand/score.js"], { cwd: root });
   } catch (e) {
     if (e.status === 1) assert.fail("Training Mode sitToStand files must not be modified");
   }
+  const assessmentSrc = readFileSync(join(root, "js/ai/exercises/sitToStand/assessmentSession.js"), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  assert.ok(!/from "\.\/session\.js"|createSitToStandSession|LE05_THRESHOLDS/.test(assessmentSrc), "the 5xSTS assessment never uses the training session or its thresholds");
   assert.ok(/function goLe05Detection\(\)/.test(appJs) && /createSitToStandSession\(\{targetReps:le05SessionMeta\.targetReps\}\)/.test(appJs), "le05Detection still runs the training FSM");
 }
 
@@ -463,7 +467,12 @@ const { classifyStandingFraming, createStandingPositionCheck, FA5X_POSITIONING_U
 
 // ── 19. explanation page (user-facing steps, starts seated) ───────────────
 {
-  const page = appJs.slice(appJs.indexOf("function fiveTimesSitToStandAssessmentPage()"), appJs.indexOf("function goFiveTimesSitToStandResult("));
+  // 2026-10-29 guest entry: the approved intro / preparation / safety text is one shared copy (FA5X_INTRO_TEXT,
+  // FA5X_PREP_STEPS_HTML, FA5X_SAFETY_TEXT) used by this page and the public 首次評估準備 page — read both
+  const shared = appJs.slice(appJs.indexOf("const FA5X_INTRO_TEXT ="), appJs.indexOf("function goFiveTimesSitToStandAssessment("));
+  const pageSrc = appJs.slice(appJs.indexOf("function fiveTimesSitToStandAssessmentPage()"), appJs.indexOf("function goFiveTimesSitToStandResult("));
+  assert.ok(pageSrc.includes("${FA5X_INTRO_TEXT}") && pageSrc.includes("${FA5X_PREP_STEPS_HTML}") && pageSrc.includes("${FA5X_SAFETY_TEXT}"), "the page uses the shared text");
+  const page = shared + pageSrc;
   for (const text of ["記錄你連續完成 5 次坐下、站起所需的時間，了解目前的下肢功能表現。", "測試前準備", "準備一張穩固、不易滑動的椅子", "手機固定在前方，周圍保留足夠站立空間",
     "系統會先協助你調整拍攝距離", "測試怎麼做", "先依畫面提示調整相機距離", "距離確認完成後，再坐到椅子上", "雙腳踩穩地面，雙手交叉抱胸", "聽到「開始」後再起身",
     "每一次都要完全站直，再完整坐回椅子", "連續完成 5 次後，系統會自動結束評估", "請先完成相機位置調整，再依提示坐下準備。",
@@ -475,7 +484,8 @@ const { classifyStandingFraming, createStandingPositionCheck, FA5X_POSITIONING_U
 
 // ── 20. result summary hierarchy (Result redesign): hero -> 本次完成紀錄 -> short info row -> next step ───
 {
-  const result = appJs.slice(appJs.indexOf("function fiveTimesSitToStandResultPage()"), appJs.indexOf("function fiveTimesSitToStandResultPage()") + 12000);
+  // UX round 5/5: the page grew past the old fixed 12000-character window; slice to the function's end instead (same page).
+  const result = appJs.slice(appJs.indexOf("function fiveTimesSitToStandResultPage()"), appJs.indexOf("function fa5xSaveState("));
   const completed = result.slice(result.indexOf("const repDurations"));
   // Phase D2 — the next-step block is built as `nextHtml` (baseline vs reassessment
   // variant) and placed after the note; check the page order and the baseline variant.
@@ -489,11 +499,15 @@ const { classifyStandingFraming, createStandingPositionCheck, FA5X_POSITIONING_U
   assert.deepEqual([...nextOrder].sort((a, b) => a - b), nextOrder, "next-step title, primary CTA, then ONE secondary action");
   assert.ok(!/再測一次|查看歷次結果/.test(baselineNext), "no third equally strong action");
   assert.ok(result.includes("五次坐站｜評估結果"));
-  assert.ok(completed.includes("✓ 已完成 ${completedReps} / ${FA5X_TARGET_REPS}"));
+  // UX round 5/5: completion is its own line (no single green ✓ that would also read as 「saved」 / 「eligible」)
+  assert.ok(completed.includes("<dt>完成狀態</dt><dd>已完成 ${completedReps} / ${FA5X_TARGET_REPS} 次</dd>") && !completed.includes("✓ 已完成 ${completedReps}"));
   // Result wording fix (docs/verification/fa5x-result-wording/, requested 2026-10-22): the note no longer
   // promises that the seconds will be the comparison basis; it says the record is kept and comparability
   // depends on test conditions and measurement version. (Was: 「本次 5 次坐站已完成，${seconds} 秒將作為後續再次評估時的比較依據。」)
-  assert.ok(completed.includes("已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。"));
+  // UX round 5/5 (2026-10-28): the caveat moved into the 量測說明 details (techHtml) with the version codes; the info
+  // row now states the real save state (評估已保存 / 保存中… / 尚未同步). The caveat itself is still on the page.
+  assert.ok(completed.includes("是否能與其他測驗比較，需另行確認測試條件與量測版本。") && completed.includes('<details class="fa5x-tech">')
+    && appJs.slice(appJs.indexOf("function fiveTimesSitToStandResultPage()"), appJs.indexOf("function fa5xSaveState(")).includes("${techHtml}"));
   assert.ok(!/將作為後續再次評估時的比較依據|會作為下一週期的比較起點|可以和初次評估比較/.test(completed), "no guarantee that the seconds will be compared");
   assert.ok(completed.includes("選擇你目前想加強的方向，取得適合的居家訓練建議。"));
   assert.ok(completed.includes("連續完成 ${completedReps} 次完整坐站") && completed.includes("fa5x-done-mark"), "completion shown as marks, not seconds");

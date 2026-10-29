@@ -1,0 +1,61 @@
+{
+  "delegate": "GPU",
+  "video": {
+    "w": 956,
+    "h": 1464,
+    "duration": 98.4333
+  },
+  "crop": [
+    82,
+    317,
+    793,
+    1056
+  ],
+  "summary": {
+    "frames": 531,
+    "poseFramesPct": 90,
+    "bodyReadyPct": 66.1,
+    "kneeWhenReady": {
+      "min": 114.9,
+      "max": 179.5,
+      "framesAtOrBelowSeated": 1,
+      "framesAtOrAboveRise": 333,
+      "histogram10deg": {
+        "110": 6,
+        "120": 22,
+        "130": 30,
+        "140": 9,
+        "150": 13,
+        "160": 37,
+        "170": 234
+      }
+    },
+    "firstSeatedObservedAt": 56732,
+    "statesFrames": {
+      "seated": 341,
+      "rising": 9,
+      "standing": 167,
+      "lowering": 14
+    },
+    "reps": [],
+    "unconfirmed": [
+      {
+        "t": 56732,
+        "reason": "rise_not_observed"
+      },
+      {
+        "t": 69536,
+        "reason": "tracking_lost"
+      }
+    ],
+    "notReadyMissing": {
+      "L_ankle": 124,
+      "R_ankle": 127,
+      "L_knee": 96,
+      "R_knee": 84,
+      "L_hip": 48,
+      "R_hip": 48,
+      "(no pose)": 53
+    }
+  }
+}

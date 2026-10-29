@@ -1,12 +1,17 @@
 import { selfReportedAmountText } from "../data/selfReportedTraining.js";
 const esc = v => String(v ?? "").replace(/[&<>"']/g,c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
+const dateOf = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`; };
+const timeOf = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? "" : `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+/** One row per report (date · exercise · amount · status); time, note and 作廢 open on tap. Newest first. */
 export function renderSelfReportedTrainingHistory(records, { canVoid = false, cloudStatus = null } = {}) {
   const failed = cloudStatus === "failed", loading = cloudStatus === "loading";
-  return `<section class="card self-report-history"><h3 class="section-title">自行回報的練習</h3>
-    ${failed || loading ? `<p class="small">${failed ? "雲端資料未載入，下列可能只是本機快取；請重新登入確認。" : "正在載入雲端紀錄…"}</p>` : ""}
-    ${records.length ? records.slice(0,10).map(r => `<details><summary>${esc(r.exerciseName)}｜${esc(selfReportedAmountText(r))}｜${r.status === "voided" ? "已作廢" : "本人回報"}</summary><p class="small">${esc(r.reportedAt)}${r.note ? `；${esc(r.note)}` : ""}</p>
-      <p class="small">紀錄編號：${esc(r.id)}</p>${canVoid && r.status !== "voided" ? `<button class="btn btn-light full" onclick="voidSelfReportedTrainingFromUi(${esc(JSON.stringify(r.id))})">作廢這筆回報</button>` : ""}</details>`).join("") : `<p class="small">${failed || loading ? "目前無法確認是否有回報。" : "尚無自行回報紀錄。"}</p>`}
-    <p class="small fa5x-muted">本人填寫的練習量，沒有 AI 姿勢評分；未計入課表達標、七日完成天數、XP 或 AI 週摘要。作廢紀錄保留供查閱。</p></section>`;
+  const sorted = [...records].sort((a, b) => String(b.reportedAt || "").localeCompare(String(a.reportedAt || "")));
+  return `<section class="self-report-history"><h3 class="section-title">自行回報的練習</h3>
+    <p class="small srh-lead">本人填寫的練習量，沒有 AI 評分；不計入課表達標、7 日完成天數、XP 或週摘要。</p>
+    ${failed || loading ? `<p class="small srh-status" role="status">${failed ? "雲端資料未載入，下列可能只是本機快取；請重新登入確認。" : "正在載入雲端紀錄…"}</p>` : ""}
+    ${sorted.length ? `<div class="srh-list">${sorted.slice(0, 30).map((r) => `<details class="card srh-row${r.status === "voided" ? " is-voided" : ""}"><summary><span class="srh-date">${esc(dateOf(r.reportedAt))}</span><span class="srh-name">${esc(r.exerciseName)}</span><b class="srh-amount">${esc(selfReportedAmountText(r))}</b><span class="srh-state">${r.status === "voided" ? "已作廢" : "本人回報"}</span></summary>
+      <p class="small">${esc(timeOf(r.reportedAt))} 回報${r.note ? `｜${esc(r.note)}` : ""}</p>${canVoid && r.status !== "voided" ? `<button class="btn btn-light full" onclick="voidSelfReportedTrainingFromUi(${esc(JSON.stringify(r.id))})">作廢這筆回報</button>` : r.status === "voided" ? `<p class="small">已作廢，保留供查閱。</p>` : ""}</details>`).join("")}</div>` : `<div class="card srh-empty"><p class="small">${failed || loading ? "目前無法確認是否有回報。" : "尚無自行回報紀錄。"}</p></div>`}
+  </section>`;
 }
 export function renderSelfReportedTrainingForm(exercise, { values = {}, busy = false, message = "", result = null } = {}) {
   const measurementType = exercise.measurementType || exercise.raw?.measurementType;

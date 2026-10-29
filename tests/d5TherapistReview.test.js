@@ -24,7 +24,7 @@ const D = await import("../js/data/f01ProgressionDecision.js");
 const W = await import("../js/ui/d5ProposalView.js");
 const RV = await import("../js/ui/f01RecommendationView.js");
 const T = await import("../js/data/trackingCycle.js");
-const { describeTimeDifference } = await import("../js/data/trackingComparison.js");
+const { describeTimeDifference, describeShownTimeDifference } = await import("../js/data/trackingComparison.js"); // UX round 5/5: the page states differences by the shown values
 const { createCollection } = await import("../js/data/storageService.js");
 const { trackingCycleService, REASSESSMENT_ROLE } = await import("../js/data/trackingCycleService.js");
 const { functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES } = await import("../js/data/functionalAssessmentService.js");
@@ -32,9 +32,14 @@ const { recommendationService, D5_PROPOSAL_ORIGIN } = await import("../js/data/r
 const { relationService } = await import("../js/data/relationService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation, F01_LIMITATIONS, MATCH_LEVEL } = await import("../js/data/f01GoalRecommendation.js");
+// G01 fixture plans stand for existing plans made before the G01 condition screen (never rewritten);
+// a new G01 plan needs a condition report (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md)
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
+const generatePlan = (input) => (input.selectedGoalId === "G01" ? generatePreScreenF01GoalRecommendation : generateF01GoalRecommendation)(input);
 const { F01_GOALS } = await import("../js/data/f01RecommendationSpec.js");
 const { resolveExerciseMedia, EXERCISE_ASSET_AUDIT } = await import("../js/data/exerciseAssets.js");
 
+const INIT = await import("../js/data/f01InitialReviewService.js"); // first-recommendation review (stage 1) used by the lifted pages
 const catalog = exerciseService.listNormalized();
 const relations = createCollection("therapistPatientRelations");
 const recs = createCollection("recommendationResults");
@@ -52,7 +57,7 @@ function completedCycle(user, { goal = "G05", minutes = 15, items = null, reMs =
     return functionalAssessmentService.getById(s.id);
   };
   const b = mk(12000, [2026, 8, 28, 9, 0]);
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goal, availableMinutes: minutes, catalog });
+  const r = generatePlan({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goal, availableMinutes: minutes, catalog });
   if (items) r.items = items.map((exerciseId, i) => ({ ...r.items[0], rank: i + 1, exerciseId, exerciseName: exerciseService.getNormalizedById(exerciseId).name, matchLevel: MATCH_LEVEL.DIRECT }));
   const rec = recommendationService.createF01GoalRecommendation({ patientId: user, result: r, createdBy: user }).recommendation;
   const cycle = trackingCycleService.createOrGetTrackingCycle({ userId: user, baselineSession: b, recommendation: rec }).cycle;
@@ -77,20 +82,24 @@ const state = {};
 let currentUser = null;
 const B2 = await import("../js/data/f01DailyTargets.js"); // F01 batch 2: real helpers used by the rebuilt app functions
 const DEMOL = await import("../js/ui/demoSyntheticLabel.js");
+// 本週練習回報 (G01 next-stage views) — real modules used by the lifted renderG01CycleDailyReports
+const CDR = { ...(await import("../js/data/cycleDailyReports.js")), ...(await import("../js/ui/cycleDailyReportsView.js")), dailyTrainingFeedbackService: (await import("../js/data/dailyTrainingFeedbackService.js")).dailyTrainingFeedbackService };
 const deps = {
   F01_FORMAL_COMPLETION_RULES_VERSION: B2.F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays: B2.displayCompletedTrainingDays,
   ...DEMOL,
+  ...CDR,
   state, getCurrentPatientId: () => currentUser, trackingCycleService, functionalAssessmentService, recommendationService, exerciseService, relationService,
   F01_GOALS, F01_LIMITATIONS, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE,
-  describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey,
+  describeTimeDifference, describeShownTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey,
   EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img alt="${ex.name}">`, ...RV, ...W,
   getD5Arrangement: R.getD5Arrangement, listD5ReviewsForPatient: R.listD5ReviewsForPatient, listD5ReviewOptions: R.listD5ReviewOptions, planFingerprint: A.planFingerprint,
+  getInitialArrangement: INIT.getInitialArrangement, listInitialReviewOptions: INIT.listInitialReviewOptions,
 };
 const pages = new Function(...Object.keys(deps), [
   fnSource("fmtF01TrainingDays"), constSource("F01_COUNTING_LABEL"), fnSource("renderD5ReviewCountingControl"),
   constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"),
-  fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"),
-  constSource("D5_REVIEW_ERROR_TEXT"), fnSource("d5ReviewVolumeText"), fnSource("renderTherapistD5Reviews"), fnSource("renderD5ReviewCard"), fnSource("renderD5ReviewForm"),
+  fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderG01CycleDailyReports"),
+  constSource("D5_REVIEW_ERROR_TEXT"), fnSource("d5ReviewVolumeText"), fnSource("renderTherapistD5Reviews"), fnSource("renderD5ReviewCard"), fnSource("renderD5ReviewForm"), constSource("reviewFormOptions"),
   constSource("F01_MATCH_LEVEL_TEXT"), constSource("F01_DEMO_IMAGE_PENDING"), fnSource("renderF01RecommendationImage"), fnSource("f01RecommendationResultPage"),
   fnSource("f01PlanDoseFor"), fnSource("getExercisePageContext"), fnSource("withF01PlanDoseLabel"), fnSource("renderInviteCodeCard"),
   "return { d5ProposalPage, renderTherapistD5Reviews, f01RecommendationResultPage, getExercisePageContext, withF01PlanDoseLabel };",
@@ -103,18 +112,43 @@ const text = (html) => html.replace(/<[^>]+>/g, " ");
 // ── Scenario 1: progress judged, but no confirmed progression link -> actual arrangement 維持 ──
 {
   const u = "p-noprog";
-  const { cycle } = completedCycle(u, { goal: "G01", reMs: 8000 });
+  // (Was G01: under the G01 next-cycle correction a G01 time change no longer yields "progress"; G03's current
+  // exercises also have no confirmed progression, so the same scenario runs on G03. G01 is covered just below.)
+  const { cycle } = completedCycle(u, { goal: "G03", reMs: 8000 });
   cycles.update(cycle.id, { completedTrainingDates: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"] });
   const p = evaluate(u, cycle.id);
   assert.deepEqual([p.d5.matrixDecision, p.d5.decision, p.d5.selectionFallback], ["progress", "maintain", "no_confirmed_progression"]);
   const arr = R.getD5Arrangement(p);
   assert.deepEqual([arr.status, arr.ruleLabel, arr.actualLabel], ["ready", "進階", "維持（沒有套用進階）"]);
   const html = patientPage(u, p.id);
-  assert.ok(text(html).includes("規則判定") && html.includes("<b>進階</b>") && html.includes("<b>維持（沒有套用進階）</b>") && html.includes("<b>可以接受</b>"));
+  // UX round 5/5: the page keeps three facts apart — the rule's label, the ACTUAL exercise/amount change, and the state;
+  // the actual label 「維持（沒有套用進階）」 stays in the decision record (詳細決策紀錄)
+  assert.ok(text(html).includes("規則判定") && html.includes("<dt>規則判定</dt><dd>進階</dd>") && html.includes("<dt>實際動作與訓練量</dt><dd>本週動作與組次未變更</dd>")
+    && html.includes("維持（沒有套用進階）") && html.includes('<b class="d5-status-title">可以接受</b>'));
   assert.ok(html.includes("沒有已確認的進階動作，所以下一週的動作與上一週相同"));
   assert.ok(html.includes(W.D5_DOSAGE_NOTE) && W.D5_DOSAGE_NOTE === "目前沒有依個人狀況調整訓練量；更換動作時採用新動作的預設量，組次可能因此不同。");
   assert.ok(html.includes(`confirmD5ProposalFromUi('${p.id}')`), "a rule-ready plan may be accepted directly");
   assert.equal(therapistSection(u), "", "nothing for the therapist to review");
+}
+
+// ── Scenario: G01, same input — the time change is withdrawn; existing no-auto route, never accepted directly ──
+{
+  const u = "p-g01-noauto";
+  const { cycle } = completedCycle(u, { goal: "G01", reMs: 8000 });
+  cycles.update(cycle.id, { completedTrainingDates: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"] });
+  const p = evaluate(u, cycle.id);
+  assert.deepEqual([p.d5.matrixDecision, p.d5.decision, p.d5.decisionRuleId, p.d5.selectionRuleId], ["no_auto_decision", "no_auto_decision", "G01-N01", "NC-N01"]);
+  assert.equal(p.d5.comparisonConditions.status, "reported_conditions_insufficient", "no condition reports in this fixture");
+  const arr = R.getD5Arrangement(p);
+  assert.deepEqual([arr.status, arr.ruleLabel, arr.actualLabel], ["no_auto", "不自動判定", "等待復健師另行安排"]);
+  assert.ok(arr.reasons.some((r) => r.code === "g01_time_not_basis" && r.text.includes("不代表系統建議維持原訓練")));
+  const html = patientPage(u, p.id);
+  assert.ok(!html.includes(`confirmD5ProposalFromUi('${p.id}')`) && !html.includes("<b>進階</b>") && !html.includes("<dd>進階</dd>") && !html.includes("維持（沒有套用進階）"));
+  assert.ok(text(html).includes("測試條件（使用者回報）") && text(html).includes("這次時間差不以參考值解讀"));
+  assert.equal(accept(u, p.id).error, "not_confirmable", "the acceptance service refuses it directly");
+  assert.equal(trackingCycleService.getNextTrackingCycle(u, cycle.id), null, "no next week created");
+  const th = text(therapistSection(u));
+  assert.ok(th.includes("系統未自動安排下一週") && th.includes("時間變化不能單獨決定下一週訓練"), "therapist sees the same reason");
 }
 
 // ── Scenario: "adjust" without an executable rule (NC-A02) -> pending therapist review, not acceptable ──
@@ -229,7 +263,7 @@ const syncFailReview = (id) => { let n = 0; return async () => (++n === 2 ? { to
   assert.ok(mixed.includes("3 組（復健師設定）") && mixed.includes("（動作預設）"), "the field the therapist left empty stays 動作預設");
   const html = patientPage(u2, p2.id);
   assert.ok(html.includes("復健師已檢視並確認") && html.includes("調整理由：</b>多個動作被排除，改以同目標替代動作安排"));
-  assert.ok(html.includes("以下是復健師檢視並確認後的下一週安排") && html.includes(mixed) && html.includes("<b>復健師已確認，可以接受</b>"));
+  assert.ok(html.includes("以下是復健師檢視並確認後的下一週安排") && html.includes(mixed) && html.includes('<b class="d5-status-title">復健師已確認，可以接受</b>')); // UX round 5/5: the state is the page's title
   assert.ok(html.includes(RV.formatPlanVolume(RV.describePlanVolume(exerciseService.getById("F01-16"), null))), "untouched exercise: 動作預設");
   assert.ok(html.includes(`confirmD5ProposalFromUi('${p2.id}')`) && html.includes("接受代表採用復健師確認後的安排"));
 
@@ -356,6 +390,37 @@ for (const rule of ["R001", "R002", "R006", "R009"]) {
   assert.ok(next.cycle, JSON.stringify(next));
   assert.equal(next.created, true);
   assert.equal(trackingCycleService.createNextTrackingCycle({ userId: u, proposalId: p.id, baselineSession: fresh }).cycle.id, next.cycle.id);
+}
+
+// docs/F01_G04_L05_CASE_REVIEW.md — pages for the L05 + F01-09 -> F01-11 hold (logic: tests/f01G04L05CaseHold.test.js).
+// Phase C with L05 is simulated by setting the stored limitations (G04 10 min gives F01-09 with or without L05).
+{
+  const L05_CODE = A.L05_HIP_FLEXION_REVIEW.code;
+  const setupL05 = (u, linkTherapist) => {
+    const { cycle, rec } = completedCycle(u, { goal: "G04", minutes: 10, reMs: 8000, linkTherapist });
+    recs.update(rec.id, { limitationIds: ["L05"] });
+    cycles.update(cycle.id, { limitationsSnapshot: ["L05"], completedTrainingDates: ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"] });
+    return evaluate(u, cycle.id, ["L05"]);
+  };
+  const u = "p-l05-pages";
+  const p = setupL05(u, true);
+  assert.deepEqual([p.d5.decisionRuleId, p.d5.replacedExercise.toExerciseId, p.d5.confirmationMode], ["R005", "F01-11", "user_acceptance"]);
+  const reasonText = R.getD5Arrangement(p).reasons.find((r) => r.code === L05_CODE).text;
+  const waiting = patientPage(u, p.id);
+  assert.ok(waiting.includes("需要進一步確認") && waiting.includes(reasonText) && !waiting.includes("confirmD5ProposalFromUi"), "patient: waiting page with the reason, no accept button");
+  assert.ok(waiting.includes("系統不會另外通知復健師"), "no notification claimed");
+  const ther = therapistSection(u);
+  assert.ok(ther.includes(reasonText), "therapist sees the same reason text");
+  assert.ok((await R.reviewD5Proposal({ proposalId: p.id, therapistId: T1, expectedFingerprint: A.planFingerprint(p), reason: "可扶椅背進行", items: [{ exerciseId: "F01-11" }] }, { syncWrites: syncOk })).review);
+  const ready = patientPage(u, p.id);
+  assert.ok(ready.includes(`confirmD5ProposalFromUi('${p.id}')`), "after a valid review the patient may accept");
+  assert.equal(accept(u, p.id).created, true);
+
+  const uu = "p-l05-unlinked";
+  const pu = setupL05(uu, false);
+  const page = patientPage(uu, pu.id);
+  assert.ok(page.includes("目前沒有連結的復健師") && page.includes("onInviteCodeQuery()") && !page.includes("confirmD5ProposalFromUi"), "unlinked: existing explanation + invite code entry");
+  assert.ok(!page.includes("目前等待你的復健師"), "never claims a therapist is waiting / notified");
 }
 
 console.log("d5TherapistReview: all assertions passed (including B3 manual no-auto continuation)");

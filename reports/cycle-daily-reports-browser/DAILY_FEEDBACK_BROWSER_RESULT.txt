@@ -1,0 +1,4 @@
+PASS | patient sees frozen targets + saved partial amount before reporting recognition problem; explicit unknown feelings kept
+PASS | second device conflict preserves draft; stored original and correction unchanged
+PASS | linked therapist sees cloud-loaded report and correction history in case overview
+PASS | no page errors or dialogs; requests restricted to local Auth, Firestore and Vite; no camera or Gemini

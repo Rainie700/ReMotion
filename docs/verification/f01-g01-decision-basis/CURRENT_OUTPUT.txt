@@ -1,0 +1,27 @@
+G01 decision basis v1 — CURRENT official output (synthetic; not the proposed rules)
+D5 rule version: D5-0-V1; reference MDC 3120 ms
+
+## First recommendation (G01, 20 min) — only the 5xSTS seconds differ
+
+- 7 秒：ok F01-04
+- 12.4 秒：ok F01-04
+- 25 秒：ok F01-04
+
+## Next week on a new G01 plan (current items: F01-04)
+
+| # | 案例 | D5 判定 | 規則 | 下一週選取 | 建議動作 | 未被讀取的輸入 |
+|---|---|---|---|---|---|---|
+| N01 | 對照：差 −1.0 秒、6/6 天、每天輕鬆、無不適 | maintain | R008 | NC-M01 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N02 | 只改秒數：差 −4.0 秒 | progress | R005 | NC-P01（fallback no_confirmed_progression） | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N03 | 只改秒數：差 +4.0 秒 | adjust | R010 | NC-A02 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N04 | 只改完成量：2/6 天 | maintain | R007 | NC-M01 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N05 | 只改完成量：0/6 天 | no_auto_decision | R006 | NC-N01，未就緒 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N06 | 只改吃力：6 天中 4 天「很吃力」 | maintain | R008 | NC-M01 | F01-04 | effort easy×2, very_hard×4; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N07 | 只改不適：每日回報 3 天「有不舒服」，再評估時未勾新增不適 | maintain | R008 | NC-M01 | F01-04 | effort easy×6; discomfort no×3, yes×3; incomplete —; reassessment arms no / assist no / same chair yes |
+| N08 | 再評估時勾選新增或加重的不適 | adjust | R011 | NC-A02 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N09 | 資料缺失：再評估無效 | no_auto_decision | R001 | NC-N01，未就緒 | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms no / assist no / same chair yes |
+| N10 | 互相衝突：差 −4.0 秒，但每天「很吃力」且 3 天未完成（太吃力） | progress | R005 | NC-P01（fallback no_confirmed_progression） | F01-04 | effort very_hard×6; discomfort no×6; incomplete too_hard×3; reassessment arms no / assist no / same chair yes |
+| N11 | 超出來源條件：差 −4.0 秒，但再評估回報有用手撐、換了椅子 | progress | R005 | NC-P01（fallback no_confirmed_progression） | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment arms YES / assist no / same chair NO |
+| N12 | 超出來源條件：差 −4.0 秒，再評估條件未回報 | progress | R005 | NC-P01（fallback no_confirmed_progression） | F01-04 | effort easy×6; discomfort no×6; incomplete —; reassessment 未回報 |
+
+N02 / N10 / N11 / N12 的 D5 判定逐位元相同：true

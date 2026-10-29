@@ -147,6 +147,8 @@ const between = (html, a, b) => { const i = html.indexOf(a); const j = b ? html.
   const html = render(plan({}));
   assert.equal(count(html, 'class="card today-empty"'), 1, "single main empty state");
   assert.ok(html.includes("今天沒有指定訓練") && html.includes("你可以自行選擇想練習的動作。") && html.includes(">開始自主練習</button>"));
+  // 2026-10-29: said once — the 今日復健 card keeps only the date when nothing is assigned
+  assert.equal(count(html, "沒有指定訓練"), 1, "「沒有指定訓練」 appears once (the 今日任務 empty state)");
   assert.ok(!html.includes("<b>復健師安排</b>") && !html.includes("<b>ReMotion 建議</b>"), "no empty sections");
   assert.ok(html.includes("<b>訓練紀錄</b>"), "訓練紀錄 below");
 }
@@ -165,9 +167,16 @@ for (const dateKey of ["2026-09-28", "2026-10-01"]) {
 // 10 — 快速功能
 {
   const html = render(plan({ activeCycle: cycle, cycleRecommendation: rec }));
-  const quick = between(html, ">快速功能<");
+  // 2026-10-28 (UX round 3/5): 快速功能 became 探索與練習 — fixed entries for 坐站練習 and the six domains, then the
+  // same compact utilities; the running week's 本週訓練 card comes first on the page.
+  const quick = between(html, ">探索與練習<");
+  assert.ok(quick.includes("goF01FixedPracticeFrom('work')") && quick.includes("<b>坐站練習</b>") && quick.includes("goFunctionalDomainHome('work')") && quick.includes("<b>功能評估與練習</b>") && quick.includes("目前開放下肢功能"), "fixed explore entries"); // 2026-10-29: renamed from 六大功能構面 (only 下肢功能 is open)
   assert.ok(quick.includes("<b>自主練習</b>") && quick.includes("自己選動作，不列入今日安排") && quick.includes("<b>訓練紀錄</b>"), "compact utilities");
-  assert.ok(html.indexOf(">快速功能<") > html.indexOf("<b>ReMotion 建議</b>"), "utilities after the tasks");
+  assert.ok(html.indexOf(">探索與練習<") > html.indexOf("<b>ReMotion 建議</b>"), "utilities after the tasks");
+  // UX round 5/5 (2026-10-28): the separate 本週訓練 card repeated the overview's X / Y; the week entry is now part of
+  // the ONE overview card (first on the page), still opening the week's plan and returning to the 訓練 tab.
+  const overview = html.slice(html.indexOf('class="card today-overview"'), html.indexOf('class="week-strip'));
+  assert.ok(!html.includes("today-week-card") && overview.includes('class="today-overview-week"') && overview.includes(`goTrackingWeekTraining('cyc1', 'work')`) && overview.includes("查看本週訓練"), "本週訓練 entry in the overview card, returning to the 訓練 tab");
 }
 
 // notice (Day 7) stays a compact row, never a phantom task

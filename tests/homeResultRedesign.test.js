@@ -53,7 +53,8 @@ const heroDeps = {
   describeWeekSynthetic: DEMOL.describeWeekSynthetic, DEMO_SYNTHETIC_TEXT: DEMOL.DEMO_SYNTHETIC_TEXT,
   displayCompletedTrainingDays: F01T.displayCompletedTrainingDays,
 };
-const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
+const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("trackingCardState")}
+${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
 
 const catalog = exerciseService.listNormalized();
 function fiveXSts(userId, { ms, at, role = null }) {
@@ -71,8 +72,11 @@ const rec = recommendationService.createF01GoalRecommendation({ patientId: u, re
   assert.equal(hero.renderTrackingCycleCard(u), "");
   assert.equal(hero.renderTrackingSecondaryActions(u), "");
   const home = appJs.slice(appJs.indexOf("patientHome = function()"), appJs.indexOf("patientHome = function()") + 40000);
-  assert.ok(home.includes("const functionalAssessmentSectionHtml = renderTrackingCycleCard(patientId) || `<div class=\"card functional-assessment-feature-card\">"));
-  const def = home.slice(home.indexOf("const functionalAssessmentSectionHtml ="), home.indexOf("const functionalAssessmentSectionHtml =") + 1400);
+  // 2026-10-28 (UX round 3/5): ONE primary task — the week card, else (while plan data is loading / failed) a loading
+  // or failure card that never reads as 「沒有安排」, else the first plan's card, else 開始自主復健.
+  assert.ok(home.includes("const defaultHeroHtml = `<div class=\"card functional-assessment-feature-card\">"));
+  assert.ok(home.includes('const functionalAssessmentSectionHtml = renderTrackingCycleCard(patientId) || (planLoad !== "loaded" ? renderHomePlanLoadCard(planLoad) : homeInitialPlanIsPrimary(patientId) ? "" : defaultHeroHtml);'));
+  const def = home.slice(home.indexOf("const defaultHeroHtml ="), home.indexOf("const defaultHeroHtml =") + 1400);
   assert.ok(def.includes("開始自主復健") && def.includes('onclick="goFunctionalDomainHome()"') && def.includes("ai_dynamic_assessment_hero.png"));
 }
 

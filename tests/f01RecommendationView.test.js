@@ -122,10 +122,11 @@ function fnSource(name) {
 const constSource = (name) => { const s = appJs.indexOf(`const ${name} =`); assert.ok(s >= 0, name); return appJs.slice(s, appJs.indexOf(";\n", s) + 1); };
 const state = {};
 let currentUser = P.id;
+const INIT = await import("../js/data/f01InitialReviewService.js"); // first-recommendation review (stage 1) used by the lifted pages
 const page = new Function(
-  ...["state", "getCurrentPatientId", "recommendationService", "exerciseService", "trackingCycleService", "functionalAssessmentService", "MATCH_LEVEL", "D5_PROPOSAL_ORIGIN", "formatDateKeyMonthDay", "EXERCISE_ASSET_AUDIT", "resolveExerciseMedia", "renderExerciseCardImage", ...Object.keys(V), ...Object.keys(D5V)],
+  ...["state", "getCurrentPatientId", "recommendationService", "exerciseService", "trackingCycleService", "functionalAssessmentService", "MATCH_LEVEL", "D5_PROPOSAL_ORIGIN", "formatDateKeyMonthDay", "EXERCISE_ASSET_AUDIT", "resolveExerciseMedia", "renderExerciseCardImage", "getInitialArrangement", "toLocalDateKey", ...Object.keys(V), ...Object.keys(D5V)],
   `${constSource("F01_MATCH_LEVEL_TEXT")}\n${constSource("F01_DEMO_IMAGE_PENDING")}\n${fnSource("renderF01RecommendationImage")}\n${fnSource("f01RecommendationResultPage")}\nreturn f01RecommendationResultPage;`,
-)(state, () => currentUser, recommendationService, exerciseService, trackingCycleService, functionalAssessmentService, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, T.formatDateKeyMonthDay, EXERCISE_ASSET_AUDIT, resolveExerciseMedia, (ex) => `<img alt="${ex.name}">`, ...Object.values(V), ...Object.values(D5V));
+)(state, () => currentUser, recommendationService, exerciseService, trackingCycleService, functionalAssessmentService, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, T.formatDateKeyMonthDay, EXERCISE_ASSET_AUDIT, resolveExerciseMedia, (ex) => `<img alt="${ex.name}">`, INIT.getInitialArrangement, T.toLocalDateKey, ...Object.values(V), ...Object.values(D5V));
 const open = (patch) => { for (const k of Object.keys(state)) delete state[k]; Object.assign(state, { f01RecEmpty: null, f01RecCycleNotice: null, f01RecResultOrigin: "setup" }, patch); return page(); };
 
 // Phase C plan: evidence, reasons, amounts, entries

@@ -2,7 +2,13 @@ import { trackingCycleService } from "./trackingCycleService.js";
 import { functionalAssessmentService } from "./functionalAssessmentService.js";
 import { recommendationService, D5_PROPOSAL_ORIGIN } from "./recommendationService.js";
 import { TRACKING_STATUS, getTrackingCycleViewState, isCompletedFiveTimesSitToStandResult, formatDateKeyMonthDay } from "./trackingCycle.js";
-import { countCompletedTrainingDays, CONFIRMATION_MODE } from "./f01ProgressionDecision.js";
+import { countCompletedTrainingDays } from "./f01ProgressionDecision.js";
+import { resolveD5Arrangement } from "./d5Arrangement.js";
+import { getD5Arrangement } from "./d5TherapistReviewService.js";
+import { relationService } from "./relationService.js";
+import { F01_FORMAL_COMPLETION_RULES_VERSION } from "./f01DailyTargets.js";
+import { getInitialArrangement } from "./f01InitialReviewService.js";
+import { resolveInitialReviewRequirement } from "./f01InitialReview.js";
 
 /**
  * Cross-Module Integration I-3 — 復健冒險 = the CURRENT F01 tracking cycle as a
@@ -103,19 +109,45 @@ function stageDetail(n, ctx) {
     case 6: return { text: "現在可以進行再次評估。", cta: { label: "進行再次評估", action: `goTrackingReassessment('${cycle.id}')` } };
     case 7: return { text: "查看本週前後比較與下一階段建議。", cta: { label: "查看下一階段建議", action: `goD5StatusCheck('${cycle.id}')` } };
     case 8: {
+      // The ACTUAL arrangement (js/data/d5Arrangement.js) — the same status the proposal page and the
+      // acceptance service use; never re-derived here from the engine's confirmationMode.
       const d5 = proposal.d5;
-      const accepted = proposal.status === "accepted";
-      const handoff = accepted && d5.confirmation ? d5.confirmation.handoff : null;
-      if (d5.confirmationMode === CONFIRMATION_MODE.PROFESSIONAL_REVIEW_REQUIRED) {
-        return { waitingReason: "professional_review", text: "下一週訓練目前等待進一步確認。", cta: { label: "查看狀況", action: `goD5Proposal('${proposal.id}')` } };
+      const arr = ctx.arrangement || resolveD5Arrangement(proposal, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+      const view = { label: "查看下一階段建議", action: `goD5Proposal('${proposal.id}')` };
+      if (arr.status === "accepted") {
+        const handoff = d5.confirmation ? d5.confirmation.handoff : null;
+        if (handoff && handoff.requiresFreshBaseline) {
+          return { waitingReason: "fresh_baseline", text: "完成新基準評估後開啟下一週。", cta: { label: "開始下一週期基準評估", action: `goNextCycleBaselineAssessment('${proposal.id}')` } };
+        }
+        return { waitingReason: "accepted", text: "已接受下一階段建議，下一週尚未開啟。", cta: view };
       }
-      if (d5.decision === "no_auto_decision" || d5.nextCycleReady !== true) {
-        return { waitingReason: "no_auto_decision", text: "目前資料不足以自動安排下一週，可以查看建議或重新確認狀況。", cta: { label: "查看下一階段建議", action: `goD5Proposal('${proposal.id}')` } };
+      if (arr.status === "reviewed") {
+        return { waitingReason: "therapist_reviewed", text: "復健師已確認下一週安排，等待你接受。", cta: view };
       }
-      if (handoff && handoff.requiresFreshBaseline) {
-        return { waitingReason: "fresh_baseline", text: "完成新基準評估後開啟下一週。", cta: { label: "開始下一週期基準評估", action: `goNextCycleBaselineAssessment('${proposal.id}')` } };
+      if (arr.status === "needs_review") {
+        return {
+          waitingReason: "professional_review",
+          text: ctx.hasLinkedTherapist
+            ? "下一週訓練待復健師檢視。"
+            : "下一週訓練待復健師檢視；目前沒有連結的復健師，可以查看說明與邀請碼入口。",
+          cta: { label: "查看狀況", action: `goD5Proposal('${proposal.id}')` },
+        };
       }
-      return { waitingReason: "confirmation", text: "查看下一階段建議，確認後就能開啟下一週。", cta: { label: "查看下一階段建議", action: `goD5Proposal('${proposal.id}')` } };
+      if (arr.status === "needs_regeneration") {
+        return { waitingReason: "decision_version_outdated", text: "這份下一階段建議是依舊版規則產生，請重新確認狀況以重新產生。", cta: view };
+      }
+      if (arr.status === "no_auto") {
+        // docs/F01_G01_PROGRAM_SELECTION.md 一-2 — never implies that more answers unlock an automatic week
+        const kind = arr.noAuto && arr.noAuto.kind;
+        if (kind === "g01_no_basis" || kind === "g01_missing_conditions") {
+          return { waitingReason: "no_auto_decision", text: `目前不提供這個目標的下一週自動安排${kind === "g01_missing_conditions" ? "（測試條件資料也不完整）" : ""}，可以查看說明或請復健師另行安排。`, cta: view };
+        }
+        return { waitingReason: "no_auto_decision", text: "目前資料不足以自動安排下一週，可以查看建議或重新確認狀況。", cta: view };
+      }
+      if (arr.status === "draft_pending") {
+        return { waitingReason: "draft_pending", text: "下一階段建議草稿產生中。", cta: view };
+      }
+      return { waitingReason: "confirmation", text: "查看下一階段建議，確認後就能開啟下一週。", cta: view };
     }
     default: return { text: "", cta: null };
   }
@@ -123,16 +155,18 @@ function stageDetail(n, ctx) {
 
 /**
  * Pure: the journey of ONE cycle (or "not started" when cycle is null).
+ * `arrangement` / `hasLinkedTherapist` come from loadD5ArrangementInputs (the loaders pass
+ * them); without them stage 8 falls back to the shared rule-only arrangement (no review read).
  * @returns {{ started, chapterNumber, chapterLabel, stages, completedCount, totalStages,
  *            currentStage, allCompleted, waitingReason, detail, cta, visibleStages, warnings }}
  */
-export function resolveF01Adventure({ cycle = null, baseline = null, recommendation = null, reassessment = null, proposal = null, nextCycle = null, viewState = null, chapterNumber = null, windowSize = F01_ADVENTURE_WINDOW_SIZE } = {}) {
+export function resolveF01Adventure({ cycle = null, baseline = null, recommendation = null, reassessment = null, proposal = null, nextCycle = null, viewState = null, chapterNumber = null, windowSize = F01_ADVENTURE_WINDOW_SIZE, arrangement = null, hasLinkedTherapist = false } = {}) {
   const totalStages = F01_ADVENTURE_STAGES.length;
   const raw = cycle ? deriveF01Milestones({ cycle, baseline, recommendation, reassessment, proposal, nextCycle, viewState }) : { trainingDays: 0 };
   const { state, current, warnings } = cycle
     ? presentF01Stages(raw)
     : { state: Object.fromEntries(F01_ADVENTURE_STAGES.map((s) => [s.n, s.n === 1 ? "current" : "locked"])), current: 1, warnings: [] };
-  const detailInfo = current ? stageDetail(current, { cycle, raw, viewState, proposal }) : { text: "本週旅程已完成，下一週的旅程已經開始。", cta: null };
+  const detailInfo = current ? stageDetail(current, { cycle, raw, viewState, proposal, arrangement, hasLinkedTherapist }) : { text: "本週旅程已完成，下一週的旅程已經開始。", cta: null };
   if (current && detailInfo.waitingReason) state[current] = "waiting";
 
   const stages = F01_ADVENTURE_STAGES.map((st) => ({ n: st.n, id: st.id, title: st.title, state: state[st.n] }));
@@ -163,15 +197,65 @@ export function resolveF01Adventure({ cycle = null, baseline = null, recommendat
 
 // ── loader (read-only, user-scoped) ─────────────────────────────────────
 
+/**
+ * First recommendation stage 2 — the adventure card's notice for the newest FIRST recommendation
+ * that went through professional review, from the shared arrangement status
+ * (f01InitialReviewService.getInitialArrangement). Pure. null when there is nothing to say.
+ */
+export function describeInitialPlanNotice(rec, arrangement, { hasLinkedTherapist = false } = {}) {
+  if (!rec || !arrangement) return null;
+  const view = { label: "查看確認安排", action: `goF01RecommendationResult('${rec.id}')` };
+  if (arrangement.status === "needs_review") {
+    return hasLinkedTherapist
+      ? { status: "awaiting_review", title: "待復健師檢視", text: "這份首次訓練安排需要復健師檢視；系統不會另外通知復健師，可以主動告知對方。", cta: { label: "查看待檢視安排", action: `goF01RecommendationResult('${rec.id}')` } }
+      : { status: "awaiting_review_unlinked", title: "待復健師檢視", text: "目前沒有連結的復健師，這份安排暫時無法完成檢視；可以查看說明與邀請碼入口。", cta: { label: "查看待檢視安排", action: `goF01RecommendationResult('${rec.id}')` } };
+  }
+  if (arrangement.status === "reviewed") return { status: "awaiting_acceptance", title: "復健師已確認，等待你接受", text: "復健師已確認你的首次訓練安排，查看內容後可以接受。", cta: view };
+  if (arrangement.status === "accepted") {
+    if (arrangement.start === "blocked_by_active_cycle" && arrangement.activeCycle) {
+      return { status: "accepted_not_active", title: "已接受，尚未啟用", text: "已接受的首次訓練安排尚未啟用；目前的 7 日追蹤仍在進行，不會被取代。", cta: { label: "查看原本的週期", action: `goTrackingWeekTraining('${arrangement.activeCycle.id}')` } };
+    }
+    if (arrangement.start === "ready_to_start") return { status: "accepted_ready", title: "已接受，第一週尚未開始", text: "第一週還沒開始（上次可能沒有同步完成），可以重試。", cta: { label: "開始第一週", action: `startF01InitialPlanFromUi('${rec.id}')` } };
+    return { status: "accepted_needs_baseline", title: "已接受，請完成新的基準評估", text: "完成一次新的五次坐站後，第一週會以那一天開始。", cta: { label: "開始第一週基準評估", action: `goF01InitialPlanBaselineAssessment('${rec.id}')` } };
+  }
+  if (arrangement.status === "started" && arrangement.cycle && !arrangement.cycle.reassessmentId) {
+    return { status: "started", title: "第一週已開始", text: "第一週使用你已接受、復健師確認的安排。", cta: { label: "查看本週訓練", action: `goTrackingWeekTraining('${arrangement.cycle.id}')` } };
+  }
+  return null;
+}
+
+/** The newest first recommendation of this patient and its notice (loader; read-only). */
+export function loadInitialPlanNotice(userId, todayKey) {
+  if (!userId) return null;
+  const latest = recommendationService.getLatestF01GoalRecommendation(userId);
+  if (!latest || latest.origin || !resolveInitialReviewRequirement(latest).required) return null;
+  const notice = describeInitialPlanNotice(latest, getInitialArrangement(latest, { todayDateKey: todayKey }), { hasLinkedTherapist: relationService.findAcceptedByPatientId(userId).length > 0 });
+  return notice ? { ...notice, recommendationId: latest.id } : null;
+}
+
+/**
+ * Stage 8 inputs: the proposal's ACTUAL arrangement, read exactly as the proposal page reads
+ * it (getD5Arrangement + the formal completion rules version), and whether a therapist is
+ * linked (only to word the wait; never "notified"). Shared by both journey loaders.
+ */
+export function loadD5ArrangementInputs(userId, proposal) {
+  return {
+    arrangement: proposal ? getD5Arrangement(proposal, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION }) : null,
+    hasLinkedTherapist: !!userId && relationService.findAcceptedByPatientId(userId).length > 0,
+  };
+}
+
 function loadCycleInputs(userId, cycle, todayKey) {
   const scoped = (session) => (session && session.patientId === userId ? session : null);
   const recommendation = cycle.recommendationId ? recommendationService.getById(cycle.recommendationId) : null;
+  const proposal = recommendationService.getF01D5ProposalForCycle(userId, cycle.id);
   return {
+    ...loadD5ArrangementInputs(userId, proposal),
     cycle,
     baseline: scoped(cycle.baselineAssessmentId ? functionalAssessmentService.getById(cycle.baselineAssessmentId) : null),
     recommendation: recommendation && recommendation.patientId === userId ? recommendation : null,
     reassessment: scoped(cycle.reassessmentId ? functionalAssessmentService.getById(cycle.reassessmentId) : null),
-    proposal: recommendationService.getF01D5ProposalForCycle(userId, cycle.id),
+    proposal,
     nextCycle: trackingCycleService.getNextTrackingCycle(userId, cycle.id),
     viewState: getTrackingCycleViewState(cycle, todayKey),
   };
@@ -211,16 +295,17 @@ export const f01AdventureService = {
    * `todayKey` only drives the D1 view status (same rule as the home card).
    */
   getAdventure(userId, todayKey) {
-    if (!userId) return { ...resolveF01Adventure(), previousChapter: null };
+    if (!userId) return { ...resolveF01Adventure(), previousChapter: null, initialPlan: null };
+    const initialPlan = loadInitialPlanNotice(userId, todayKey);
     const cycles = trackingCycleService.listTrackingCycles(userId);
     const { current, chapterNumber, previous } = selectCurrentF01Chapter(cycles);
-    if (!current) return { ...resolveF01Adventure(), previousChapter: null };
+    if (!current) return { ...resolveF01Adventure(), previousChapter: null, initialPlan };
     const adventure = resolveF01Adventure({ ...loadCycleInputs(userId, current, todayKey), chapterNumber });
     let previousChapter = null;
     if (previous) {
       const prevAdventure = resolveF01Adventure(loadCycleInputs(userId, previous, todayKey));
       previousChapter = { cycleId: previous.id, completedCount: prevAdventure.completedCount, totalStages: prevAdventure.totalStages, chapterNumber: chapterNumber ? chapterNumber - 1 : null };
     }
-    return { ...adventure, previousChapter };
+    return { ...adventure, previousChapter, initialPlan };
   },
 };

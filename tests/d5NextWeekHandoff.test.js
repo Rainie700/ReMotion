@@ -22,7 +22,7 @@ const D = await import("../js/data/f01ProgressionDecision.js");
 const W = await import("../js/ui/d5ProposalView.js");
 const RV = await import("../js/ui/f01RecommendationView.js");
 const T = await import("../js/data/trackingCycle.js");
-const { describeTimeDifference } = await import("../js/data/trackingComparison.js");
+const { describeTimeDifference, describeShownTimeDifference } = await import("../js/data/trackingComparison.js"); // UX round 5/5: the page states differences by the shown values
 const { createCollection } = await import("../js/data/storageService.js");
 const { trackingCycleService, REASSESSMENT_ROLE } = await import("../js/data/trackingCycleService.js");
 const { functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES } = await import("../js/data/functionalAssessmentService.js");
@@ -35,6 +35,7 @@ const { todayPlanService } = await import("../js/data/todayPlanAggregator.js");
 const { getD5Arrangement } = await import("../js/data/d5TherapistReviewService.js");
 const { relationService } = await import("../js/data/relationService.js");
 
+const INIT = await import("../js/data/f01InitialReviewService.js"); // first-recommendation review (stage 1) used by the lifted pages
 const catalog = exerciseService.listNormalized();
 const volumeOf = (id) => RV.describeTrainingVolume(exerciseService.getById(id));
 const nameOf = (id) => (exerciseService.getNormalizedById(id) || {}).name || id;
@@ -66,13 +67,20 @@ function proposal(goal, minutes, changeMs, trainingDays, limitations = []) {
   assert.equal(W.describeD5Item(d5, "F01-18"), "沿用上一週的動作");
 }
 {
-  // progress candidate but no confirmed link: label vs content made explicit
-  const d5 = proposal("G01", 15, -3900, 6);
+  // progress candidate but no confirmed link: label vs content made explicit.
+  // (Was G01; under the G01 next-cycle correction — docs/F01_G01_DECISION_BASIS_V1.md — a G01 time change no longer
+  // yields "progress", so the same fallback is checked on G03, whose current exercises also have no confirmed progression.)
+  const d5 = proposal("G03", 15, -3900, 6);
   assert.deepEqual([d5.matrixDecision, d5.decision, d5.selectionFallback], ["progress", "maintain", "no_confirmed_progression"]);
   const cmp = W.compareD5Weeks(d5, { nameOf, volumeOf });
   assert.equal(cmp.contentChanged, false);
   assert.match(W.describeD5ContentChange(d5, cmp), /沒有已確認的進階動作，所以下一週的動作與上一週相同/);
   assert.ok(W.explainD5Decision(d5).includes("規則判定：進階（R005）；實際下一週：維持。"));
+  // G01, same input: the time change is withdrawn as a basis -> existing no automatic decision route
+  const g01 = proposal("G01", 15, -3900, 6);
+  assert.deepEqual([g01.matrixDecision, g01.decision, g01.decisionRuleId, g01.selectionRuleId, g01.nextCycleReady], ["no_auto_decision", "no_auto_decision", "G01-N01", "NC-N01", false]);
+  assert.deepEqual(g01.g01NextCycle.withdrawnMatrix, { ruleId: "R005", decision: "progress" });
+  assert.equal(W.describeD5ContentChange(g01, W.compareD5Weeks(g01)), "目前不會自動安排下一週。");
 }
 {
   // adjust without a conflict (R010 / NC-A02): only the status differs
@@ -126,18 +134,21 @@ const state = {};
 let currentUser = null;
 const B2 = await import("../js/data/f01DailyTargets.js"); // F01 batch 2: real helpers used by the rebuilt app functions
 const DEMOL = await import("../js/ui/demoSyntheticLabel.js");
+// 本週練習回報 (G01 next-stage views) — real modules used by the lifted renderG01CycleDailyReports
+const CDR = { ...(await import("../js/data/cycleDailyReports.js")), ...(await import("../js/ui/cycleDailyReportsView.js")), dailyTrainingFeedbackService: (await import("../js/data/dailyTrainingFeedbackService.js")).dailyTrainingFeedbackService };
 const deps = {
   F01_FORMAL_COMPLETION_RULES_VERSION: B2.F01_FORMAL_COMPLETION_RULES_VERSION, displayCompletedTrainingDays: B2.displayCompletedTrainingDays,
   ...DEMOL,
+  ...CDR,
   state, getCurrentPatientId: () => currentUser, trackingCycleService, functionalAssessmentService, recommendationService, exerciseService,
   F01_GOALS, F01_LIMITATIONS, MATCH_LEVEL, D5_PROPOSAL_ORIGIN, D5_DECISION: D.D5_DECISION, CONFIRMATION_MODE: D.CONFIRMATION_MODE, TRANSITION_TYPE: D.TRANSITION_TYPE,
-  describeTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey,
-  EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img alt="${ex.name}">`, ...RV, ...W, getD5Arrangement, relationService,
+  describeTimeDifference, describeShownTimeDifference, formatDateKeyMonthDay: T.formatDateKeyMonthDay, measuredDateKeyOf: D.measuredDateKeyOf, toLocalDateKey: T.toLocalDateKey,
+  EXERCISE_ASSET_AUDIT, resolveExerciseMedia, renderExerciseCardImage: (ex) => `<img alt="${ex.name}">`, ...RV, ...W, getD5Arrangement, relationService, getInitialArrangement: INIT.getInitialArrangement,
 };
 const pages = new Function(...Object.keys(deps), [
   fnSource("fmtF01TrainingDays"),
   constSource("D5_ERROR_TEXT"), constSource("D5_ARRANGEMENT_STATUS_TEXT"), constSource("d5ErrorText"), constSource("d5ExerciseName"), constSource("D5_STATUS_TITLE"), constSource("D5_TRANSITION_TEXT"),
-  fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderInviteCodeCard"),
+  fnSource("escapeD5Text"), fnSource("d5ProposalPresentation"), fnSource("d5ProposalPage"), fnSource("renderG01CycleDailyReports"), fnSource("renderInviteCodeCard"),
   constSource("F01_MATCH_LEVEL_TEXT"), constSource("F01_DEMO_IMAGE_PENDING"), fnSource("renderF01RecommendationImage"), fnSource("f01RecommendationResultPage"),
   "return { d5ProposalPage, f01RecommendationResultPage };",
 ].join("\n"))(...Object.values(deps));

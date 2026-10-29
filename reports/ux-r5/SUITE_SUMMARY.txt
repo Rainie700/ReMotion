@@ -1,0 +1,132 @@
+[08:59:28] start r5 (uxRound5BrowserCheck.mjs, port 5188)
+[09:02:01] end r5 exit=0 | 52/52 steps passed
+[09:02:01] start r1 (f01FixedPracticeBrowserCheck.mjs, port 5184)
+[09:04:35] end r1 exit=0 | 52/52 steps passed
+[09:04:35] start r2 (le05CameraPageBrowserCheck.mjs, port 5183)
+[09:05:05] end r2 exit=127 | 
+[09:05:06] start r3 (uxRound3BrowserCheck.mjs, port 5185)
+[09:05:34] end r3 exit=1 | 
+[09:05:35] start r4 (uxRound4BrowserCheck.mjs, port 5186)
+[09:07] STOPPED by request (user leaving): r2/r3/r4 interrupted (folders renamed *-INTERRUPTED), initial-review and g01-next-cycle not run. See RESUME.md.
+[10-28 22:52:56] start r2 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2 PORT=5183 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node le05CameraPageBrowserCheck.mjs"
+[10-28 22:55:36] end r2 exit=1 | pass=14 fail=0 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2/RUN_LOG.txt
+[10-28 22:55:36] batch done: r2
+[10-28 22:56:10] start r2 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2 PORT=5183 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node le05CameraPageBrowserCheck.mjs"
+[10-28 22:57:36] end r2 exit=1 | pass=1 fail=0 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2/RUN_LOG.txt
+[10-28 22:57:36] batch done: r2
+[10-28 23:25:31] start r5 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser PORT=5188 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound5BrowserCheck.mjs"
+[10-28 23:27:26] end r5 exit=1 | pass=36 fail=1 | 36/37 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser/RUN_LOG.txt
+[10-28 23:27:27] start story | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/r5b-story-verify PORT=5187 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound5Story.mjs"
+[10-28 23:30:45] end story exit=0 | pass=21 fail=0 | 21/21 steps passed; page errors: 0 | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/r5b-story-verify/RUN_LOG.txt
+[10-28 23:30:45] start r3 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3 PORT=5185 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound3BrowserCheck.mjs"
+[10-28 23:33:44] end r3 exit=0 | pass=50 fail=0 | 50/50 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3/RUN_LOG.txt
+[10-28 23:33:44] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-28 23:34:40] end r4 exit=1 | pass=5 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-28 23:34:40] start initial-review | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-initial-review PORT=5191 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01InitialReviewBrowserCheck.mjs"
+[10-28 23:37:12] end initial-review exit=0 | pass=42 fail=0 | 42/42 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-initial-review/RUN_LOG.txt
+[10-28 23:37:13] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-28 23:38:43] end g01-next-cycle exit=1 | pass=0 fail=0 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-28 23:38:43] start r1 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1 PORT=5184 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01FixedPracticeBrowserCheck.mjs"
+[10-28 23:40:48] end r1 exit=0 | pass=52 fail=0 | 52/52 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1/RUN_LOG.txt
+[10-28 23:40:48] start r2 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2 PORT=5183 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node le05CameraPageBrowserCheck.mjs"
+[10-28 23:44:39] end r2 exit=0 | pass=23 fail=0 | 23/23 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2/RUN_LOG.txt
+[10-28 23:44:39] batch done: r5 story r3 r4 initial-review g01-next-cycle r1 r2
+[10-28 23:45:48] start r5 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser PORT=5188 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound5BrowserCheck.mjs"
+[10-28 23:48:59] end r5 exit=0 | pass=75 fail=0 | 75/75 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser/RUN_LOG.txt
+[10-28 23:48:59] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-28 23:50:11] end r4 exit=1 | pass=5 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-28 23:50:11] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-28 23:51:29] end g01-next-cycle exit=1 | pass=1 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-28 23:51:29] batch done: r5 r4 g01-next-cycle
+[10-28 23:53:13] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-28 23:55:12] end r4 exit=1 | pass=24 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-28 23:55:12] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-28 23:56:30] end g01-next-cycle exit=1 | pass=1 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-28 23:56:31] batch done: r4 g01-next-cycle
+[10-28 23:57:07] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-28 23:59:02] end r4 exit=1 | pass=27 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-28 23:59:03] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-29 00:00:21] end g01-next-cycle exit=1 | pass=0 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-29 00:00:21] batch done: r4 g01-next-cycle
+[10-29 00:00:55] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-29 00:02:52] end r4 exit=1 | pass=29 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-29 00:02:52] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-29 00:04:01] end g01-next-cycle exit=1 | pass=2 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-29 00:04:01] batch done: r4 g01-next-cycle
+[10-29 00:04:49] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-29 00:05:50] end g01-next-cycle exit=1 | pass=6 fail=1 |  | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-29 00:05:50] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-29 00:07:56] end r4 exit=0 | pass=40 fail=0 | 40/40 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-29 00:07:56] batch done: g01-next-cycle r4
+[10-29 00:08:44] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-29 00:10:34] end g01-next-cycle exit=0 | pass=14 fail=0 | 14/14 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-29 00:10:34] batch done: g01-next-cycle
+[10-29 00:46:55] start guest | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser PORT=5194 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node guestEntryBrowserCheck.mjs"
+[10-29 00:47:45] end guest exit=1 | pass=6 fail=1 | 6/7 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser/RUN_LOG.txt
+[10-29 00:47:45] batch done: guest
+[10-29 00:48:06] start guest | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser PORT=5194 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node guestEntryBrowserCheck.mjs"
+[10-29 00:49:51] end guest exit=1 | pass=22 fail=0 | 22/22 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser/RUN_LOG.txt
+[10-29 00:49:52] batch done: guest
+[10-29 00:50:17] start guest | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser PORT=5194 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node guestEntryBrowserCheck.mjs"
+[10-29 00:52:08] end guest exit=0 | pass=55 fail=0 | 55/55 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser/RUN_LOG.txt
+[10-29 00:52:08] batch done: guest
+[10-29 00:52:22] start r5 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser PORT=5188 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound5BrowserCheck.mjs"
+[10-29 00:55:01] end r5 exit=0 | pass=75 fail=0 | 75/75 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser/RUN_LOG.txt
+[10-29 00:55:01] start r3 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3 PORT=5185 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound3BrowserCheck.mjs"
+[10-29 00:58:43] end r3 exit=0 | pass=50 fail=0 | 50/50 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3/RUN_LOG.txt
+[10-29 00:58:44] start initial-review | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-initial-review PORT=5191 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01InitialReviewBrowserCheck.mjs"
+[10-29 01:01:56] end initial-review exit=0 | pass=42 fail=0 | 42/42 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-initial-review/RUN_LOG.txt
+[10-29 01:01:57] start g01-next-cycle | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle PORT=5192 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01G01NextCycleBrowserCheck.mjs"
+[10-29 01:03:37] end g01-next-cycle exit=0 | pass=14 fail=0 | 14/14 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-g01-next-cycle/RUN_LOG.txt
+[10-29 01:03:37] start r1 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1 PORT=5184 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01FixedPracticeBrowserCheck.mjs"
+[10-29 01:05:40] end r1 exit=0 | pass=52 fail=0 | 52/52 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1/RUN_LOG.txt
+[10-29 01:05:41] start r4 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4 PORT=5186 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound4BrowserCheck.mjs"
+[10-29 01:08:23] end r4 exit=0 | pass=40 fail=0 | 40/40 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r4/RUN_LOG.txt
+[10-29 01:08:24] batch done: r5 r3 initial-review g01-next-cycle r1 r4
+[10-29 01:13:31] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:14:16] end size exit=1 | pass=1 fail=1 | 1/2 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:14:16] batch done: size
+[10-29 01:14:25] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:15:21] end size exit=1 | pass=15 fail=1 | 15/16 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:15:21] batch done: size
+[10-29 01:16:22] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:18:26] end size exit=1 | pass=35 fail=1 | 35/36 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:18:26] batch done: size
+[10-29 01:18:38] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:20:11] end size exit=1 | pass=35 fail=1 | 35/36 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:20:11] batch done: size
+[10-29 01:20:19] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:22:03] end size exit=0 | pass=43 fail=0 | 43/43 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:22:04] batch done: size
+[10-29 01:22:15] start guest | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser PORT=5194 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node guestEntryBrowserCheck.mjs"
+[10-29 01:24:09] end guest exit=0 | pass=55 fail=0 | 55/55 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser/RUN_LOG.txt
+[10-29 01:24:09] start r3 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3 PORT=5185 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound3BrowserCheck.mjs"
+[10-29 01:27:02] end r3 exit=0 | pass=50 fail=0 | 50/50 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3/RUN_LOG.txt
+[10-29 01:27:03] start r1 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1 PORT=5184 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01FixedPracticeBrowserCheck.mjs"
+[10-29 01:29:28] end r1 exit=0 | pass=52 fail=0 | 52/52 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1/RUN_LOG.txt
+[10-29 01:29:28] start r2 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2 PORT=5183 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node le05CameraPageBrowserCheck.mjs"
+[10-29 01:33:25] end r2 exit=0 | pass=23 fail=0 | 23/23 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2/RUN_LOG.txt
+[10-29 01:33:25] batch done: guest r3 r1 r2
+[10-29 01:33:28] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 01:35:54] end size exit=1 | pass=28 fail=0 | 28/28 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 01:35:55] batch done: size
+[10-29 09:49:47] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 09:52:24] end size exit=0 | pass=43 fail=0 | 43/43 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 09:52:24] batch done: size
+[10-29 10:14:10] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 10:15:34] end size exit=1 | pass=2 fail=1 | 2/3 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 10:15:34] batch done: size
+[10-29 10:15:49] start size | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size PORT=5195 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node domainExploreSizeCheck.mjs"
+[10-29 10:18:17] end size exit=0 | pass=75 fail=0 | 75/75 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/size/RUN_LOG.txt
+[10-29 10:18:17] batch done: size
+[10-29 10:18:26] start guest | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser PORT=5194 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node guestEntryBrowserCheck.mjs"
+[10-29 10:21:03] end guest exit=0 | pass=55 fail=0 | 55/55 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/../guest-entry/browser/RUN_LOG.txt
+[10-29 10:21:03] start r3 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3 PORT=5185 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound3BrowserCheck.mjs"
+[10-29 10:24:50] end r3 exit=0 | pass=50 fail=0 | 50/50 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r3/RUN_LOG.txt
+[10-29 10:24:50] start r5 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser PORT=5188 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node uxRound5BrowserCheck.mjs"
+[10-29 10:28:02] end r5 exit=0 | pass=75 fail=0 | 75/75 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/browser/RUN_LOG.txt
+[10-29 10:28:03] start r1 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1 PORT=5184 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node f01FixedPracticeBrowserCheck.mjs"
+[10-29 10:30:29] end r1 exit=0 | pass=52 fail=0 | 52/52 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r1/RUN_LOG.txt
+[10-29 10:30:30] start r2 | REPO=<repo> SHOTS=/c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2 PORT=5183 npx firebase emulators:exec --only firestore,auth --project demo-remotion "node le05CameraPageBrowserCheck.mjs"
+[10-29 10:35:03] end r2 exit=0 | pass=23 fail=0 | 23/23 steps passed | log /c/Users/User/Downloads/ReMotion-main (6)/ReMotion-main/reports/ux-r5/regression-r2/RUN_LOG.txt
+[10-29 10:35:03] batch done: guest r3 r5 r1 r2

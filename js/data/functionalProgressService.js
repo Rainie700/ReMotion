@@ -138,6 +138,64 @@ export function buildF01TrackingTimeline({ cycles = [], userId, todayKey, getSes
   return { current, weeks, trend: { nodes, segments } };
 }
 
+/**
+ * UX round 4/5 — ONE chart model for every 5xSTS chart (pure, read-only). Points = the tracking chain's valid,
+ * completed assessments (a reassessment reused as the next week's baseline is ONE point), grouped by week:
+ *   - a week's two points are joined only when its D4 comparison is eligible (the existing rule — never bypassed
+ *     here); a reassessed week that is not comparable keeps both points, no line, and says why in plain words;
+ *   - different weeks are separate groups (never a line across weeks);
+ *   - a reassessment that has not happened yet is `planned` (a date), never a value, never a line.
+ * Sentences describe the SHOWN values only (describeShownTimeDifference): no 改善 / 退步.
+ */
+export function buildFa5xChart({ cycles = [], userId, todayKey, getSession, getComparison, describeDifference }) {
+  const ordered = [...cycles].filter((c) => c && c.userId === userId).sort(cycleOrder);
+  const valid = (id) => { const s = id ? getSession(id) : null; return s && s.patientId === userId && isComparable5xSts(s) ? s : null; };
+  const dateOf = (s) => toLocalDateKey((s.result && s.result.measuredAt) || s.completedAt);
+  const points = [];
+  const weeks = [];
+  let planned = null;
+  ordered.forEach((cycle, index) => {
+    const weekNumber = index + 1;
+    const base = valid(cycle.baselineAssessmentId);
+    const re = cycle.reassessmentId ? valid(cycle.reassessmentId) : null;
+    const cmp = cycle.reassessmentId ? getComparison(cycle) : null;
+    let from = null, to = null;
+    if (base) {
+      const last = points[points.length - 1];
+      if (last && last.assessmentId === base.id) { from = points.length - 1; last.alsoBaselineOfWeek = weekNumber; }
+      else { points.push({ assessmentId: base.id, ms: base.result.totalDurationMs, dateKey: dateOf(base), weekNumber, role: weekNumber === 1 ? "初次評估" : "本週基準" }); from = points.length - 1; }
+    }
+    if (re) { points.push({ assessmentId: re.id, ms: re.result.totalDurationMs, dateKey: dateOf(re), weekNumber, role: "再次評估" }); to = points.length - 1; }
+    const comparable = !!(cmp && cmp.eligible) && from != null && to != null;
+    if (!cycle.reassessmentId) {
+      const view = getTrackingCycleViewState(cycle, todayKey);
+      planned = { weekNumber, cycleId: cycle.id, dateKey: cycle.plannedReassessmentDateKey, ready: view.status === "ready_for_reassessment" };
+    }
+    weeks.push({
+      weekNumber, cycleId: cycle.id, from, to, comparable,
+      differenceText: comparable && describeDifference ? describeDifference(cmp.baselineMs, cmp.reassessmentMs) : null,
+      note: cycle.reassessmentId && !comparable ? "這週的兩次評估條件或量測方式不同，不直接比較" : null,
+      pending: !cycle.reassessmentId,
+    });
+  });
+  return { points, weeks, planned };
+}
+
+/**
+ * What ONE 5xSTS run was for, in plain words (result page + 評估紀錄 list). Stored role first; otherwise whether it
+ * is a tracking week's baseline, the person's first completed run, or a single run outside any week.
+ */
+export function describeFa5xPurpose(session, { cycles = [], completedSessions = [] } = {}) {
+  const role = session && session.result ? session.result.assessmentRole : null;
+  if (role === "reassessment") return { kind: "reassessment", label: "7 日追蹤｜再次評估" };
+  if (role === "next_cycle_baseline") return { kind: "next_baseline", label: "新週期基準評估" };
+  if (role === "initial_plan_baseline") return { kind: "initial_plan_baseline", label: "第一週基準評估" };
+  if (session && cycles.some((c) => c.baselineAssessmentId === session.id)) return { kind: "cycle_baseline", label: "7 日追蹤｜初次評估" };
+  const first = [...completedSessions].filter(isComparable5xSts).sort((a, b) => String((a.result && a.result.measuredAt) || a.completedAt).localeCompare(String((b.result && b.result.measuredAt) || b.completedAt)))[0];
+  if (session && first && first.id === session.id) return { kind: "first", label: "首次評估" };
+  return { kind: "single", label: "單次評估（未納入追蹤週期）" };
+}
+
 export const functionalProgressService = {
   getFunctionalProgress(userId, todayKey) {
     if (!userId) return { currentCycle: null, previousCycle: null, completedCycles: [], assessmentSeries: [] };
@@ -169,6 +227,20 @@ export const functionalProgressService = {
     };
   },
 
+  /** The shared 5xSTS chart model of the user (see buildFa5xChart). */
+  getFa5xChart(userId, todayKey, describeDifference) {
+    if (!userId) return { points: [], weeks: [], planned: null };
+    return buildFa5xChart({
+      cycles: trackingCycleService.listTrackingCycles(userId), userId, todayKey, describeDifference,
+      getSession: (id) => functionalAssessmentService.getById(id),
+      getComparison: (cycle) => trackingCycleService.getTrackingCycleComparison({ cycleId: cycle.id, userId }).comparison,
+    });
+  },
+  /** Purpose of one run for this user (see describeFa5xPurpose). */
+  describePurpose(session) {
+    if (!session) return null;
+    return describeFa5xPurpose(session, { cycles: trackingCycleService.listTrackingCycles(session.patientId), completedSessions: functionalAssessmentService.getCompletedByPatientId(session.patientId, { assessmentType: "five_times_sit_to_stand" }) });
+  },
   /** 追蹤歷程 timeline for the user (read-only; see buildF01TrackingTimeline). */
   getTrackingTimeline(userId, todayKey) {
     if (!userId) return { current: null, weeks: [], trend: { nodes: [], segments: [] } };

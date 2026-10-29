@@ -71,7 +71,11 @@ await check("transfer only to the recorded target", false, () => setDoc(doc(db(T
 
 // ── recommendations ──
 await reset();
-await check("patient creates own recommendation", true, () => setDoc(doc(db(P), "recommendationResults", "rec-a"), { id: "rec-a", kind: "f01_goal", patientId: P, status: "draft", items: [] }));
+// integrity pass: a first recommendation now carries exerciseIds + a marker that rules can re-check
+// G01 condition screen: a first recommendation always has at least one item (an empty one is refused below)
+await check("patient creates own recommendation", true, () => setDoc(doc(db(P), "recommendationResults", "rec-a"), { id: "rec-a", kind: "f01_goal", patientId: P, status: "draft", items: [{ exerciseId: "F01-04", rank: 1 }], exerciseIds: ["F01-04"], initialReview: { required: false, triggerCodes: [], checkVersion: "f01-initial-review-1" } }));
+await check("first recommendation with no items -> refused", false, () => setDoc(doc(db(P), "recommendationResults", "rec-empty"), { id: "rec-empty", kind: "f01_goal", patientId: P, status: "draft", items: [], exerciseIds: [], initialReview: { required: false, triggerCodes: [], checkVersion: "f01-initial-review-1" } }));
+await check("first recommendation without the verifiable fields -> refused", false, () => setDoc(doc(db(P), "recommendationResults", "rec-b"), { id: "rec-b", kind: "f01_goal", patientId: P, status: "draft", items: [] }));
 await check("outsider cannot create one for the patient", false, () => setDoc(doc(db(X), "recommendationResults", "rec-b"), { id: "rec-b", kind: "f01_goal", patientId: P, items: [] }));
 await check("therapist cannot write the patient's proposal", false, () => updateDoc(doc(db(T), "recommendationResults", "prop-1"), { items }));
 await check("outsider cannot update it", false, () => updateDoc(doc(db(X), "recommendationResults", "prop-1"), { status: "accepted" }));

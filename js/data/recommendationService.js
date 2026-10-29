@@ -2,6 +2,7 @@ import { createCollection } from "./storageService.js";
 import { generateId, nowIso } from "../utils/id.js";
 import { generateRecommendationForAssessment } from "./recommendationEngine.js";
 import { toLocalDateKey } from "./trackingCycle.js";
+import { buildInitialReviewMarker } from "./f01InitialReview.js";
 
 /**
  * ReMotion 2.0 Phase 1 — Recommendation Result schema only. This is
@@ -191,10 +192,17 @@ export const recommendationService = {
       limitationIds: [...result.limitationIds],
       items: result.items.map((it) => ({ ...it, matchedConditions: it.matchedConditions.map((c) => ({ ...c })) })),
       basis: result.basis.map((b) => ({ ...b })),
-      excluded: result.excluded.map((e) => ({ ...e })),
+      excluded: result.excluded.map((e) => ({ ...e, ...(e.screenReasons ? { screenReasons: e.screenReasons.map((r) => ({ ...r, fields: r.fields.map((f) => ({ ...f })) })) } : {}) })),
       ...(result.shortfall ? { shortfall: { ...result.shortfall } } : {}),
+      // G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md): the report snapshot and rule version used
+      ...(result.conditionScreen ? { conditionScreen: { ...result.conditionScreen, reasonCodes: [...result.conditionScreen.reasonCodes] } } : {}),
       missingExerciseIds: [...result.missingExerciseIds],
       recommendationRuleVersion: result.ruleVersion,
+      // docs/F01_INITIAL_REVIEW_PLAN.md — the first-recommendation review trigger, fixed at save time
+      // from the CANDIDATE list (never re-derived from items changed later).
+      initialReview: buildInitialReviewMarker({ limitationIds: result.limitationIds, items: result.items }),
+      // the same candidate list as plain ids, so firestore.rules can re-check the marker (≤ 3, in order)
+      exerciseIds: result.items.map((it) => it.exerciseId),
       status: "draft",
       createdAt: nowIso(),
       createdBy,

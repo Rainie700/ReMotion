@@ -23,6 +23,10 @@ const { functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES } = await impor
 const { recommendationService } = await import("../js/data/recommendationService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+// G01 fixture plans stand for existing plans made before the G01 condition screen (never rewritten);
+// a new G01 plan needs a condition report (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md)
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
+const generatePlan = (input) => (input.selectedGoalId === "G01" ? generatePreScreenF01GoalRecommendation : generateF01GoalRecommendation)(input);
 
 const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 const D1 = [2026, 8, 28], D7 = [2026, 9, 4];
@@ -74,19 +78,24 @@ function pureFixture({ baseMs = 8900, reMs = 8200, baseReps = REPS, reReps = [16
   assert.equal(c.differenceText, "本次完成時間與初次相同");
 }
 
-// 4. Precision: raw ms first, format last (8940 vs 8860 -> -80 ms, never 0)
+// 4. Precision: raw ms are kept exactly (changeMs, used by every rule); the SENTENCE follows the two values as
+//    shown (one decimal each) — 2026-10-28 UX round 4/5: what the person sees and reads must agree
+//    (previously 8940 vs 8860, both shown as 8.9 秒, read 「少 0.1 秒」).
 {
   const a = C.buildTrackingComparison(pureFixture({ baseMs: 8940, reMs: 8860 }));
   assert.equal(a.changeMs, -80);
-  assert.equal(a.differenceText, "本次完成時間較初次少 0.1 秒");
+  assert.deepEqual([a.baselineText, a.reassessmentText], ["8.9 秒", "8.9 秒"]);
+  assert.equal(a.differenceText, "兩次顯示的完成時間相同（相差不到 0.1 秒）");
   const b = C.buildTrackingComparison(pureFixture({ baseMs: 8860, reMs: 8940 }));
   assert.equal(b.changeMs, 80);
-  assert.equal(b.differenceText, "本次完成時間較初次多 0.1 秒");
-  // both display "8.9 秒" but the difference is not 0 / "相同"
+  assert.equal(b.differenceText, "兩次顯示的完成時間相同（相差不到 0.1 秒）");
+  // a raw difference is never read as plain 「相同」
   const c = C.buildTrackingComparison(pureFixture({ baseMs: 8900, reMs: 8920 }));
   assert.equal(c.changeMs, 20);
   assert.notEqual(c.differenceText, "本次完成時間與初次相同");
-  assert.equal(c.differenceText, "本次完成時間與初次相差不到 0.1 秒");
+  // shown 12.5 → 12.3: the sentence says 0.2 (raw 120 ms would have read 0.1)
+  const d = C.buildTrackingComparison(pureFixture({ baseMs: 12460, reMs: 12340 }));
+  assert.deepEqual([d.baselineText, d.reassessmentText, d.changeMs, d.differenceText], ["12.5 秒", "12.3 秒", -120, "本次完成時間較初次少 0.2 秒"]);
   assert.equal(C.buildTrackingComparison(pureFixture({ baseMs: 12345, reMs: 10001 })).changeMs, -2344);
   assert.equal(C.buildTrackingComparison(pureFixture({ baseMs: 12345, reMs: 10001 })).differenceText, "本次完成時間較初次少 2.3 秒");
 }
@@ -166,7 +175,7 @@ function storedBaseline(userId, ms = 8900) {
 }
 function storedCycle(userId) {
   const b = storedBaseline(userId);
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
+  const r = generatePlan({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
   const rec = recommendationService.createF01GoalRecommendation({ patientId: userId, result: r, createdBy: userId }).recommendation;
   return trackingCycleService.createOrGetTrackingCycle({ userId, baselineSession: b, recommendation: rec }).cycle;
 }
@@ -236,7 +245,7 @@ function fnBody(name) {
   assert.ok(appJs.includes("compare: (cycle) => `goTrackingComparison('${cycle.id}')`"), "home completed CTA opens the comparison");
   assert.ok(appJs.includes("window.goTrackingComparison = goTrackingComparison"));
   assert.ok(appJs.includes('state.route === "trackingComparison"'));
-  const card = fnBody("renderTrackingCycleCard");
+  const card = fnBody("trackingCardState"); // UX round 5/5: the card's data rules moved here (shared with 數據 總覽)
   // Homepage redesign — completed cycle: both times come from the same read-only comparison.
   assert.ok(card.includes("baselineText = cmp.comparison.baselineText;") && card.includes("reassessmentText = cmp.comparison.reassessmentText;"));
   const resultPage = fnBody("fiveTimesSitToStandResultPage");

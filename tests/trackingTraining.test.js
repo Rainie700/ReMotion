@@ -24,6 +24,10 @@ const { recommendationService } = await import("../js/data/recommendationService
 const { analysisService } = await import("../js/data/analysisService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+// G01 fixture plans stand for existing plans made before the G01 condition screen (never rewritten);
+// a new G01 plan needs a condition report (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md)
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
+const generatePlan = (input) => (input.selectedGoalId === "G01" ? generatePreScreenF01GoalRecommendation : generateF01GoalRecommendation)(input);
 
 const S = T.TRACKING_STATUS;
 const D1 = [2026, 8, 28], D2 = [2026, 8, 29], D3 = [2026, 8, 30], D4 = [2026, 9, 1], D7 = [2026, 9, 4];
@@ -36,7 +40,7 @@ function baseline(userId) {
   return functionalAssessmentService.getById(s.id);
 }
 function saveRec(userId, session, goalId, minutes) {
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: session.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goalId, availableMinutes: minutes, catalog: exerciseService.listNormalized() });
+  const r = generatePlan({ assessment: { status: "completed", sessionId: session.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: goalId, availableMinutes: minutes, catalog: exerciseService.listNormalized() });
   return recommendationService.createF01GoalRecommendation({ patientId: userId, result: r, createdBy: userId }).recommendation;
 }
 function startCycle(userId, goalId = "G01", minutes = 20) {
@@ -235,7 +239,8 @@ const getCycle = (c) => trackingCycleService.getTrackingCycleById(c.id);
   assert.ok(/dateKey = toLocalDateKey\(analysisRecord\.completedAt \|\| analysisRecord\.createdAt\)/.test(serviceSrc), "fallback: record's real completion time");
   assert.ok(/if \(isDateKey\(analysisRecord\.planDateKey\)\) dateKey = analysisRecord\.planDateKey;/.test(serviceSrc), "plan date first");
   assert.ok(/reassessmentDateKey: toLocalDateKey\(reassessmentMeasuredAt\)/.test(serviceSrc), "D2 date = real measurement date");
-  const card = appJs.slice(appJs.indexOf("function renderTrackingCycleCard("), appJs.indexOf("function goTrackingWeekTraining("));
+  // UX round 5/5: the card's data rules live in trackingCardState (shared with 數據 總覽), right before the renderer
+  const card = appJs.slice(appJs.indexOf("function trackingCardState("), appJs.indexOf("function goTrackingWeekTraining("));
   // F01 batch 2 §3A — still the real completed days (the same raw count), but null ("待確認") when the measurement is pending.
   assert.ok(card.includes("displayCompletedTrainingDays(cycle)") && card.includes("getDailyProgressView("), "card uses real completed days + real daily progress");
   assert.ok(!/detector|FSM/.test(appJs.slice(appJs.indexOf("function armF01TrackingTraining("), appJs.indexOf("function armF01TrackingTraining(") + 50)), "sanity");

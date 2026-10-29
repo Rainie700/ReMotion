@@ -1,0 +1,19 @@
+[33m[1m!  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode prepFitCheck.mjs[22m
+PASS | 首次評估準備 viewport 260: no overflow, no clipped text, last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"clipped":0,"lastBottom":308,"navTop":485,"ok":true}
+PASS | 首次評估準備 viewport 320: no overflow, no clipped text, last button above the bottom nav | {"vw":320,"sw":320,"wide":0,"clipped":0,"lastBottom":486,"navTop":622,"ok":true}
+PASS | 首次評估準備 viewport 390: no overflow, no clipped text, last button above the bottom nav | {"vw":390,"sw":390,"wide":0,"clipped":0,"lastBottom":630,"navTop":766,"ok":true}
+PASS | 首次評估準備 text ×1.5（390）: no overflow, no clipped text, last button above the bottom nav | {"vw":390,"sw":390,"wide":0,"clipped":0,"lastBottom":585,"navTop":766,"ok":true}
+PASS | 首次評估準備 text ×1.5（260）: no overflow, no clipped text, last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"clipped":0,"lastBottom":210,"navTop":485,"ok":true}
+5/5 steps passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

@@ -115,7 +115,9 @@ const done = (over = {}) => ({ ...CUR, status: "completed", repCount: 5, complet
   const s = fa5x(done());
   const html = section(s, CR.describeFa5xConditions(s));
   assert.ok(html.includes("尚未回報") && html.includes("測試條件尚未回報"));
-  assert.ok(html.includes("系統沒有驗證") && html.includes("不會改變上方的量測結果"));
+  // 2026-10-28 (UX round 4/5): shorter wording, same two facts; the questions sit behind a closed entry
+  assert.ok(html.includes("系統沒有驗證") && html.includes("不會改變上方的完成時間"));
+  assert.ok(html.includes('<details class="fa5x-cond-form">') && !html.includes('<details class="fa5x-cond-form" open'), "questions open only when tapped");
   assert.ok(!/checked/.test(html), "no pre-selected answer");
   assert.equal((html.match(/value="unknown"/g) || []).length, 2, "不確定 offered for both questions");
   assert.ok(!html.includes("fa5xCondSameChair"), "same-chair question only for reassessment / next-cycle baseline");
@@ -145,8 +147,16 @@ const done = (over = {}) => ({ ...CUR, status: "completed", repCount: 5, complet
   ]);
   assert.deepEqual(series.map((p) => [p.assessmentId, p.connectsToPrevious]), [["a", false], ["b", true], ["c", false], ["d", true], ["e", false]]);
   assert.equal(series.length, 5, "every point kept");
-  const chart = appJs.slice(appJs.indexOf("function renderF01DurationChart("), appJs.indexOf("function renderPatientConfirmedSummaries("));
-  assert.ok(chart.includes('i && pts[i].connectsToPrevious ? "L" : "M"'), "the Data chart breaks the line");
+  // 2026-10-28 (UX round 4/5): ONE chart (renderFa5xChart over buildFa5xChart). A line is drawn only inside a week
+  // whose comparison is eligible (which already requires the same measurement group) — stricter than before.
+  const { buildFa5xChart } = await import("../js/data/functionalProgressService.js");
+  const two = { a: sess("a", 9000, "2026-09-01T00:00:00Z", v10), b: sess("b", 8800, "2026-09-08T00:00:00Z", CUR) };
+  const mixed = buildFa5xChart({ cycles: [{ id: "cx", userId: U, cycleStartDateKey: "2026-09-01", plannedReassessmentDateKey: "2026-09-08", baselineAssessmentId: "a", reassessmentId: "b" }], userId: U, todayKey: "2026-09-10", getSession: (id) => two[id], getComparison: () => ({ eligible: false }) });
+  assert.equal(mixed.points.length, 2, "both points kept");
+  assert.equal(mixed.weeks[0].comparable, false, "no line between differently measured runs");
+  assert.ok(mixed.weeks[0].note.includes("不直接比較"));
+  const chartSrc = appJs.slice(appJs.indexOf("function renderFa5xChart("), appJs.indexOf("function shownDiffPhrase("));
+  assert.ok(chartSrc.includes("weeks.filter((w) => w.comparable).map((w) => `<line"), "the chart draws lines only for comparable weeks");
 
   // timeline: the dashed link between weeks only within one measurement group
   const sessions = { b1: sess("b1", 9000, "2026-09-01T00:00:00Z", v10), r1: sess("r1", 8800, "2026-09-08T00:00:00Z", v10), b2: sess("b2", 8700, "2026-09-10T00:00:00Z", CUR), b3: sess("b3", 8600, "2026-09-20T00:00:00Z", CUR) };

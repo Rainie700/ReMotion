@@ -1,0 +1,15 @@
+PASS | 1a proposal stored in the emulator by the patient: G01-N01, no automatic decision; withdrawn R005 kept only as trace | {"ruleVersion":"f01-g01-next-cycle-1.0","applied":true,"withdrawnMatrix":{"ruleId":"R005","decision":"progress"},"conditionStatus":"reported_conditions_consistent"}
+PASS | 1b0 visible without opening: no automatic decision, 待復健師另行安排 and why (not a 維持 suggestion) | 返回 下一階段建議 目前安排狀態 待復健師另行安排 這個目標目前沒有已核實、可執行的下一週自動安排依據。這不是因為資料不足，補填資料也不會產生自動安排。 規則判定 目前不提供自動安排 實際動作與訓練量 尚未安排下一週 審閱與接受 待復健師另行安排 下一步｜復健師另行安排 等待你的復健師在個案總覽檢視並另行安排下一週。系統不會另外通知復健師，可以主動告知對方；確認後重新登入查看，再由你決定是否接受。 目前不提供這個目標的下一週自動安排：已核對的來源不支持只依五次坐站時間變化決定下一週，系統也沒有其他可執行的依據。可由有照護關係的復健師另行安排。 前後兩次回報的測試條件一致，但五次坐站的時間變化不能單獨決定下一週訓練；目前沒有其他已核實、可執行的安排依據，系統不自動判定。原本的訓練與紀錄都保留，但這不代表系統建議維持原訓練。 接受另行安排後，仍須完成新的有效基準評估，才會開始下一週。 返回首頁修改狀況確認 目前訓練（參考） 坐姿起立 理由與參考資料 詳細決策紀錄 下一階段建議依 ReMotion 系統規則整理，並非診斷或臨床處方；練習時如有不適請停止並諮詢專業人員。 首頁 訓練 數據 我的
+PASS | 1b patient page: 目前不提供自動安排 / 不自動判定 / 待復健師另行安排; both times shown; conditions row; no 進階 / 維持 conclusion | missing: —
+PASS | 1c no acceptance entry on the page
+PASS | 1d calling the acceptance service directly is refused; nothing created | {"error":"not_confirmable","arrangementStatus":"no_auto"}
+PASS | 1e home tracking card: both times + 查看下一階段建議, no 進階 / 維持 verdict
+PASS | 1f journey card: the shared arrangement status (目前不提供這個目標的下一週自動安排) | 返回 復健旅程 Lv.1 復健新手 0 / 100 XP 第 1 週 ● 第 2 週 🔒 第 1 週｜等待確認 旅程進度 7 / 8 🌿 🌱 🚩 ✨ ✓ 第5關 準備再次評估 ✓ 第6關 完成再次評估 ✓ 第7關 下一階段建議 … 第8關 開啟下一週 等待確認 目前關卡 第 8 關｜開啟下一週 目前不提供這個目標的下一週自動安排，可以查看說明或請復健師另行安排。 查看下一階段建議 成就徽章 已解鎖 0 / 12 查看 › 首頁 訓練 數據 我的 本機測試資料｜Firebase 模擬器（demo-remotion）｜非正式資料
+PASS | 2a therapist sees 不自動判定, the withdrawn-time reason and the reference-only previous week
+PASS | 2b therapist confirmation written to the emulator
+PASS | 3a after review: 復健師已確認，可以接受 + accept entry
+PASS | 3b accepted in the emulator; manual no-auto continuation needs a fresh baseline; no next week created yet | {"baselineReuseAllowed":false,"requiresFreshBaseline":true,"confirmationDateKey":"2026-10-29","reassessmentDateKey":"2026-10-29","baselineAssessmentId":null,"baselineMeasuredAt":null,"cycleStartDateKey":null,"plannedReassessmentDateKey":null,"freshBaselineReason":"manual_no_auto_arrangement"}
+PASS | 4a differ: stored status + reasons; change not read against the reference
+PASS | 4b unlinked: existing honest text + invite code, no acceptance, no claim of a professional taking over
+PASS | no page errors | []
+14/14 steps passed

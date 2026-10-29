@@ -1,0 +1,52 @@
+NOTE | app: http://127.0.0.1:5185/?emulator=1 (Vite dev server started by this script in C:/Users/User/Downloads/ReMotion-main (6)/ReMotion-main)
+PASS | N1 new patient home: primary task 開始自主復健; 今日感受 is a short entry; no form, no attribution / snapshot text, no per-exercise detail | 開始自主復健 依目前身體狀況與訓練需求，安排適合你的復健內容。 開始自主復健 從六大功能構面開始，評估功能表現或直接安排訓練 最近評估 完成首次評估後查看
+PASS | N1b home nav highlights 首頁
+PASS | N2 訓練 tab (new patient): 坐站練習 and 六大功能構面 entries; 訓練 highlighted
+PASS | N3 坐站練習 from 訓練: the round-1 page, 訓練 still highlighted
+PASS | N3b its 返回 goes straight back to the 訓練 tab
+PASS | N4 六大功能構面 from 訓練: 訓練 highlighted
+PASS | N4b → F01 下肢功能 (訓練 still highlighted)
+PASS | N4c 返回 → 功能構面 → 返回 → back on the 訓練 tab
+PASS | N5 plan data loading -> 正在載入你的訓練安排… (not 開始自主復健) | 今天的下一步 正在載入你的訓練安排… 載入完成後會顯示今天要做什麼。
+PASS | N6 plan data refused -> 暫時無法載入… + 重新載入 (not 開始自主復健) | 今天的下一步 暫時無法載入你的訓練安排 這不代表沒有安排。請確認網路後重新載入。 重新載入
+PASS | N6b 重新載入 after the cloud answers -> the normal primary task
+PASS | W0 a running week exists (G02)
+PASS | W1 running week: ONE primary task (本週功能追蹤 · 開始今日訓練); no second big card; 今日感受 entry below it | 本週功能追蹤 F01 下肢功能 第 1 / 7 天 今日訓練 0 / 1 1 2 3 4 5 6 7 初次評估 12.4 秒 本週完成 0 天 再次評估 11/03 開始今日訓練
+PASS | R1 sheet: title, 回報對象 一般回報, step 1 shown, nothing preselected, 下一步 disabled; background scroll locked | 今日訓練感受 回報對象：一般回報（不指定訓練週期） ✕ 第 1 / 4 步 今天練習時的吃力程度 今天還沒練習 輕鬆 有點吃力 很吃力 不確定 下一步 {"cls":true,"overflow":"hidden"}
+PASS | R2 上一步 keeps the earlier answer
+PASS | R2b ... and forward again the next answer is still there
+PASS | R3 incompletion question names the week's target it is about (general report, 回報對象 unchanged) | 今日訓練感受 回報對象：一般回報（不指定訓練週期） ✕ 第 3 / 4 步 如果今天先到這裡，主要原因是？（選填） 這一題對應的目標 F01 7 日追蹤（10/28 開始）第 1 天的訓練 今日目標：0／1 個動作已達標 先不填原因 沒時間 太吃力 感到不舒服 動作辨識有問題 紀錄儲存有問題 今天沒有練習 今天還在進行中 其他原因 不確定 上一步 下一步
+PASS | R4 closing keeps the unsent answers (entry: 繼續填寫 / 有尚未送出的回答); page back at the same scroll position | 今天練習感覺如何？ 有尚未送出的回答 繼續填寫 140->140
+PASS | R4b reopening resumes at the note step with the text
+PASS | R5 short viewport (simulated keyboard): note field and 送出 both on screen | {"vh":430,"note":[170,266],"submit":[366,416]}
+PASS | R6 double-tapped 送出 saved ONE report; completion shown only after the save | {"source":"self_report","reportedBy":"sCdK7MyniP8UVx2RJ9Tzoyg9lwqZ","reportedAt":"2026-10-27T19:21:14.793Z","effort":"somewhat_hard","discomfort":"yes","note":"膝蓋有點緊","incompletion":{"reason":"no_time","progress":{"schemaVersion":"incomplete-training-context-1","source":"device_loaded_records","cycl
+PASS | R6b attribution kept: home answer is a GENERAL report; its incompletion names the week's target
+PASS | R7 entry: 今日已回報 + the answer + 查看／更新
+PASS | C1 本週訓練 opened from 訓練: 訓練 highlighted; the cycle report is a short entry | 訓練 | 本週期今日回報 本週期今天練習感覺如何？ F01 7 日追蹤（10/28 開始）第 1 天的訓練 填寫回報 | selects=0
+PASS | C2 cycle sheet: 本週期今日回報 with the cycle named at the top | 本週期今日回報 回報對象：F01 7 日追蹤（10/28 開始）第 1 天的訓練 ✕ 第 1 / 4 步 今天練習時的吃力程度 今天還沒練習 輕鬆 有點吃力 很吃力 不確定 下一步
+PASS | C3 cycle report saved with its subject; the general report untouched
+PASS | C4 本週訓練 返回 → back on the 訓練 tab (where it was opened)
+PASS | C5 有週期患者: 坐站練習 from 訓練
+PASS | U1 查看／更新: the answer in use, today's revisions, and the cycle report kept apart | 今日訓練感受 回報對象：一般回報（不指定訓練週期） ✕ 2026-10-28 目前採用的回答 有點吃力｜有不舒服 補充說明：膝蓋有點緊 未完成原因（本人回報）：沒時間 查看這次回報時的目標與已儲存量 查看今天的歷次回報（1 次） 今天另有 1 次從訓練週期入口填寫的回報，分開保存，不會互相取代。 這裡的回報不會自動算成任何訓練週期的回報；要回報本週期的訓練，請從「本週訓練」頁填寫。 更新回報
+PASS | U2 updating starts from the answer in use
+PASS | F1 cloud write refused: error shown, answers kept, 重新送出 offered; no completion | 今日訓練感受 回報對象：一般回報（不指定訓練週期） ✕ 第 4 / 4 步 補充說明（選填，最多 500 字） 吃力程度：輕鬆 不舒服：有不舒服 未完成原因：沒時間 尚未確認雲端儲存成功，輸入仍保留。請確認網路與登入狀態後重試。 上一步 重新送出
+PASS | F2 retry saved the update once; the earlier answer is kept as history (append-only)
+PASS | F3 本週練習回報 from the saved data: Day 1 counts the CYCLE report only; the home report is listed apart, not counted | {"state":"reported","effort":"easy","discomfort":"no","revisions":1,"general":1,"discomfortDates":{"no":["2026-10-28"]}}
+PASS | P1 待檢視 (linked): primary task 待復健師檢視 → 查看待檢視安排; no 開始自主復健, says no automatic notice | 首次訓練安排 待復健師檢視 這份首次訓練安排需要復健師檢視；系統不會另外通知復健師，可以主動告知對方。 查看待檢視安排 重新載入
+PASS | P2 待檢視 (no therapist): says it cannot be completed now; never implies someone is handling it | 首次訓練安排 待復健師檢視 目前沒有連結的復健師，這份安排暫時無法完成檢視；可以查看說明與邀請碼入口。 查看待檢視安排 重新載入
+PASS | P3 待接受: 復健師已確認，等待你接受 → 查看確認安排 | 首次訓練安排 復健師已確認，等待你接受 復健師已確認你的首次訓練安排，查看內容後可以接受。 查看確認安排 重新載入
+PASS | P3b its entry opens the plan with 接受這份安排
+PASS | P4 待新基準: 已接受，請完成新的基準評估 → 開始第一週基準評估 | 首次訓練安排 已接受，請完成新的基準評估 完成一次新的五次坐站後，第一週會以那一天開始。 開始第一週基準評估 重新載入
+PASS | P5 已接受但尚未啟用: the running week stays the primary task (開始今日訓練); the plan is a one-line hint (查看原本的週期) | ReMotion 早安，示範患者E 今天也一起動一動吧 本週功能追蹤 F01 下肢功能 第 1 / 7 天 今日訓練 0 / 1 1 2 3 4 5 6 7 初次評估 12.4 秒 本週完成 0 天 再次評估 11/03 開始今日訓練 另有首次訓練安排 已接受，尚未啟用 查看原本的週期 本週訓練 查看目前安排的訓練內容 本週紀錄 本週初次評估結果 今天練習感覺如何？ 花幾秒記下今天的感受 填寫回報 本週進度 1 Lv. 復健新手 0 / 100 XP 再獲得 100 XP 升級 Lv.2 · 復健旅程 › — 連續復健 我的進度 › 開始第一次練習吧 我的成就 查看全部 → 已解鎖 0 / 1
+PASS | L 390 home (running week): no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[444,492],"navTop":766}
+PASS | L 390 訓練 tab: no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[122,166],"navTop":766}
+PASS | L 390 sheet: inside the screen, action visible | {"vw":390,"vh":844,"panel":[0,390,313],"action":[780,830],"over":0}
+PASS | L 430 home (running week): no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[450,498],"navTop":854}
+PASS | L 430 訓練 tab: no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[122,166],"navTop":854}
+PASS | L 430 sheet: inside the screen, action visible | {"vw":430,"vh":932,"panel":[0,430,401],"action":[868,918],"over":0}
+PASS | L 1280 home (running week): no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[459,507],"navTop":722}
+PASS | L 1280 訓練 tab: no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[113,157],"navTop":722}
+PASS | L 1280 sheet: inside the screen, action visible | {"vw":1280,"vh":800,"panel":[400,880,269],"action":[736,786],"over":0}
+PASS | L 390 home (new patient): no horizontal overflow; primary action on the first screen, above the bottom nav | {"overflow":0,"wide":0,"btn":[348,512],"navTop":766}
+PASS | no page errors | []
+50/50 steps passed

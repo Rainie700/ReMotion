@@ -62,7 +62,9 @@ try {
     const date = new Date(), day = toLocalDateKey(date);
     const b = fa.create({ patientId: user.id, bodyRegion: 'lower_limb', assessmentType: types.FIVE_TIMES_SIT_TO_STAND }).session;
     fa.completeSession(b.id, { result: { ...version, status: 'completed', repCount: 5, completedReps: 5, totalDurationMs: 12000, measuredAt: date.toISOString() } });
-    const result = generate({ assessment: { status: 'completed', sessionId: b.id, assessmentType: 'five_times_sit_to_stand' }, selectedGoalId: 'G01', availableMinutes: 15, catalog: exercises.listNormalized() });
+    // Setup only: any F01 goal serves this check. G01 first recommendations now need the condition screen
+    // (f01G01ConditionScreen.js), so this synthetic plan uses G02; the items are replaced below anyway.
+    const result = generate({ assessment: { status: 'completed', sessionId: b.id, assessmentType: 'five_times_sit_to_stand' }, selectedGoalId: 'G02', availableMinutes: 15, catalog: exercises.listNormalized() });
     result.items = ['F01-01','F01-10'].map((id,i) => ({ ...result.items[0], exerciseId: id, exerciseName: exercises.getNormalizedById(id).name, rank: i+1 }));
     const rec = recs.createF01GoalRecommendation({ patientId: user.id, result, createdBy: user.id }).recommendation;
     const cycle = cycles.createOrGetTrackingCycle({ userId: user.id, baselineSession: fa.getById(b.id), recommendation: rec }).cycle;

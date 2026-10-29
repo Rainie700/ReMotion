@@ -1,0 +1,57 @@
+[33m[1m!  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode uxRound4BrowserCheck.mjs[22m
+NOTE | app: http://127.0.0.1:5186/?emulator=1 (Vite dev server started by this script in C:/Users/User/Downloads/ReMotion-main (6)/ReMotion-main)
+PASS | H1 new patient home: neutral greeting, primary 開始自主復健
+PASS | D1 new patient 數據: three category entries; no chart; nothing reads as an error | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 尚未開始功能追蹤 完成一次 F01 五次坐站評估後，這裡會顯示你的功能追蹤。 開始功能評估 訓練紀錄 近 7 天：10/23–10/29（含今天） 訓練次數 0 次 訓練天數 沒有紀錄 平均 AI 姿勢分數 — 10/23 — 10/24 — 10/25 — 10/26 — 10/27 — 10/28 — 10/29 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習（全部） 0 筆 自行回報（本人填寫，全部） 0 筆 坐站練習與自行回報分開保存，不計入上面的訓練次數與天數。 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 
+PASS | D2 功能評估 empty: 還沒有五次坐站評估 + 開始功能評估
+PASS | D3 訓練紀錄 → 坐站練習 empty: a way to the practice
+PASS | D4 感受回報 empty
+PASS | A0 single assessment outside any week: overview shows it with its purpose | 我的數據 總覽 功能評估 訓練紀錄 感受回報 功能評估 最近一次 10.6 秒（10/28・首次評估） 7 日追蹤 尚未開始 查看功能評估 › 訓練紀錄 近 7 天：10/23–10/29（含今天） 訓練次數 0 次 訓練天數 沒有紀錄 平均 AI 姿勢分數 — 10/23 — 10/24 — 10/25 — 10/26 — 10/27 — 10/28 — 10/29 — 完成第一次練習後，這裡會開始累積你的訓練紀錄。 坐站練習（全部） 0 筆 自行回報（本人填寫，全部） 0 筆 坐站練習與自行回報分開保存，不計入
+PASS | A0b 功能評估: listed (date · purpose · result), no trend chart
+PASS | A1 result page: time is the hero, purpose 五次坐站｜首次評估, condition questions behind an entry (not open), 數據 highlighted | 返回 五次坐站｜評估結果 五次坐站｜首次評估 10.6秒 完成五次坐站所需時間（觀察時間） 2026.10.28 01:06 完成狀態 已完成 5 / 5 次 保存狀態 ✓ 評估已保存 測試條件 尚未回報（可在下方回答） 前後比較 目前不屬於 7 日追蹤，暫不做前後比較 訓練建議 可用來產生訓練建議（系統只確認評估已完成，秒數不決定動作） 測試條件 測試條件尚未回報 回答測試條件（約 30 秒） 由你回報，系統沒有驗證；不會改變上方的完成時間。 之後可以再次查看 可以在「數據 → 功能評估」再次查看。 下一步｜安排
+PASS | A2 tapping 回答測試條件 opens the questions with nothing pre-selected
+PASS | A3 the required answer is still required (who answered)
+PASS | A4 saved; the entry now offers 補充或更正
+PASS | A5 返回 from a result opened in 功能評估 goes back there
+PASS | H2 running week: greeting is neutral (not 今天沒有復健師安排); the week card says 開始今日訓練 | 早安，示範患者W 今天也一起動一動吧
+PASS | P1 target reached: 練習結果, 5 / 5 次, 完成本次目標 + star; AI count labelled; 查看練習紀錄 / 返回訓練 | 坐站練習｜10/29 上午01:07 完成本次目標 5 / 5 次 AI 計次（相機辨識） 相機協助計次，無法確認是否使用手部支撐。計入的次數不代表動作品質合格。 儲存中…
+PASS | P1b sync state: 已同步到雲端 (after 儲存中)
+PASS | P2 查看練習紀錄 → the record (練習紀錄)
+PASS | P2b 返回訓練 → the 訓練 tab
+PASS | P3 ended early: 2 / 5, 提前結束, no star, 另有 1 次無法確認 + its reason | 返回 練習結果 坐站練習｜10/29 上午01:07 提前結束 2 / 5 次 AI 計次（相機辨識） 相機協助計次，無法確認是否使用手部支撐。計入的次數不代表動作品質合格。 儲存中… 查看練習紀錄 返回訓練 另有 1 次動作無法確認，沒有計入 沒有看到從坐姿起身（例如站著入鏡後才坐下） 補記自己完成的次數 可略過 首頁 訓練 數據 我的
+PASS | P4 self-report shown apart: AI still 2 in the cloud, self-report 4
+PASS | P5 self-report only: 5 次, 自行回報（這次沒有使用相機）, 本人填寫; no AI count | 坐站練習｜10/29 上午01:07 本人填寫 5 次 自行回報（這次沒有使用相機） 已同步到雲端
+PASS | F1 rules without the fixed-practice block: the save is refused and shown as 尚未同步 + 重試同步 (never 已同步) | permission-denied
+NOTE | error code recorded for the refused save: permission-denied
+PASS | F1b the recorded cloud error is permission-denied (a rules problem, not the network) | permission-denied
+PASS | F2 rules restored → 重試同步 → 已同步到雲端
+PASS | F3 four practice records, each once; the week is unchanged (no completion day added); no analysisRecord | [[5,null],[2,4],[null,5],[5,null]]
+PASS | D5 overview with records: 坐站練習 4 筆・自行回報 0 筆 (apart from the counts above), 感受回報 entry | 我的數據 總覽 功能評估 訓練紀錄 感受回報 目前階段 F01 7 日追蹤｜第 1 / 7 天 今日訓練 0 / 1 開始今日訓練 功能評估 最近一次 12.4 秒（10/29・7 日追蹤｜初次評估） 本週基準 12.4 秒 本週完成 0 天 下次評估 11/04，尚未量測 查看功能評估 › 訓練紀錄 近 7 天：10/23–10/29（含今天） 訓練次數 0 次 訓練天數 沒有紀錄 平均 AI 姿勢分數 — 10/23 — 10/24 — 10/25 — 10/26 — 10/27 — 10/28 — 10/29 — 坐站練習（全部） 4 筆 自行回報（本人填寫，全部） 0 筆 坐站練習與自行回報分開保存，不計入上面的訓練次數與天數。 查看訓練紀錄 › 感受回報 今天 尚未回報 近 7 天有回報 0 天 其中回報不舒服 0 天 查看感受回報 › 復
+PASS | D6 訓練紀錄 → 坐站練習: date · type · main result, newest first, read back after reload; never in the 訓練 counts | ["10/29 相機計次 5 / 5 次 › 已同步到雲端","10/29 只有自行回報 5 次 › 已同步到雲端","10/29 相機計次 2 / 5 次 › 自行回報 4 次（另外保存） 另有 1 次無法確認，未計入 已同步到雲端","10/29 相機計次 5 / 5 次 › 已同步到雲端"]
+PASS | D7 one record (opened from 數據): details, 回到訓練紀錄, 數據 highlighted
+PASS | D8 訓練 view: formal / AI trainings only (none yet) — fixed practice not mixed in
+PASS | D9 自行回報 view is its own list
+PASS | C1 one week, one assessment: one point, no 「?」, no line; the coming date outside the plot (尚未量測) | 返回 功能評估 總覽 功能評估 訓練紀錄 感受回報 五次坐站完成時間 第 1 週 12.4 秒 10/29 初次評估 下次評估：11/04（第 1 週），尚未量測 只畫已量測的結果，單位為秒（越短代表完成得越快）。同一週的初次與再次評估以實線相連；不同週分開呈現，不直接比較。點選圓點可開啟該次評估。秒數差異只描述兩次測得的數值，不是醫療判斷，也不代表訓練有沒有效果。 目前只有一次追蹤評估；完成再次評估後，才會出現同一週的前後比較。 目前 第 1 週｜第 1 / 7 天 10/29 開始 基準 12.4 秒 完成 0 天 等待 11/04 再次評估 全部評估紀錄 10/29 7 日追蹤｜初次評估
+PASS | C2 two weeks: 第 1 週 / 第 2 週 groups; 12.8 → 11.2 joined inside week 1; 11.2 shown once (再次評估／第 2 週基準); week 2 coming date outside the plot (UX round 5/5) | <rect class="fa5c-band" x="12.0" y="6" width="296.0" height="200" rx="14"></rect><text class="fa5c-week" x="160.0" y="26" text-anchor="middle">第 1 週</text><rect class="fa5c-band alt" x="240.0" y="6" w
+PASS | C3 the sentence matches the shown values (12.8 → 11.2 = 少 1.6 秒); no 改善 / 退步 | 返回 功能評估 總覽 功能評估 訓練紀錄 感受回報 五次坐站完成時間 第 1 週 第 2 週 12.8 秒 10/20 初次評估 11.2 秒 10/26 再次評估／第 2 週基準 下次評估：11/01（第 2 週），尚未量測 第 1 週：本次完成時間較初次少 1.6 秒 只畫已量測的結果，單位為秒（越短代表完成得越快）。同一週的初次與再次評估以實線相連；不同週分開呈現，不直接比較。點選圓點可開啟該次評估。秒數差異只描述兩次測得的數值，不是醫療判斷，也不代表訓練有沒有效果。 第 1 週 ✓ 10/20 → 10/26 12.8 秒 → 11.2 秒 完成時間差異：少 1.6 秒 訓練完成：3 天 查看第 1 週前後比較 目前 第 2 週｜第 4 / 7 天 10/26 開始 基準 11.2 秒 完成 0 天 等待 11/01 再次評估 全部評估紀錄 
+PASS | C4 week 1 comparison page: the same values and the same sentence
+PASS | L 390 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":766}
+PASS | L 390 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":439,"navTop":766}
+PASS | L 430 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":854}
+PASS | L 430 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":439,"navTop":854}
+PASS | L 1280 功能評估: no page overflow (a wide chart scrolls inside its own box) | {"over":0,"chartScroll":0,"navTop":722}
+PASS | L 1280 record: no overflow; the last button scrolls clear of the bottom nav | {"over":0,"lastBottom":439,"navTop":722}
+PASS | no page errors | []
+
+40/40 steps passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

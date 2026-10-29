@@ -1,0 +1,7 @@
+PASS | 首次評估準備 viewport 260: no overflow, no clipped text, last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"clipped":0,"lastBottom":308,"navTop":485,"ok":true}
+PASS | 首次評估準備 viewport 320: no overflow, no clipped text, last button above the bottom nav | {"vw":320,"sw":320,"wide":0,"clipped":0,"lastBottom":486,"navTop":622,"ok":true}
+PASS | 首次評估準備 viewport 390: no overflow, no clipped text, last button above the bottom nav | {"vw":390,"sw":390,"wide":0,"clipped":0,"lastBottom":630,"navTop":766,"ok":true}
+PASS | 首次評估準備 text ×1.5（390）: no overflow, no clipped text, last button above the bottom nav | {"vw":390,"sw":390,"wide":0,"clipped":0,"lastBottom":585,"navTop":766,"ok":true}
+PASS | 首次評估準備 text ×1.5（260）: no overflow, no clipped text, last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"clipped":0,"lastBottom":210,"navTop":485,"ok":true}
+5/5 steps passed
+exit=0

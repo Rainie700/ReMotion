@@ -1,0 +1,25 @@
+G01 condition screen v1 — before / after（合成資料；條件篩選與工程規格驗證，不是臨床準確率）
+rule: f01-g01-condition-screen-1.0
+
+| # | 案例 | 修改前 | 修改後 | 修改後未列原因 |
+|---|---|---|---|---|
+| V01 | G01 20 分、armsUsed=no、assistance=no | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V02 | 同 V01，armsUsed=yes | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_assistance_not_covered；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V03 | 同 V01，armsUsed=unknown | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V04 | 同 V01，沒有條件回報 | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V05 | 同 V01，assistance=yes | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_assistance_not_covered；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V06 | V01，只改秒數 12→20 秒 | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V07 | V01，只改時間 10 分 | F01-04 | F01-04 | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V08 | V01，只改時間 15 分 | F01-04、F01-01 | F01-04（shortfall 2→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V09 | V01，未選時間 | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V10 | V01＋L05 | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V11 | 來源版本不符（同 V01，看 F01-01） | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| V12 | G04 20 分（其他目標） | F01-09、F01-10、F01-11 | F01-09、F01-10、F01-11 | — |
+| X01 | yes＋unknown 混合 | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_assistance_not_covered+g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| X02 | 非本人的評估（條件 no/no） | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| X03 | 回報值無效（armsUsed="nope"） | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| X04 | 缺欄位（只回報 armsUsed=no） | F01-04、F01-01、F01-10 | no_candidates（0 項） | F01-04:g01_condition_unconfirmed；F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+| X05 | 補回報：先 unknown 再 no/no（最新一筆） | F01-04、F01-01、F01-10 | F01-04（shortfall 3→1） | F01-01:g01_squat_version_unmatched；F01-10:g01_bridge_setting_unconfirmed |
+
+G01 案例：有候選 8、零候選 8；零候選原因（可重疊）：{"g01_assistance_not_covered":3,"g01_condition_unconfirmed":6}
+G02–G05：1536 組輸入（4 目標 × 4 時間 × 32 種限制組合 × 3 種條件快照）修改前後輸出完全相同。

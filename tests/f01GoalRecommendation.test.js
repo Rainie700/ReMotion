@@ -19,10 +19,15 @@ const { exerciseService } = await import("../js/data/exerciseService.js");
 const { F01_GOALS, F01_EXERCISE_MAPPING, F01_EXERCISE_SPEC, F01_RECOMMENDATION_SPEC_SOURCE, F01_SPEC_CONSISTENCY_ISSUES } = await import("../js/data/f01RecommendationSpec.js");
 const { generateF01GoalRecommendation, F01_LIMITATIONS, F01_TIME_OPTIONS, MATCH_LEVEL, F01_RECOMMENDATION_RULE_VERSION } = await import("../js/data/f01GoalRecommendation.js");
 const { recommendationService } = await import("../js/data/recommendationService.js");
+const { orderF01GoalCandidates } = await import("../js/data/f01GoalRecommendation.js");
+const { F01_G01_CONDITION_RULE_VERSION } = await import("../js/data/f01G01ConditionScreen.js");
 
 const catalog = exerciseService.listNormalized();
 const COMPLETED = { status: "completed", sessionId: "fa-test-1", assessmentType: "five_times_sit_to_stand" };
-const run = (over = {}) => generateF01GoalRecommendation({ assessment: COMPLETED, selectedGoalId: "G01", availableMinutes: 20, catalog, ...over });
+// G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md): the engine tests below pass a report that
+// passes the screen (arms not used, no assistance); the screen itself is tested in f01G01ConditionScreen.test.js.
+const CLEAR = { ruleVersion: F01_G01_CONDITION_RULE_VERSION, sourceAssessmentId: "fa-test-1", sourceProblem: null, reportCount: 1, reportIndex: 0, reportSchemaVersion: "fa5x-condition-report-1", reportedAt: "2026-10-27T01:00:00.000Z", reportSource: "self_report", armsUsed: "no", physicalAssistance: "no" };
+const run = (over = {}) => generateF01GoalRecommendation({ assessment: COMPLETED, selectedGoalId: "G01", availableMinutes: 20, catalog, g01Conditions: CLEAR, ...over });
 const ids = (r) => r.items.map((i) => i.exerciseId);
 
 // ── 1. generated spec is in sync with the Excel Source of Truth ──────────
@@ -73,9 +78,15 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
 // ── 3. G01 example ─────────────────────────────────────────────────────────
 {
   const r = run({ selectedGoalId: "G01", availableMinutes: 20 });
-  assert.deepEqual(ids(r), ["F01-04", "F01-01", "F01-10"]);
+  // Policy change (G01 condition screen v1): F01-01 / F01-10 are no longer listed automatically for G01;
+  // the pool order before the screen (shared with D5) is unchanged.
+  const pool = orderF01GoalCandidates({ goal: F01_GOALS.find((g) => g.goalId === "G01"), catalog }).ordered;
+  assert.deepEqual(pool.map((c) => c.exercise.id), ["F01-04", "F01-01", "F01-10"]);
+  assert.deepEqual(pool.map((c) => c.matchLevel), [MATCH_LEVEL.DIRECT, MATCH_LEVEL.SUPPORTING, MATCH_LEVEL.SUPPORTING]);
+  assert.deepEqual(ids(r), ["F01-04"]);
+  assert.deepEqual(r.excluded.map((e) => [e.exerciseId, e.reason]), [["F01-01", "g01_squat_version_unmatched"], ["F01-10", "g01_bridge_setting_unconfirmed"]]);
+  assert.deepEqual(r.shortfall, { requested: 3, available: 1 }, "not padded");
   assert.equal(r.items[0].matchLevel, MATCH_LEVEL.DIRECT, "F01-04 is the Direct candidate");
-  assert.deepEqual(r.items.slice(1).map((i) => i.matchLevel), [MATCH_LEVEL.SUPPORTING, MATCH_LEVEL.SUPPORTING]);
   assert.ok(!ids(r).includes("F01-18"), "F01-18 never enters through G01");
   assert.equal(r.candidateCount, 3);
   const item = r.items[0];
@@ -86,7 +97,10 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
   assert.equal(item.sourceAssessmentId, "fa-test-1");
   assert.equal(item.selectedGoalLabel, "從椅子起身更順");
   assert.equal(item.reason, "坐姿起立直接對應你選擇的「從椅子起身更順」訓練目標，屬於 F01 下肢功能訓練。");
-  assert.ok(r.items[2].reason.startsWith("橋式可作為「從椅子起身更順」相關的輔助訓練"));
+  // (was: the G01 bridge item's supporting reason) — the same supporting-reason sentence, from G04's supporting F01-20
+  const sup = run({ selectedGoalId: "G04", availableMinutes: 20, catalog: catalog.filter((ex) => ex.id === "F01-20") }).items[0];
+  assert.equal(sup.matchLevel, MATCH_LEVEL.SUPPORTING);
+  assert.ok(sup.reason.startsWith(`${sup.exerciseName}可作為「`) && sup.reason.includes("相關的輔助訓練"));
   assert.equal(r.ruleVersion, F01_RECOMMENDATION_RULE_VERSION);
 }
 
@@ -161,7 +175,8 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
   const g5 = run({ selectedGoalId: "G05", limitationIds: ["L05", "L03"] });
   assert.deepEqual(ids(g5), ["F01-17", "F01-18"]);
   assert.deepEqual(g5.excluded.map((e) => `${e.exerciseId}:${e.limitationId}`), ["F01-19:L03", "F01-20:L05"]);
-  assert.equal(run({ selectedGoalId: "G01", limitationIds: ["L01", "L02", "L03", "L04", "L05"] }).excluded.length, 0, "G01 exercises carry none of these precautions");
+  // limitation (R03) exclusions only — the G01 screen's own exclusions carry a reasonCategory, not a limitationId
+  assert.equal(run({ selectedGoalId: "G01", limitationIds: ["L01", "L02", "L03", "L04", "L05"] }).excluded.filter((e) => e.limitationId).length, 0, "G01 exercises carry none of these precautions");
 }
 
 // ── 9. R06 time -> number of exercises only; basis lists only real inputs ─
@@ -172,9 +187,11 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
   assert.equal(run({ selectedGoalId: "G02", availableMinutes: 20 }).items.length, 3);
   assert.equal(run({ selectedGoalId: "G02", availableMinutes: null }).items.length, 3);
   const noTime = run({ selectedGoalId: "G01", availableMinutes: null });
-  assert.deepEqual(noTime.basis.map((b) => b.key), ["assessment", "goal"], "time / limitations not shown when not used");
+  // G01 now also states the condition screen it applied (g01_conditions); still no time / limitations row when not used
+  assert.deepEqual(noTime.basis.map((b) => b.key), ["assessment", "goal", "g01_conditions"], "time / limitations not shown when not used");
+  assert.deepEqual(run({ selectedGoalId: "G02", availableMinutes: null }).basis.map((b) => b.key), ["assessment", "goal"], "other goals: unchanged");
   const full = run({ selectedGoalId: "G01", availableMinutes: 15, limitationIds: ["L01"] });
-  assert.deepEqual(full.basis.map((b) => b.key), ["assessment", "goal", "time", "limitations"]);
+  assert.deepEqual(full.basis.map((b) => b.key), ["assessment", "goal", "time", "g01_conditions", "limitations"]);
   assert.ok(!/分鐘.*剛好|精準|總訓練時間/.test(JSON.stringify(full.basis)), "no claim of an exact total duration");
 }
 
@@ -183,8 +200,13 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
   const partial = catalog.filter((ex) => ex.id !== "F01-10");
   const r = run({ selectedGoalId: "G01", catalog: partial });
   assert.equal(r.status, "ok");
-  assert.deepEqual(ids(r), ["F01-04", "F01-01"]);
+  // was ["F01-04", "F01-01"]: F01-01 is now held back by the G01 screen (reported in excluded, not as missing)
+  assert.deepEqual(ids(r), ["F01-04"]);
+  assert.deepEqual(r.excluded.map((e) => e.exerciseId), ["F01-01"]);
   assert.deepEqual(r.missingExerciseIds, ["F01-10"]);
+  const g04 = catalog.filter((ex) => ex.id !== "F01-12");
+  const r4 = run({ selectedGoalId: "G04", catalog: g04 });
+  assert.ok(r4.missingExerciseIds.includes("F01-12") && !ids(r4).includes("F01-12"), "skipped + reported, never replaced (non-G01 goal)");
   assert.deepEqual(run({ selectedGoalId: "G01" }).missingExerciseIds, [], "current code database covers every F01 id in the pool");
 }
 
@@ -214,6 +236,8 @@ const ids = (r) => r.items.map((i) => i.exerciseId);
   assert.deepEqual(saved.items.map((i) => [i.exerciseId, i.matchLevel]), result.items.map((i) => [i.exerciseId, i.matchLevel]));
   assert.ok(saved.items[0].matchedConditions.length && saved.items[0].reason);
   assert.equal(recommendationService.getLatestF01GoalRecommendation("p-rec").id, saved.id);
+  assert.deepEqual(saved.conditionScreen, { ...CLEAR, sitToStandPassed: true, reasonCodes: [] }, "the condition snapshot and rule version used are stored");
+  assert.ok(saved.excluded.every((e) => !e.limitationId || e.limitationId === "L02"));
   assert.equal(recommendationService.getLatestF01GoalRecommendation("p-rec", { sourceAssessmentId: "other" }), null);
 }
 

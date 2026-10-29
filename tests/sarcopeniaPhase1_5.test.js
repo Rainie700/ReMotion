@@ -46,10 +46,20 @@ const home = sliceFn("patientHome = function()", 12000);
 
 // ── 2. removal left no stray gap — the return template concatenates
 //       cleanly straight from successBannerHtml into functionalAssessmentSectionHtml ─
+// Updated 2026-10-27: the F01 first-plan home card (renderF01InitialPlanHomeCard, added on purpose — see
+// reports/f01-initial-review-browser/README.md 收尾輪) now sits between the two. The guard is kept: nothing
+// else may sit there, and that card is either "" or a real card, never an empty placeholder.
 {
   const returnStatement = home.slice(home.indexOf("return `"));
-  assert.ok(/\$\{successBannerHtml\}\$\{functionalAssessmentSectionHtml\}/.test(returnStatement),
-    "no leftover empty interpolation/placeholder sits between successBannerHtml and functionalAssessmentSectionHtml");
+  // Updated 2026-10-28 (UX round 3/5): the first-plan card now follows the primary task, so next to a running week it
+  // can be a one-line hint under the week card. The guard is the same: nothing else may sit next to them.
+  assert.ok(/\$\{successBannerHtml\}\$\{functionalAssessmentSectionHtml\}(?:\$\{renderF01InitialPlanHomeCard\(patientId\)\})?/.test(returnStatement),
+    "no leftover empty interpolation/placeholder sits next to the primary task (only the F01 first-plan card may)");
+  assert.ok(!/\$\{\s*(""|''|``|null|undefined)\s*\}/.test(returnStatement), "no empty interpolation anywhere in Home's template");
+  const planCard = sliceFn("function renderF01InitialPlanHomeCard(");
+  assert.ok(planCard.includes('if (!n || n.status === "started") return "";') && planCard.includes('class="card f01-initial-plan-home home-primary-task"') && planCard.includes('class="card f01-initial-plan-home is-hint"'),
+    "the card in between renders nothing or a real card — not a leftover sarcopenia placeholder");
+  assert.ok(!planCard.includes("sarcopenia") && !planCard.includes("功能健康追蹤"), "it is not the removed 功能健康追蹤 card");
 }
 
 // ── 3. 開始自主復健 remains Home's first featured card, now opening the
@@ -58,7 +68,10 @@ const home = sliceFn("patientHome = function()", 12000);
   assert.ok(home.includes("開始自主復健"), "開始自主復健 card is still present on Home");
   const primaryIdx = home.indexOf("functionalAssessmentSectionHtml =");
   assert.ok(primaryIdx !== -1, "functionalAssessmentSectionHtml is still built");
-  const card = home.slice(primaryIdx, primaryIdx + 1200);
+  // 2026-10-28 (UX round 3/5): its default (no week, no first plan, data loaded) is built just above as defaultHeroHtml
+  assert.ok(home.slice(primaryIdx, primaryIdx + 300).includes(": defaultHeroHtml);"), "the default hero is the primary task's fallback");
+  const heroIdx = home.indexOf("const defaultHeroHtml =");
+  const card = home.slice(heroIdx, heroIdx + 1200);
   assert.ok(/onclick="goFunctionalDomainHome\(\)"/.test(card), "its primary action now opens the Functional Domain grid");
 }
 
@@ -86,7 +99,9 @@ assert.ok(/function functionalAssessmentShoulderResultPage\(\)/.test(appJs), "sh
 // ── 6. training/gamification/data/profile remain intact ──────────────
 {
   assert.ok(home.includes("myScheduleCardHtml"), "我的課表 (training) still rendered on Home");
-  assert.ok(home.includes("levelXpCardHtml") && home.includes("achievementPreviewHtml"), "gamification (level/XP + achievements) still rendered on Home");
+  // UX round 5/5 (2026-10-28): Home keeps level/XP; the achievements preview moved to 我的 → 復健成就 (same data, same route).
+  assert.ok(home.includes("levelXpCardHtml") && !home.includes("achievementPreviewHtml"), "level/XP still on Home");
+  { const p = appJs.slice(appJs.indexOf("function profilePage()"), appJs.indexOf("function renderDashboard()")); assert.ok(p.includes(">復健成就<") && p.includes('onclick="goAchievements()"'), "achievements reachable from 我的"); }
   assert.ok(home.includes("progressCardHtml"), "progress/Data entry still rendered on Home");
   assert.ok(/onclick="switchTab\('profile'\)"/.test(home), "Profile entry still reachable from Home");
   assert.ok(/BASE_TABS\s*=\s*\[/.test(appJs), "bottom-nav tab config (home/data/profile) still defined");

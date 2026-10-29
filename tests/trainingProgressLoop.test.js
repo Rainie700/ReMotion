@@ -189,11 +189,14 @@ assert.ok(
   assert.ok(/if \(squatSessionFinalized \|\| !meta\)/.test(p), "re-entry guard: already finalized -> no second record/XP");
   assert.ok(/squatSessionFinalized = true;/.test(p), "the session is marked finalized after persisting");
   assert.ok(/ex\.status === "completed"/.test(p), "an already-completed assigned exercise never double-persists");
-  assert.ok(/gamificationEngine\.computeSessionXp\(record\)/.test(p), "XP is derived from the persisted record (idempotent)");
+  // UX round 5/5: the result data is built by setTrainingRewardFeedback (shared with 坐姿起立), still from THIS record
+  assert.ok(/setTrainingRewardFeedback\(meta\.patientId, gamificationBefore, record\)/.test(p) && /gamificationEngine\.computeSessionXp\(record\)/.test(sliceFn("function setTrainingRewardFeedback(")), "XP is derived from the persisted record (idempotent)");
 }
 {
   const d = sliceFn("function exerciseDetailPage()");
-  assert.ok(/state\.rewardFeedback = null;/.test(d), "the reward panel is one-shot — cleared on render so XP is shown once");
+  // UX round 5/5: shown while the person stays on the result page, cleared by render() once they leave it — so a later
+  // visit never shows this XP again (XP itself is still derived once from the record).
+  assert.ok(!/state\.rewardFeedback = null;/.test(d) && appJs.includes('if (state.rewardFeedback && state.route !== "exerciseDetail" && !isTrainingSessionRoute(state.route)) state.rewardFeedback = null;'), "the reward panel is cleared on leaving, so XP is shown for one visit only");
 }
 
 // F — Today's Training shows a persistent completion count.

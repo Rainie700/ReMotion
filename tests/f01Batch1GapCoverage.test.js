@@ -64,7 +64,8 @@ const heroDeps = {
   // F01 batch 2: the card now formats completed days through these real helpers
   displayCompletedTrainingDays: (await import("../js/data/f01DailyTargets.js")).displayCompletedTrainingDays,
 };
-const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
+const hero = new Function(...Object.keys(heroDeps), `${constSource("TRACKING_CTA_FN")}\n${fnSource("weekSyntheticNote")}\n${fnSource("fmtF01TrainingDays")}\n${fnSource("getHomeTrackingCycle")}\n${fnSource("trackingCardState")}
+${fnSource("renderTrackingCycleCard")}\n${fnSource("renderTrackingSecondaryActions")}\nreturn { renderTrackingCycleCard, renderTrackingSecondaryActions };`)(...Object.values(heroDeps));
 
 const catalog = exerciseService.listNormalized();
 function fiveXSts(userId, { ms, at }) {

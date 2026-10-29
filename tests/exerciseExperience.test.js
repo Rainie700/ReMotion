@@ -94,6 +94,14 @@ for (const raw of rehabExercises) {
   const prep = V.renderPreparationView(model, { backFn: "goSchedule()", ctaHtml: `<button class="btn btn-primary full exp-cta" onclick="openCameraPlaceholder()">開啟鏡頭</button>`, moreHtml: "<div class='ai-box'>x</div>" });
   assert.ok(prep.includes("準備開始") && prep.includes("開啟鏡頭") && prep.includes("全身入鏡") && prep.includes("光線充足") && prep.includes("相機固定"), `${id}: preparation`);
   assert.equal((prep.match(/class="exp-check"/g) || []).length, 3, `${id}: compact checklist`);
+  // nothing reads as a detection result before the camera is on; one CTA, lifted out of the scroll
+  assert.ok(!prep.includes("AI 觀察") && !prep.includes("exp-chip--body"), `${id}: no body-point chips before the camera`);
+  assert.equal(prep.split("開啟鏡頭").length - 1, 1, `${id}: one 開啟鏡頭`);
+  assert.ok(prep.slice(prep.indexOf(V.PAGE_ACTION_OPEN)).includes("開啟鏡頭") && !prep.slice(0, prep.indexOf(V.PAGE_ACTION_OPEN)).includes("exp-cta"), `${id}: CTA is the page-level action`);
+  if (model.precautions.length) {
+    const lean = V.renderPreparationView(model, { backFn: "x()", ctaHtml: "<button>開啟鏡頭</button>", moreHtml: "<div class='ai-box'>x</div>", showCare: false, name: "坐站練習", targetHtml: "<span>本次 5 次</span>" });
+    assert.ok(!lean.includes("exp-prep-safety") && !lean.includes("<details") && lean.includes(">坐站練習</h2><span>本次 5 次</span>"), `${id}: showCare=false keeps only placement + camera`);
+  }
   // result
   const res = V.renderTrainingResultView(model, { backFn: "goSchedule()", completed: true, totalReps: 10, targetReps: 10, score: 80, rewardHtml: "", observations: ["a", "b", "c", "d"], detailsHtml: "<p>detail</p>", ctaHtml: `<button class="btn btn-primary full exp-cta" onclick="goSchedule()">返回今日復健</button>` });
   assert.ok(res.includes("✓ 完成本次訓練") && res.includes("10 / 10 次") && res.includes("AI 姿勢分數") && res.includes("返回今日復健"), `${id}: result core`);
@@ -138,7 +146,10 @@ assert.deepEqual(domains, { F01: 20, F02: 9, F03: 11, F04: 7, F05: 7, F06: 12 },
   const detail = fnSource("exerciseDetailPage");
   assert.ok(detail.includes("buildExerciseExperience(catalog, { planItem: ex })") && detail.includes("renderExerciseDetailView(model"), "detail = shared adapter + renderer");
   assert.ok(detail.includes('onclick="goDetectionPrep()"') && detail.includes("getExerciseReturnRoute(\"listing\")"), "CTA + context-derived return");
-  assert.ok(detail.includes("state.rewardFeedback = null;") && detail.includes("renderTrainingResultView(model"), "one-shot training result");
+  // UX round 5/5: still one result per training, but it stays while the person is on the page (a re-render after the
+  // cloud write settled used to drop it at once); render() clears it as soon as the person leaves the page.
+  assert.ok(!detail.includes("state.rewardFeedback = null;") && detail.includes("renderTrainingResultView(model")
+    && appJs.includes('render = function() {if (state.rewardFeedback && state.route !== "exerciseDetail" && !isTrainingSessionRoute(state.route)) state.rewardFeedback = null;'), "one training result, cleared on leaving");
   assert.ok(detail.includes('toTraining ? "返回今日復健" : "完成"') && detail.includes("exerciseResultMode = true"), "result CTA + session chrome");
   assert.ok(/source-tag-badge assigned">復健師安排[\s\S]*source-tag-badge recommendation">ReMotion 建議[\s\S]*source-tag-badge self-practice">自主練習/.test(detail), "source badge per start context");
   const prep = fnSource("detectionPrepPage");
@@ -176,7 +187,7 @@ assert.deepEqual(domains, { F01: 20, F02: 9, F03: 11, F04: 7, F05: 7, F06: 12 },
   // naming: no prototype / 品質評估 wording left in the UI
   assert.ok(!/prototype 工程|prototype 動作品質|prototype 評估|（prototype）|分品質評估/.test(appJs), "prototype wording removed");
   // Data -> F01 追蹤歷程 (read-only sub-page with 返回; the tab itself has none)
-  assert.ok(fnSource("renderDataFunctionalSection").includes("goF01TrackingHistory()") && fnSource("renderDataFunctionalSection").includes("查看追蹤歷程 →"));
+  assert.ok(fnSource("renderDataFunctionalSection").includes("goF01TrackingHistory()") && fnSource("renderDataFunctionalSection").includes("查看功能評估 ›")); // UX round 5/5: one entry, named for its page
   const hist = fnSource("f01TrackingHistoryPage");
   assert.ok(hist.includes("switchTab('data')") && hist.includes("functionalProgressService.getTrackingTimeline(") && !/\.create\(|\.update\(/.test(hist), "history is read-only (derived timeline) with its own back");
   assert.ok(!fnSource("patientDataOverviewPage").includes("detail-back-btn"), "Data tab has no back button");

@@ -1,0 +1,20 @@
+PASS | 1a one candidate, stated as one; no full-length claim
+PASS | 1b plan saved with the condition snapshot and rule version | {"ruleVersion":"f01-g01-condition-screen-1.0","sourceAssessmentId":"fa-4bEayPmZ","sourceProblem":null,"reportCount":1,"reportIndex":0,"reportSchemaVersion":"fa5x-condition-report-1","reportedAt":"2026-10-27T05:09:23.228Z","reportSource":"self_report","armsUsed":"no","physicalAssistance":"no","sitToStandPassed":true,"reasonCodes":[]}
+PASS | 1c week created in the emulator on that plan
+PASS | 1d left-out exercises listed with their kind; not offered back as other options
+PASS | 1e training preparation opened; today's targets frozen from the one-item plan | [["F01-04"]]
+PASS | 2a zero-candidate page with every reason kind
+PASS | 2b no backfill-as-unlock, no training, invite-code exit (unlinked)
+PASS | 2c nothing saved, no cycle
+PASS | 3a zero page: conditions not confirmed, backfill entry
+PASS | 3b nothing saved before backfill
+PASS | 3c the existing form opens with no answer pre-selected
+PASS | 3d report appended in the cloud; the earlier one kept | ["unknown","no"]
+PASS | 3e new recommendation from the latest report; week starts | [{"ruleVersion":"f01-g01-condition-screen-1.0","sourceAssessmentId":"fa-jYCxVZ55","sourceProblem":null,"reportCount":2,"reportIndex":1,"reportSchemaVersion":"fa5x-condition-report-1","reportedAt":"2026-10-27T05:10:08.224Z","reportSource":"self_report","armsUsed":"no","physicalAssistance":"no","sitToStandPassed":true,"reasonCodes":[]}]
+PASS | 4a existing week running on a G02 plan
+PASS | 4b G01 with reported assistance -> zero-candidate page, says the running week is unaffected
+PASS | 4c the week and its plan are unchanged in the cloud; no new plan
+PASS | 4d the running plan's training entry still works
+PASS | 4e home still shows the running week
+PASS | no page errors | []
+19/19 steps passed

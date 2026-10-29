@@ -1,0 +1,16 @@
+PASS | 0 an existing running week (G02) before any fixed practice | ["G02"]
+PASS | 1a instructions: fixed content, NHS source, 5 repetitions, read-only acknowledgement, separate Otago reminder
+PASS | 1b start disabled until read
+PASS | 1c preparation page: 5 次（固定練習目標）, not the catalog 3×8 | 返回 準備開始 坐姿起立 拍攝角度 正面（全身入鏡，椅子固定且周圍無障礙物） 本次目標：5 次（固定練習目標） 本版內容固定，每個人相同。你的五次坐站秒數沒有用來決定這個動作或次數，也不會因此自動調整。 AI 依膝角姿態計次；系統看不到手，無法確認是否用手撐。計次成功不代表動作品質合格。無法確認的動作不會計入。 單次起身到坐回超過 10 秒且中途追蹤中斷時，系統無法確認，不會計入；可以提早結束，會如實記錄。 全身入鏡 光線充足 相機固定 AI 觀察 髖 膝 踝 軀幹 ⚠ 控制重心前移 注意事項與 AI 說明 開啟鏡頭 本機測試資料｜Firebase 模擬器（demo-remotion）｜非正式資料
+PASS | 1d camera page: target / 5 and the fixed-practice note
+PASS | 1e synthetic frames through the real LE05 session: 5 counted | {"ok":true,"totalReps":5,"unconfirmed":0,"completed":true,"last":null}
+PASS | 2 result page and cloud record agree: AI 5 / 5, target 5, synced, marked synthetic | [{"method":"ai_pose","countedReps":5,"targetReached":true,"endedEarly":false,"unconfirmedAttemptCount":0,"unconfirmedReasons":[],"longCycleRepCount":0,"abortedRiseCount":0,"handSupportVerified":false}]
+PASS | 3a synthetic early stop: 2 counted, 1 unconfirmed (not added) | {"ok":true,"totalReps":2,"unconfirmed":1,"completed":false,"last":null}
+PASS | 3b ended early saved as it is (2 / 5, 1 unconfirmed); 5a cloud write refused -> NOT shown as synced
+PASS | 5b retry -> synced; exactly one document for that run (no duplicate) | [["es5_3_kp9tsj",5],["g1h_4_ltq9l0",2]]
+PASS | 4a self-report added: AI count still 2 in the cloud, self-report 4 kept apart
+PASS | 4b self-report only: no AI count, saved as self-report; no analysisRecord created
+PASS | 6 reload and a new login show the same 3 records (numbers + sync) | ["10/27 AI 計次：本次沒有使用相機｜自行回報：5 次（本人填寫，與 AI 計次分開） 已同步到雲端","10/27 AI 計次：2 / 5 次（提早結束）｜另有 1 次動作無法確認，沒有計入｜自行回報：4 次（本人填寫，與 AI 計次分開） 已同步到雲端","10/27 AI 計次：5 / 5 次（達到本次目標）｜自行回報：未填寫 已同步到雲端"]
+PASS | 7 the existing week is unchanged (same document, no completion days, no new cycle); no analysisRecord added
+PASS | no page errors | []
+15/15 steps passed

@@ -1,0 +1,20 @@
+f01FixedPracticeRulesCheck (local emulator, demo-remotion)
+PASS  owner creates own record
+PASS  same id written again with the same content (retry)
+PASS  outsider cannot create one for the patient
+PASS  id must carry the owner's uid
+PASS  target other than 5 repetitions refused
+PASS  other exercise refused
+PASS  without instructionsReadAt refused
+PASS  owner reads
+PASS  owner lists own records
+PASS  outsider cannot read
+PASS  outsider cannot list the patient's records
+PASS  self-report added later
+PASS  AI count cannot be changed
+PASS  target cannot be changed
+PASS  other fields cannot be changed
+PASS  outsider cannot update
+PASS  a record owned by someone else at that id cannot be overwritten
+PASS  owner cannot delete
+18/18 passed

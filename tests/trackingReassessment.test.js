@@ -20,6 +20,10 @@ const { functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES } = await impor
 const { recommendationService } = await import("../js/data/recommendationService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+// G01 fixture plans stand for existing plans made before the G01 condition screen (never rewritten);
+// a new G01 plan needs a condition report (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md)
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
+const generatePlan = (input) => (input.selectedGoalId === "G01" ? generatePreScreenF01GoalRecommendation : generateF01GoalRecommendation)(input);
 const { createCollection } = await import("../js/data/storageService.js");
 
 const S = T.TRACKING_STATUS;
@@ -34,7 +38,7 @@ function fiveXSts(userId, { status = "completed", at = [2026, 8, 28, 14, 0], rol
 }
 function startCycle(userId) {
   const baseline = fiveXSts(userId);
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: baseline.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
+  const r = generatePlan({ assessment: { status: "completed", sessionId: baseline.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
   const rec = recommendationService.createF01GoalRecommendation({ patientId: userId, result: r, createdBy: userId }).recommendation;
   const cycle = trackingCycleService.createOrGetTrackingCycle({ userId, baselineSession: baseline, recommendation: rec }).cycle;
   return { baseline, rec, cycle };
@@ -168,7 +172,8 @@ const complete = (args) => trackingCycleService.completeTrackingCycleWithReasses
   assert.deepEqual(model.cta, { label: "查看前後比較", action: "compare" });
   const text = JSON.stringify(model);
   for (const w of ["改善", "提升", "退步", "進步", "維持", "%", "秒差"]) assert.ok(!text.includes(w), `no 「${w}」`);
-  const card = appJs.slice(appJs.indexOf("function renderTrackingCycleCard("), appJs.indexOf("function goTrackingWeekTraining("));
+  // UX round 5/5: the card's data rules live in trackingCardState (shared with 數據 總覽), right before the renderer
+  const card = appJs.slice(appJs.indexOf("function trackingCardState("), appJs.indexOf("function goTrackingWeekTraining("));
   assert.ok(card.includes("cycle.reassessmentDateKey ||"), "home uses the stored reassessment tracking date");
 }
 

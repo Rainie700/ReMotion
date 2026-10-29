@@ -85,3 +85,18 @@ ReMotion-code-audit.zip
 
 # patient00 demo history: account snapshots, write manifests and backups (contain account ids)
 scripts/demo/patient00History6w/private/
+
+# Round 5 / guest-entry local test artifacts (2026-10-29): kept on this machine, not uploaded
+# - frames from the user's own camera recording (private images); the replay summary/trace stay tracked
+reports/le05-camera-r2/replay/replay-*.png
+# - browser test recordings (large; the step logs and screenshots are the evidence)
+reports/ux-r5/**/video/
+reports/guest-entry/**/video/
+# - old ZIP, and superseded / interrupted runs not cited by any README
+reports/ux-r3/regression-r1.zip
+reports/guest-entry/size-prev-layout/
+reports/ux-r5/browser-before-r5b/
+reports/ux-r5/regression-r1-before-r5b/
+reports/ux-r5/regression-g01-run1-stale/
+reports/ux-r5/regression-r4-run1-stale/
+reports/ux-r5/regression-*-INTERRUPTED/

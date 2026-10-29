@@ -1,0 +1,75 @@
+# 2026-10-27T03:38Z Chromium (Playwright 1.56.1, headless) + Vite dev (?emulator=1) + Auth/Firestore emulators (demo-remotion), firebase-tools 13.35.1, JDK 22
+[33m[1m!  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode f01InitialReviewBrowserCheck.mjs[22m
+PASS | A1 plan saved with verifiable fields | [["F01-09","F01-10","F01-11"]]
+PASS | A2 first week created in the emulator (rules accepted it: plan was synced first)
+PASS | A3 no review card, training entries present
+PASS | A4 today plan lists the plan
+PASS | A5 training preparation page opened; today's targets frozen in the cloud from the plan | {"required":["F01-09","F01-10","F01-11"],"targets":{"F01-09":{"sets":3,"reps":10,"source":"catalog_default"},"F01-10":{"sets":3,"reps":10,"source":"catalog_default"},"F01-11":{"sets":3,"reps":10,"source":"catalog_default"}}}
+OBSERVED (this script, Playwright 1.56.1): page.waitForFunction(async () => false, null, { timeout: 2000 }) returned after 7 ms
+PASS | B1 L05 + F01-11 -> pending review, no week, no training | ["F01-09","F01-10","F01-11"]
+PASS | H1 home: 待復健師檢視 (linked) -> 查看待檢視安排, no 'notified' claim | 首次訓練安排 待復健師檢視 這份首次訓練安排需要復健師檢視；系統不會另外通知復健師，可以主動告知對方。 查看待檢視安排 重新載入
+PASS | R1 therapist (logged in earlier) does not see the new plan yet
+PASS | R2 therapist 重新載入 -> the new plan appears without a page refresh | 已重新載入（上午11:39）
+PASS | B2 therapist form shows the candidate list
+PASS | R3 therapist 重新載入 keeps the unsent form (items, sets, reason) | 已重新載入（上午11:39）
+PASS | B3 confirmation written to the emulator by the therapist
+PASS | R4 patient still sees the pending state before reloading
+PASS | R5 patient 重新載入 -> 待接受; the reload accepted nothing and started nothing | 已重新載入（上午11:39）
+PASS | R6 reload failure: error shown, the confirmed content stays | 更新失敗：以下是先前載入的內容，可能不是最新的；請確認網路後再試一次。
+PASS | R7 retry after the failure succeeds | 已重新載入（上午11:39）
+HYDRATE patient B after the therapist confirmed first={"trackingCycles":null,"d5TherapistReviews":null,"f01InitialReviews":null} final={"trackingCycles":"loaded","d5TherapistReviews":"loaded","f01InitialReviews":"loaded"} after 952 ms
+PASS | B4 after refresh: confirmed content + accept entry
+PASS | H2 home: 復健師已確認 -> 查看確認安排 | 首次訓練安排 復健師已確認，等待你接受 復健師已確認你的首次訓練安排，查看內容後可以接受。 查看確認安排 重新載入
+PASS | B5 cycle sync refused -> accepted, week NOT reported as started
+PASS | H3 home: sync failed and retryable -> 開始第一週 | 首次訓練安排 已接受，第一週尚未開始 第一週還沒開始（上次可能沒有同步完成），可以重試。 開始第一週 已接受安排，但第一週尚未同步到雲端，因此還沒開始；請確認網路後按「開始第一週」重試（若其他裝置已開始，請重新登入以載入）。 重新載入
+PASS | B6 retry starts the week once
+PASS | B7 recommendation page = confirmed plan
+PASS | B8 today plan = confirmed plan
+PASS | B9 training preparation froze the confirmed plan: F01-09 at the therapist's 2 sets | {"required":["F01-09","F01-10"],"targets":{"F01-09":{"sets":2,"reps":10,"source":"therapist_dose"},"F01-10":{"sets":3,"reps":10,"source":"catalog_default"}}}
+PASS | B10 after refresh (started): training entries kept
+PASS | H4 home: first week started -> no duplicate to-do; the week's own entries are there | ["開始今日訓練","本週訓練\n查看目前安排的訓練內容","本週紀錄\n本週初次評估結果","回報今日感受","首頁","訓練","數據","我的"]
+PASS | C1 pending review on the earlier assessment
+PASS | C2 accepted on a later day: no week yet
+PASS | C3 after refresh (待新基準): fresh-baseline entry kept
+PASS | H5 home: 已接受、待新基準 -> 開始第一週基準評估 | 首次訓練安排 已接受，請完成新的基準評估 完成一次新的五次坐站後，第一週會以那一天開始。 開始第一週基準評估 重新載入
+PASS | C4 synthetic finished run handed to the real completion handler | {"ok":true}
+PASS | C5 first week from the fresh baseline | [["2026-10-27","functionalAssessment_mvq50tl1_1_gnkf3x"]]
+PASS | C6 recommendation page = confirmed plan
+PASS | C7 today plan = confirmed plan
+PASS | C7b training preparation froze the confirmed plan | {"required":["F01-09","F01-10"],"targets":{"F01-09":{"sets":3,"reps":10,"source":"catalog_default"},"F01-10":{"sets":3,"reps":10,"source":"catalog_default"}}}
+PASS | C8 after refresh (started)
+PASS | H6 home: 待復健師檢視 without a therapist -> says it cannot be completed now | 首次訓練安排 待復健師檢視 目前沒有連結的復健師，這份安排暫時無法完成檢視；可以查看說明與邀請碼入口。 查看待檢視安排 重新載入
+PASS | H7 its entry opens the existing explanation + invite-code entry
+PASS | H8 home: accepted but the old week runs -> 尚未啟用 + 查看原本的週期; the week's own entry and plan unchanged | 首次訓練安排 已接受，尚未啟用 已接受的首次訓練安排尚未啟用；目前的 7 日追蹤仍在進行，不會被取代。 查看原本的週期 重新載入 已重新載入（上午11:40） | ["查看原本的週期","重新載入","開始今日訓練","本週訓練\n查看目前安排的訓練內容","本週紀錄\n本週初次評估結果","回報今日感受","首頁","訓練","數據","我的"]
+PASS | H9 查看原本的週期 opens the running week's plan
+PASS | H10 today plan is still the running week's plan
+── entries observed (home tab buttons / journey page first-plan card) ──
+B 待檢視
+  home: ["查看待檢視安排","重新載入","回報今日感受","首頁","訓練","數據","我的"]
+  journey: 首次訓練安排 待復健師檢視 這份首次訓練安排需要復健師檢視；系統不會另外通知復健師，可以主動告知對方。 查看待檢視安排
+B 待接受
+  home: ["查看確認安排","重新載入","回報今日感受","首頁","訓練","數據","我的"]
+  journey: 首次訓練安排 復健師已確認，等待你接受 復健師已確認你的首次訓練安排，查看內容後可以接受。 查看確認安排
+B 已開始
+  home: ["開始今日訓練","本週訓練\n查看目前安排的訓練內容","本週紀錄\n本週初次評估結果","回報今日感受","首頁","訓練","數據","我的"]
+  journey: 首次訓練安排 第一週已開始 第一週使用你已接受、復健師確認的安排。 查看本週訓練
+C 待新基準
+  home: ["開始第一週基準評估","重新載入","回報今日感受","首頁","訓練","數據","我的"]
+  journey: 首次訓練安排 已接受，請完成新的基準評估 完成一次新的五次坐站後，第一週會以那一天開始。 開始第一週基準評估
+C 已開始
+  home: ["開始今日訓練","本週訓練\n查看目前安排的訓練內容","本週紀錄\n本週初次評估結果","回報今日感受","首頁","訓練","數據","我的"]
+  journey: 首次訓練安排 第一週已開始 第一週使用你已接受、復健師確認的安排。 查看本週訓練
+PASS | no page errors | []
+42/42 steps passed
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator

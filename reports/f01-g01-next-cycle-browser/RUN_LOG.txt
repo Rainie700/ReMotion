@@ -1,0 +1,14 @@
+PASS | 1a proposal stored in the emulator by the patient: G01-N01, no automatic decision; withdrawn R005 kept only as trace | {"ruleVersion":"f01-g01-next-cycle-1.0","applied":true,"withdrawnMatrix":{"ruleId":"R005","decision":"progress"},"conditionStatus":"reported_conditions_consistent"}
+PASS | 1b patient page: 需要更多資料 / 不自動判定 / 待復健師另行安排; both times shown; conditions row; no 進階 / 維持 conclusion
+PASS | 1c no acceptance entry on the page
+PASS | 1d calling the acceptance service directly is refused; nothing created | {"error":"not_confirmable","arrangementStatus":"no_auto"}
+PASS | 1e home tracking card: both times + 查看下一階段建議, no 進階 / 維持 verdict
+PASS | 1f journey card: the shared arrangement status (目前資料不足以自動安排下一週)
+PASS | 2a therapist sees 不自動判定, the withdrawn-time reason and the reference-only previous week
+PASS | 2b therapist confirmation written to the emulator
+PASS | 3a after review: 復健師已確認，可以接受 + accept entry
+PASS | 3b accepted in the emulator; manual no-auto continuation needs a fresh baseline; no next week created yet | {"baselineReuseAllowed":false,"requiresFreshBaseline":true,"confirmationDateKey":"2026-10-27","reassessmentDateKey":"2026-10-27","baselineAssessmentId":null,"baselineMeasuredAt":null,"cycleStartDateKey":null,"plannedReassessmentDateKey":null,"freshBaselineReason":"manual_no_auto_arrangement"}
+PASS | 4a differ: stored status + reasons; change not read against the reference
+PASS | 4b unlinked: existing honest text + invite code, no acceptance, no claim of a professional taking over
+PASS | no page errors | []
+13/13 steps passed

@@ -263,9 +263,10 @@ const d5Records = (userId) => recs.query((r) => r.origin === D5_PROPOSAL_ORIGIN 
   const other = completedCycle("n-own-2");
   cycles.update(other.cycle.id, { recommendationId: rec.id });
   assert.equal(evaluate("n-own-2", other.cycle.id).error, "recommendation_not_found");
-  // Cycle not completed yet
+  // Cycle not completed yet (any ordinary plan; G02 because a new G01 plan without a condition report has
+  // no candidate under the G01 condition screen — docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md)
   const b = fiveXSts("n-open");
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", catalog });
+  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G02", catalog });
   const openRec = recommendationService.createF01GoalRecommendation({ patientId: "n-open", result: r }).recommendation;
   const open = trackingCycleService.createOrGetTrackingCycle({ userId: "n-open", baselineSession: b, recommendation: openRec }).cycle;
   assert.equal(evaluate("n-open", open.id).error, "cycle_not_completed");
@@ -276,7 +277,7 @@ const d5Records = (userId) => recs.query((r) => r.origin === D5_PROPOSAL_ORIGIN 
   const busy = completedCycle(u3);
   const p3 = evaluate(u3, busy.cycle.id).proposal;
   const b3 = fiveXSts(u3);
-  const r3 = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b3.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", catalog });
+  const r3 = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b3.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G02", catalog }); // any ordinary plan (see above)
   const rec3 = recommendationService.createF01GoalRecommendation({ patientId: u3, result: r3 }).recommendation;
   const act = trackingCycleService.createOrGetTrackingCycle({ userId: u3, baselineSession: b3, recommendation: rec3 }).cycle;
   const res3 = trackingCycleService.confirmD5Proposal({ proposalId: p3.id, userId: u3, confirmationDateKey: DAY7 });

@@ -130,7 +130,9 @@ const { cycle, rec } = startCycle(u);
   a = adv(u, "2026-10-05");
   assert.equal(a.completedCount, 7, "stage 7: the next-stage decision exists (any decision)");
   assert.deepEqual([a.currentStage.n, a.currentStage.state, a.waitingReason], [8, "waiting", "professional_review"]);
-  assert.equal(a.detail, "下一週訓練目前等待進一步確認。");
+  // stage 8 follows the shared arrangement status; this patient has no linked therapist
+  assert.equal(a.detail, "下一週訓練待復健師檢視；目前沒有連結的復健師，可以查看說明與邀請碼入口。");
+  assert.ok(!/已通知|等待你的復健師/.test(a.detail), "never claims a therapist was notified / has taken it");
   assert.ok(!/失敗|錯誤|卡關/.test(JSON.stringify(a)));
   // no_auto / normal draft also only wait
   const p2 = trackingCycleService.evaluateD5Proposal({ cycleId: cycle.id, userId: u, input: { hasNewOrWorseningDiscomfort: false, discomfortNote: null, currentLimitations: [] }, catalog }).proposal;

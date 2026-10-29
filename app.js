@@ -1,5 +1,5 @@
 import { authService } from "./js/data/authService.js";
-import { storageService, isLocalDemoStorage } from "./js/data/storageService.js";
+import { storageService, isLocalDemoStorage, waitForCloudWrites } from "./js/data/storageService.js";
 import { isEmulatorMode, checkEmulatorsReachable, EMULATOR_PROJECT_ID } from "./js/data/firebase.js";
 // 本機隔離展示 (dev server + ?localDemo=d5 only): separate storage prefix, no Firebase login, no cloud.
 const LOCAL_DEMO_MODE = isLocalDemoStorage();
@@ -28,11 +28,18 @@ import { userService } from "./js/data/userService.js";
 import { relationService } from "./js/data/relationService.js";
 import { generateId, nowIso } from "./js/utils/id.js";
 import { getD5Arrangement, getD5Review, listD5ReviewsForPatient, listD5ReviewOptions, reviewD5Proposal } from "./js/data/d5TherapistReviewService.js";
+import { getInitialArrangement, canTrainFromRecommendation, listInitialReviewOptions, listInitialReviewsForPatient, reviewInitialRecommendation, acceptInitialPlan, startInitialPlanCycle, startRecommendationCycle } from "./js/data/f01InitialReviewService.js";
+import { initialPlanFingerprint, initialReviewVersionId, INITIAL_PLAN_BASELINE_ROLE } from "./js/data/f01InitialReview.js";
 import { planFingerprint } from "./js/data/d5Arrangement.js";
-import { compareD5Weeks, describeD5ContentChange, explainD5Decision, describeD5Item, D5_DOSAGE_NOTE, describeDecisionSource, LLM_DRAFT_DECISION_LABEL } from "./js/ui/d5ProposalView.js";
+import { compareD5Weeks, describeD5ContentChange, explainD5Decision, describeD5Item, D5_DOSAGE_NOTE, describeDecisionSource, LLM_DRAFT_DECISION_LABEL, describeD5ConditionStatus, summarizeD5ActualChange } from "./js/ui/d5ProposalView.js";
 import { requestD5LlmDraft } from "./js/services/d5RecommendationDraftService.js";
 import { LLM_RECOMMENDATION_CONFIG } from "./js/config/llmRecommendationConfig.js";
-import { describeFa5xEvidence, describeD5Evidence, pickF01RecommendationForPage, describeTrainingVolume, describePlanVolume, formatPlanVolume, PLAN_VOLUME_SOURCE_NOTE, displayConditionText, explainF01Item, listF01OtherOptions, describeF01ListSize, F01_NOT_USED_IN_RANKING } from "./js/ui/f01RecommendationView.js";
+import { describeFa5xEvidence, describeD5Evidence, pickF01RecommendationForPage, describeTrainingVolume, describePlanVolume, formatPlanVolume, PLAN_VOLUME_SOURCE_NOTE, displayConditionText, explainF01Item, listF01OtherOptions, describeF01ListSize, F01_NOT_USED_IN_RANKING, hasF01EvidenceTrail, describeF01ItemEvidence, F01_SELECTION_METHOD_NOTE, F01_MAPPING_STATUS_NOTE, describeF01CycleStartNotice, F01_CYCLE_START_ERROR_TEXT, F01_G01_SCREEN_NOTE, describeG01Exclusion, describeG01NoCandidates } from "./js/ui/f01RecommendationView.js";
+import { buildG01ConditionSnapshot, F01_G01_SCREEN_GOAL_ID } from "./js/data/f01G01ConditionScreen.js";
+import * as FP from "./js/data/f01FixedPractice.js";
+import { f01FixedPracticeService, FIXED_PRACTICE_SYNC } from "./js/data/f01FixedPracticeService.js";
+import { buildCycleDailyReports } from "./js/data/cycleDailyReports.js";
+import { renderCycleDailyReports } from "./js/ui/cycleDailyReportsView.js";
 import { describeWeekArrangement } from "./js/ui/weekArrangementView.js";
 import { isDemoSynthetic, isSimulatedConfirmation, isSimulatedReview, demoSyntheticBadge, describeWeekSynthetic, syntheticWeeksText, DEMO_SYNTHETIC_TEXT, SIMULATED_CONFIRMATION_TEXT, SIMULATED_REVIEW_TEXT } from "./js/ui/demoSyntheticLabel.js";
 import { createWeeklySummary, getSavedWeeklySummary, confirmWeeklySummary, listWeeklySummariesForPatient } from "./js/services/llmWeeklySummaryService.js";
@@ -200,6 +207,8 @@ import { calculateSeatedKneeExtensionScore, buildSeatedKneeExtensionRemark } fro
 import { LE05_REQUIRED_LANDMARKS, LE05_THRESHOLDS, LE05_ANALYSIS_MODE, DEFAULT_LE05_REWARD_XP } from "./js/ai/exercises/sitToStand/constants.js";
 import { computeSitToStandMetrics } from "./js/ai/exercises/sitToStand/poseMath.js";
 import { createSitToStandSession } from "./js/ai/exercises/sitToStand/session.js";
+import { deriveLe05Guidance, createLe05GuidanceTracker } from "./js/ai/exercises/sitToStand/trainingGuidance.js";
+import { le05MissingJoints } from "./js/ai/exercises/sitToStand/trainingTrace.js";
 import { LE05_QUALITY_ISSUE, LE05_QUALITY_ISSUE_LABELS, LE05_QUALITY_SUGGESTIONS } from "./js/ai/exercises/sitToStand/quality.js";
 import { calculateSitToStandScore, buildSitToStandRemark } from "./js/ai/exercises/sitToStand/score.js";
 import { FA5X_PARAMS, FA5X_TARGET_REPS, FA5X_PHASE, FA5X_RESULT_STATUS, FA5X_END_REASON, FA5X_REJECT_REASON, FA5X_PROMPTS, FA5X_REP_STATE_LABELS } from "./js/ai/exercises/sitToStand/assessmentConstants.js";
@@ -290,6 +299,7 @@ import { gamificationEngine } from "./js/data/gamificationEngine.js";
 // I-3 — the map now uses the F01 cycle journey; the achievement-based resolver
 // (js/data/rehabAdventureStages.js) is kept as a legacy module but no longer rendered.
 import { f01AdventureService } from "./js/data/f01AdventureProgress.js";
+import { loadInitialPlanNotice } from "./js/data/f01AdventureProgress.js";
 import { buildJourneyChapters, journeyEnvironmentLevel, journeyPathStates, journeyStageWindow } from "./js/data/journeyPresentation.js";
 import { cycleTrainingPerformanceService, compareCycleScores } from "./js/data/cycleTrainingPerformance.js";
 import { buildExerciseExperience, buildExerciseDosage, splitExerciseText, EXERCISE_DOMAIN_ICONS } from "./js/data/exerciseExperienceAdapter.js";
@@ -305,16 +315,17 @@ import { sameTargetSummary, F01_FORMAL_COMPLETION_RULES_VERSION, displayComplete
 import { trainingEventService, summarizeTrainingWeek, filterTrainingEventsBySource, normalizeTrainingEvent, buildCycleCompletionIndex, TRAINING_SOURCE_LABEL, resolveTrainingCompletion } from "./js/data/trainingEventService.js";
 import { functionalProgressService } from "./js/data/functionalProgressService.js";
 import { D5_DECISION, D5_DECISION_LABEL, CONFIRMATION_MODE, TRANSITION_TYPE, measuredDateKeyOf } from "./js/data/f01ProgressionDecision.js";
-import { describeTimeDifference } from "./js/data/trackingComparison.js";
+import { describeTimeDifference, describeShownTimeDifference, shownTenths } from "./js/data/trackingComparison.js";
 import { dailyTrainingFeedbackService } from "./js/data/dailyTrainingFeedbackService.js";
-import { renderDailyFeedbackCard, renderDailyFeedbackHistory } from "./js/ui/dailyTrainingFeedbackView.js";
+import { renderDailyFeedbackHistory, renderFeedbackWeek, renderDailyFeedbackEntry, renderDailyFeedbackSheet, dailyFeedbackSteps, dailyFeedbackSummary } from "./js/ui/dailyTrainingFeedbackView.js";
 import { currentIncompleteTrainingProgress } from "./js/data/incompleteTrainingFeedbackService.js";
 import { progressFingerprint } from "./js/data/incompleteTrainingFeedback.js";
 import { selfReportedTrainingService } from "./js/data/selfReportedTrainingService.js";
 import { renderSelfReportedTrainingForm, renderSelfReportedTrainingHistory } from "./js/ui/selfReportedTrainingView.js";
 import { isCurrentFa5xMeasurement } from "./js/data/fa5xMeasurementCompatibility.js";
 import { describeFa5xConditions, FA5X_CONDITION_ISSUE_TEXT, FA5X_CONDITION_LABEL } from "./js/data/fa5xConditionReport.js";
-import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView } from "./js/data/trackingCycle.js";
+import { TRACKING_STATUS, TRACKING_CYCLE_LENGTH_DAYS, isDateKey, toLocalDateKey, getTrackingCycleViewState, buildTrackingCardModel, formatDateKeyMonthDay, getDailyProgressView, isTrainingDateInCycle, diffDateKeys, addDaysToDateKey } from "./js/data/trackingCycle.js";
+import { GENERAL_CONTEXT, REPORT_SUBJECT_KIND, cycleContextKey, latestForContext } from "./js/data/dailyTrainingFeedback.js";
 import { BODY_READINESS } from "./js/ai/poseMath.js";
 import { CAMERA_READY_LANDMARKS, SHOULDER_CAMERA_THRESHOLDS, SHOULDER_SIDE, SHOULDER_MEASUREMENT_LANDMARKS } from "./js/ai/exercises/shoulder/constants.js";
 import { createShoulderMeasurementSession, SHOULDER_MEASUREMENT_PHASE, SHOULDER_MEASUREMENT_SIGNAL } from "./js/ai/exercises/shoulder/measurementSession.js";
@@ -1090,8 +1101,9 @@ function buildHomeGreetingLines(status) {
   if (assignedDone && recommendationTotal > recommendationCompleted) {
     return { status: "復健師安排完成了", next: `接著還有 ${recommendationTotal - recommendationCompleted} 項 ReMotion 建議` };
   }
+  // UX round 4/5 — a neutral greeting: what to do today is the primary task card's job (no second task rule here)
   if (assignedTotal === 0 && recommendationTotal > 0 && recommendationCompleted === 0) {
-    return { status: "今天沒有復健師安排", next: `有 ${recommendationTotal} 項 ReMotion 建議可以開始` };
+    return { status: "今天也一起動一動吧", next: null };
   }
   if (totalCompleted > 0) return { status: `今天已完成 ${totalCompleted} 項練習`, next: "繼續照自己的節奏前進" };
   return { status: "今天也一起動一動吧", next: null };
@@ -1499,7 +1511,9 @@ function setSession(user) {
   // a summary choice never carries over to another account
   if (!state.user || !user || state.user.id !== user.id) state.patientSummarySelection = null;
   state.user = user;
-  state.route = determinePatientLandingRoute(user);
+  const intent = readAuthIntent();
+  state.route = intent && intent.kind === "firstAssessment" ? resumeFirstAssessmentRoute(user) : determinePatientLandingRoute(user);
+  state.authReturn = null;
   state.tab = "home";
   render();
 }
@@ -1532,9 +1546,17 @@ if (!LOCAL_DEMO_MODE) authService.subscribe(async (user) => {
   state.user = null;
   state.patientSummarySelection = null;
   if (state.authStep === "registerSuccess") return;
-  state.route = "auth";
+  // 2026-10-29 guest entry: an open login / register screen stays; otherwise the guest Home — or, after a reload
+  // with a pending 「繼續首次評估」, the public preparation page it came from
+  if (state.route === "splash") {
+    const intent = readAuthIntent();
+    state.route = intent ? AUTH_INTENTS[intent.kind].publicRoute : "dashboard";
+    state.tab = "home";
+  }
   render();
 });
+// a slow / failed session check never leaves a blank page: after 8 s the boot screen offers 重新整理
+setTimeout(() => { if (state.route === "splash") { state.bootSlow = true; render(); } }, 8000);
 
 /** Emulator mode only: the emulators are not reachable — block the page; never fall back to production. */
 function showEmulatorUnavailable(failed) {
@@ -1549,7 +1571,10 @@ function showEmulatorUnavailable(failed) {
 async function logout() {
   await authService.logout();
   state.user = null;
-  state.route = "auth";
+  clearAuthIntent();
+  for (const k of ["authReturn", "rewardFeedback", "f01FixedSelfDraft", "f01FixedSelfOpen", "f01FixedSelfError", "d5Status", "d5ProposalId", "fa5xResultSessionId", "selectedPatientId", "summaryCycleSelection", "inviteMessage", "inviteLookupResult", "assessmentSuccessMessage", "guestExerciseId"]) state[k] = null;
+  state.dailyFeedbackUis = {};
+  state.route = "dashboard";
   state.tab = "home";
   state.authStep = "chooseMode";
   state.authMode = null;
@@ -1650,44 +1675,16 @@ function renderNav() {
 }
 
 /**
- * Public Landing Page — shown before login (see state.route init: only
- * skipped when a session already exists). Kept as the existing "splash"
- * route/renderSplash() rather than a new parallel page, since this was
- * already the app's pre-login entry point.
+ * Guest entry (2026-10-29) — the app opens on a guest Home instead of the old stand-alone landing page / login.
+ * route "splash" is now only the boot state: the brand + 「正在確認登入狀態」 until Firebase reports the session
+ * (so a signed-in person never sees the guest page or the login page flash first). A slow / failed check offers 重新整理.
  */
 function renderSplash() {
   return phone(`
-    <div class="landing-page">
-      <div class="landing-hero">
-        <div class="illustration-slot slot-hero">插畫預留位置</div>
-        <h1 class="title" style="margin-bottom:0;">ReMotion</h1>
-        <h2 style="margin:2px 0 0;">AI 智慧居家復健</h2>
-        <p class="landing-tagline">讓每一次練習，都更了解自己的進步。</p>
-      </div>
-
-      <div class="landing-cta-group">
-        <button class="btn btn-primary full" onclick="goLandingPrimaryCta()">開始使用</button>
-        <button class="btn btn-light full" onclick="goAuth()">登入</button>
-      </div>
-
-      <div class="landing-features">
-        <div class="landing-feature-card">
-          <div class="illustration-slot slot-card">圖示</div>
-          <div><b>個人化復健</b><p>依照你的復健需求，整理適合的練習方向（推薦功能將於後續版本推出）。</p></div>
-        </div>
-        <div class="landing-feature-card">
-          <div class="illustration-slot slot-card">圖示</div>
-          <div><b>AI 動作分析</b><p>透過鏡頭與人體關節點，提供即時動作回饋（目前支援深蹲）。</p></div>
-        </div>
-        <div class="landing-feature-card">
-          <div class="illustration-slot slot-card">圖示</div>
-          <div><b>復健進度紀錄</b><p>保存每次練習結果，看見自己的改變。</p></div>
-        </div>
-      </div>
-
-      <div class="landing-safety-note">ReMotion 提供居家復健輔助與動作紀錄，不取代專業醫療診斷與治療建議。</div>
-
-      <button class="btn btn-primary full" onclick="goLandingPrimaryCta()">建立我的復健計畫</button>
+    <div class="boot-page" role="status" aria-live="polite">
+      <h1 class="page-title">Re<span class="logo-dark">Motion</span></h1>
+      <p>${state.bootSlow ? "仍在確認登入狀態，網路可能較慢。" : "正在確認登入狀態…"}</p>
+      ${state.bootSlow ? `<button class="btn btn-primary" onclick="location.reload()">重新整理</button>` : ""}
     </div>
   `);
 }
@@ -1705,11 +1702,235 @@ function determinePatientLandingRoute(user) {
 }
 
 function goLandingPrimaryCta() {
-  if (!state.user) return goAuth();
+  if (!state.user) return goFirstAssessmentPrep();
   state.route = determinePatientLandingRoute(state.user);
   state.tab = "home";
   render();
 }
+
+// ── Sign-in intent: 「開始首次評估」 → login / register → back to the assessment ──────────────
+// Only {kind, at} is kept (memory + this tab's sessionStorage, for a reload or the register → login detour) —
+// never a password, a token, health data or a URL. Where it leads back to is fixed per kind (known in-app routes).
+const AUTH_INTENT_KEY = "remotion.authIntent.v1";
+const AUTH_INTENT_MAX_AGE_MS = 30 * 60 * 1000;
+const AUTH_INTENTS = Object.freeze({ firstAssessment: { publicRoute: "firstAssessmentPrep" } });
+function setAuthIntent(kind) {
+  if (!AUTH_INTENTS[kind]) return;
+  state.authIntent = { kind, at: Date.now() };
+  try { sessionStorage.setItem(AUTH_INTENT_KEY, JSON.stringify(state.authIntent)); } catch { /* memory only */ }
+}
+function readAuthIntent() {
+  let intent = state.authIntent || null;
+  if (!intent) { try { intent = JSON.parse(sessionStorage.getItem(AUTH_INTENT_KEY) || "null"); } catch { intent = null; } }
+  if (!intent || !AUTH_INTENTS[intent.kind] || !Number.isFinite(intent.at) || Date.now() - intent.at > AUTH_INTENT_MAX_AGE_MS) { clearAuthIntent(); return null; }
+  state.authIntent = { kind: intent.kind, at: intent.at };
+  return state.authIntent;
+}
+function clearAuthIntent() {
+  state.authIntent = null;
+  try { sessionStorage.removeItem(AUTH_INTENT_KEY); } catch { /* nothing stored */ }
+}
+
+/**
+ * Where a signed-in account continues 「繼續首次評估」 — the existing rules only:
+ * not a patient → its own home (role rules; the intent is dropped);
+ * already has 5xSTS results or a tracking week → its own home and next step (never a new 「first」 assessment);
+ * the onboarding questionnaire not done → that step first (the intent stays and resumes after it);
+ * otherwise → the existing 五次坐站 preparation page (the camera starts only from its own 開始評估).
+ */
+function resumeFirstAssessmentRoute(user) {
+  if (!user || user.role !== "patient") { clearAuthIntent(); return "dashboard"; }
+  const hasHistory = functionalAssessmentService.hasCompletedByPatientId(user.id, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND })
+    || !!trackingCycleService.getLatestTrackingCycle(user.id);
+  if (hasHistory) {
+    clearAuthIntent();
+    state.assessmentSuccessMessage = "你已經有五次坐站紀錄，以下是目前的下一步。";
+    return "dashboard";
+  }
+  if (!assessmentService.getActiveByPatientId(user.id)) return "patientAssessmentIntro";
+  clearAuthIntent();
+  return "fiveTimesSitToStandAssessment";
+}
+/** After the onboarding questionnaire (saved or 稍後再填): a pending 「繼續首次評估」 continues there. */
+function continueAuthIntentAfterSetup() {
+  const intent = readAuthIntent();
+  if (!intent || intent.kind !== "firstAssessment" || !state.user) return false;
+  state.route = resumeFirstAssessmentRoute(state.user);
+  if (state.route === "patientAssessmentIntro") { clearAuthIntent(); state.route = "fiveTimesSitToStandAssessment"; }
+  state.tab = "home";
+  render();
+  return true;
+}
+
+/** Login from a guest page: cancelling comes back to that page (known public routes only). */
+const GUEST_RETURN_ROUTES = new Set(["dashboard", "guestExercise", "firstAssessmentPrep"]);
+function rememberAuthReturn() {
+  state.authReturn = !state.user && GUEST_RETURN_ROUTES.has(state.route) ? { route: state.route, tab: state.tab, guestExerciseId: state.guestExerciseId || null } : null;
+}
+function goAuthFromGuest(mode = null) {
+  goAuth();
+  if (mode) setAuthMode(mode);
+}
+/** 返回 on the first login screen: back to where the guest was (the intent is cancelled with it). */
+function cancelAuth() {
+  const back = state.authReturn;
+  clearAuthIntent();
+  state.authReturn = null;
+  state.authStep = "chooseMode";
+  state.authMode = null;
+  state.authRole = null;
+  state.authMessage = null;
+  state.route = back && GUEST_RETURN_ROUTES.has(back.route) ? back.route : "dashboard";
+  state.tab = back ? back.tab || "home" : "home";
+  if (back && back.guestExerciseId) state.guestExerciseId = back.guestExerciseId;
+  render();
+}
+/** 首次評估準備頁 → 登入並繼續 / 建立帳號後繼續 (the existing login / register, straight to the role step). */
+function startFirstAssessmentAuth(mode) {
+  setAuthIntent("firstAssessment");
+  goAuth();
+  setAuthMode(mode === "register" ? "register" : "login");
+}
+/** Signed in on the preparation page: 繼續 follows the same rules as after a login. */
+function continueFirstAssessment() {
+  if (!state.user) return startFirstAssessmentAuth("login");
+  setAuthIntent("firstAssessment");
+  state.route = resumeFirstAssessmentRoute(state.user);
+  state.tab = "home";
+  render();
+}
+
+function goFirstAssessmentPrep() {
+  state.route = "firstAssessmentPrep";
+  state.tab = "home";
+  render();
+}
+function goGuestExercise(id) {
+  state.guestExerciseId = id;
+  state.route = "guestExercise";
+  state.tab = "work";
+  render();
+}
+
+// ── Guest pages: STATIC public content only (the exercise catalog shipped with the app, the approved preparation
+// text). Nothing here reads an account's records, so nothing of a previous account can show. ──────────────────
+const GUEST_USAGE_HTML = `<ul class="guest-list">
+    <li>評估與練習需要手機或電腦的鏡頭；只有在進入鏡頭設定時才會要求相機權限。</li>
+    <li>登入是為了保存評估、練習與感受回報，之後才能查看自己的紀錄與前後比較。</li>
+    <li>請在安全、穩定的環境下進行，如有需要可請家人或陪同者在旁協助。</li>
+    <li>ReMotion 提供居家復健輔助與動作紀錄，不取代專業醫療診斷與治療建議。</li>
+  </ul>`;
+const guestHeader = (title) => `<div class="header guest-header"><h1 class="page-title">${title}</h1>${state.user ? "" : `<button class="btn btn-light guest-login-btn" onclick="goAuthFromGuest()">登入</button>`}</div>`;
+function guestExerciseList() {
+  return exerciseService.listNormalized().filter((e) => /^F01-\d+$/.test(e.id)).map((e) => buildExerciseExperience(e.id));
+}
+function renderGuestExerciseRow(m) {
+  const img = m.media && m.media.state === "image" && m.media.src ? `<img src="${m.media.src}" alt="" />` : "";
+  return `<button class="card guest-exercise-row" onclick="goGuestExercise('${m.id}')">${img}<span class="guest-exercise-text"><b>${m.name}</b><span class="small">${m.aiSupported ? "AI 動作辨識" : "動作說明"}${m.difficulty ? `・難度 ${m.difficulty}` : ""}</span></span><span class="guest-exercise-more" aria-hidden="true">›</span></button>`;
+}
+function guestHomePage() {
+  const preview = guestExerciseList().filter((m) => ["F01-04", "F01-01", "F01-10"].includes(m.id));
+  return `<div class="guest-page">
+    <div class="header guest-header"><h1 class="page-title">Re<span class="logo-dark">Motion</span></h1><button class="btn btn-light guest-login-btn" onclick="goAuthFromGuest()">登入</button></div>
+    <section class="card guest-hero">
+      <h2>了解身體狀態，記錄每次練習</h2>
+      <p>從五次坐站評估開始，查看練習安排，追蹤自己的紀錄與感受。</p>
+      <button class="btn btn-primary full" onclick="goFirstAssessmentPrep()">開始首次評估</button>
+      <p class="small">先查看準備說明，正式評估前需登入。</p>
+    </section>
+    <section class="guest-sec">
+      <h3 class="section-title">使用流程</h3>
+      <ol class="guest-flow"><li>評估目前狀態</li><li>查看安排</li><li>練習與追蹤</li></ol>
+      <p class="small">部分情況需要補充資料或由復健師確認。</p>
+    </section>
+    <section class="guest-sec">
+      <h3 class="section-title">動作介紹</h3>
+      <p class="small">一般性的動作說明，不是你的個人課表。</p>
+      <div class="guest-exercise-list">${preview.map(renderGuestExerciseRow).join("")}</div>
+      <button class="btn btn-light full" onclick="switchTab('work')">查看全部動作介紹</button>
+    </section>
+    <section class="guest-sec">
+      <h3 class="section-title">使用說明</h3>
+      ${GUEST_USAGE_HTML}
+    </section>
+  </div>`;
+}
+function guestTrainingPage() {
+  return `<div class="guest-page">
+    ${guestHeader("訓練")}
+    <div class="card guest-note"><b>個人訓練安排需要登入</b><p class="small">完成五次坐站評估並登入後，才會依你的評估與選擇整理練習安排；部分情況需要補充資料或由復健師確認。</p><button class="btn btn-primary full" onclick="goFirstAssessmentPrep()">開始首次評估</button></div>
+    <section class="guest-sec">
+      <h3 class="section-title">動作介紹（F01 下肢功能）</h3>
+      <p class="small">一般性的動作說明，不含個人化的組數或次數。</p>
+      <div class="guest-exercise-list">${guestExerciseList().map(renderGuestExerciseRow).join("")}</div>
+    </section>
+  </div>`;
+}
+function guestExercisePage() {
+  const m = state.guestExerciseId && /^F01-\d+$/.test(state.guestExerciseId) ? buildExerciseExperience(state.guestExerciseId) : null;
+  const back = `<div class="header"><button class="btn btn-light detail-back-btn" onclick="switchTab('work')">返回</button><b>動作介紹</b><span></span></div>`;
+  if (!m) return `${back}<div class="card"><p class="small">找不到這個動作介紹。</p></div>`;
+  const list = (title, items) => (items && items.length ? `<section class="guest-sec"><h3 class="section-title">${title}</h3><ol class="guest-list">${items.map((t) => `<li>${t}</li>`).join("")}</ol></section>` : "");
+  return `${back}
+    <div class="guest-page">
+      ${m.media && m.media.state === "image" && m.media.src ? `<div class="guest-exercise-media"><img src="${m.media.src}" alt="${m.name}示意圖" /></div>` : ""}
+      <h2 class="guest-exercise-title">${m.name}</h2>
+      <p class="small">${m.domain && m.domain.label ? `${m.domain.label}・` : ""}${m.aiSupported ? "可使用 AI 動作辨識" : "動作說明"}</p>
+      ${m.description ? `<p>${m.description}</p>` : ""}
+      ${list("怎麼做", m.instructions)}
+      ${list("注意事項", m.precautions)}
+      <div class="card guest-note"><b>這是動作介紹，不是你的課表</b><p class="small">是否練習、練多少，需依你的評估與安排；登入後才會保存紀錄。</p><button class="btn btn-primary full" onclick="goFirstAssessmentPrep()">開始首次評估</button></div>
+    </div>`;
+}
+function guestDataPage() {
+  return `<div class="guest-page">
+    ${guestHeader("數據")}
+    <div class="card guest-note">
+      <b>登入後可以查看自己的紀錄</b>
+      <ul class="guest-list"><li>五次坐站評估結果與同一週的前後比較</li><li>每天完成的訓練與次數</li><li>每天回報的吃力程度與不適</li></ul>
+      <button class="btn btn-primary full" onclick="goAuthFromGuest('login')">登入</button>
+      <button class="btn btn-light full" onclick="goAuthFromGuest('register')">建立帳號</button>
+    </div>
+  </div>`;
+}
+function guestProfilePage() {
+  return `<div class="guest-page">
+    ${guestHeader("我的")}
+    <div class="card guest-note">
+      <b>尚未登入</b>
+      <p class="small">登入後可以管理你的復健設定、復健師與帳號。</p>
+      <button class="btn btn-primary full" onclick="goAuthFromGuest('login')">登入</button>
+      <button class="btn btn-light full" onclick="goAuthFromGuest('register')">建立帳號</button>
+    </div>
+    <section class="guest-sec"><h3 class="section-title">使用說明</h3>${GUEST_USAGE_HTML}</section>
+  </div>`;
+}
+/** 首次評估準備頁 — public: what the test is and how to prepare (the existing approved text). No camera, no record. */
+function firstAssessmentPrepPage() {
+  const signedIn = !!state.user;
+  const patient = signedIn && state.user.role === "patient";
+  return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="switchTab('home')">返回</button><b>首次評估準備</b><span></span></div>
+    <div class="guest-page">
+      <p class="fa5x-intro">${FA5X_INTRO_TEXT}</p>
+      ${FA5X_PREP_STEPS_HTML}
+      <section class="card guest-note">
+        <b class="fa5x-section-title">接下來</b>
+        <ol class="guest-list prep-next">
+          ${signedIn ? "" : "<li>登入或建立帳號</li>"}
+          <li>填寫復健需求：4 題，可稍後填寫</li>
+          <li>確認鏡頭位置，再開始評估</li>
+        </ol>
+        <p class="small">進入鏡頭設定時才會要求相機權限。</p>
+      </section>
+      ${patient || !signedIn
+        ? `<button class="btn btn-primary full" onclick="${signedIn ? "continueFirstAssessment()" : "startFirstAssessmentAuth('login')"}">${signedIn ? "繼續" : "登入並繼續"}</button>
+           ${signedIn ? "" : `<button class="btn btn-light full" onclick="startFirstAssessmentAuth('register')">建立帳號後繼續</button>`}
+           ${signedIn ? "" : `<p class="small">登入是為了保存評估與後續追蹤紀錄。</p>`}`
+        : `<p class="small">五次坐站評估由患者帳號進行。</p><button class="btn btn-primary full" onclick="switchTab('home')">回到首頁</button>`}
+      <p class="small fa5x-safety">${FA5X_SAFETY_TEXT}</p>
+    </div>`;
+}
+Object.assign(window, { goAuthFromGuest, cancelAuth, startFirstAssessmentAuth, continueFirstAssessment, goFirstAssessmentPrep, goGuestExercise });
 
 //登入註冊
 function renderAuth() {
@@ -1730,6 +1951,7 @@ function renderAuthChooseMode() {
       <div style="height:16px"></div>
       <button class="btn btn-primary full" onclick="setAuthMode('login')">登入</button>
       <button class="btn btn-light full" onclick="setAuthMode('register')">建立帳號</button>
+      <button class="btn btn-light full" onclick="cancelAuth()">返回</button>
     </div>
   `;
 }
@@ -1748,8 +1970,9 @@ function renderAuthChooseRole() {
         <button type="button" class="role-option ${state.authRole === "therapist" ? "selected" : ""}" onclick="selectAuthRole('therapist')">我是復健師</button>
       </div>
       ${errorHtml}
+      ${state.authIntent ? `<p class="small auth-intent-note">登入後會接著進行首次評估。</p>` : ""}
       <button class="btn btn-primary full" onclick="confirmAuthRole()">下一步</button>
-      <button class="btn btn-light full" onclick="goAuth()">返回</button>
+      <button class="btn btn-light full" onclick="${state.authIntent ? "cancelAuth()" : "goAuth()"}">返回</button>
     </div>
   `;
 }
@@ -2118,6 +2341,11 @@ function startRecommendationFromFiveTimesSitToStand(functionalSessionId) {
     alert("這是下一週期的基準評估，訓練內容沿用已確認的下一階段建議，請回首頁查看追蹤狀態。");
     return switchTab("home");
   }
+  // First recommendation stage 2 — a first-week baseline only starts the accepted, therapist-confirmed plan.
+  if (session.result && session.result.assessmentRole === INITIAL_PLAN_BASELINE_ROLE) {
+    alert("這是第一週的基準評估，訓練內容是你已接受、復健師確認的安排。");
+    return goF01RecommendationResult(session.result.initialRecommendationId);
+  }
   // fa5x-assessment-1.1 — an older / unversioned measurement stays viewable but
   // cannot become a NEW tracking baseline (js/data/fa5xMeasurementCompatibility.js).
   // Re-linking the active cycle that already uses this baseline is still allowed.
@@ -2139,6 +2367,7 @@ function getInFlightAssessmentType() {
 }
 
 function skipAssessmentIntro() {
+  if (continueAuthIntentAfterSetup()) return;
   state.route = "dashboard";
   state.tab = "home";
   render();
@@ -2270,6 +2499,7 @@ function confirmAssessment() {
     state.route = "todaysRecommendation";
     state.tab = "work";
   } else {
+    if (continueAuthIntentAfterSetup()) return;
     state.route = "dashboard";
     state.tab = "home";
   }
@@ -2292,10 +2522,10 @@ function assessmentStepDots(current) {
 function patientAssessmentIntroPage() {
   return `
     <div class="header"><button class="btn btn-light detail-back-btn" onclick="skipAssessmentIntro()">返回</button><b>復健需求評估</b></div>
-    <div class="illustration-slot slot-hero" style="margin:16px 0;">插畫預留位置</div>
     <h2>建立我的復健需求</h2>
     <p class="small">先花一點時間了解你的復健需求，ReMotion 才能整理更適合你的練習方向。</p>
     <p class="small">約 1 分鐘完成，之後也可以重新評估。</p>
+    ${state.authIntent ? `<p class="small auth-intent-note">完成或選擇「稍後再填」後，會接著進行五次坐站評估。</p>` : ""}
     <button class="btn btn-primary full" onclick="startAssessmentForm()">開始評估</button>
     <button class="btn btn-light full" onclick="skipAssessmentIntro()">稍後再填</button>
   `;
@@ -3166,14 +3396,26 @@ function renderWeeklyActivityRow(weekdayStripDays) {
       const src = d.isToday && d.active ? "/images/gamification/star_gold.png" : "/images/gamification/progress_star_green.png";
       const classes = ["weekday-activity-icon"];
       if (!d.active) classes.push("inactive");
-      return `<div class="weekday-activity-day ${d.isToday ? "is-today" : ""}">
-        <div class="weekday-activity-label">${d.label}</div>
+      // UX round 5/5 — readable without colour: the date and the count in words (「—」 = no completed training that day);
+      // a day with records opens its own group in the list below
+      const md = `${Number(d.dateStr.slice(5, 7))}/${Number(d.dateStr.slice(8, 10))}`;
+      const inner = `<div class="weekday-activity-label">${d.label}</div><div class="weekday-activity-date">${md}</div>
         <img class="${classes.join(" ")}" src="${src}" alt="" />
-        <div class="weekday-activity-count">${d.count > 1 ? `${d.count}次` : ""}</div>
-      </div>`;
+        <div class="weekday-activity-count">${d.count > 0 ? `${d.count} 次` : "—"}</div>`;
+      return d.active
+        ? `<button type="button" class="weekday-activity-day is-link ${d.isToday ? "is-today" : ""}" onclick="scrollToTrainingDay('${d.dateStr}')" aria-label="${md} 完成 ${d.count} 次，查看當天紀錄">${inner}</button>`
+        : `<div class="weekday-activity-day ${d.isToday ? "is-today" : ""}" aria-label="${md} 沒有完成的訓練紀錄">${inner}</div>`;
     })
     .join("");
 }
+
+/** 近 7 天活動 → that day's group in 最近訓練 (the source filter is cleared first so the day's records are all listed). */
+function scrollToTrainingDay(dateStr) {
+  if (state.trainingHistorySourceFilter && state.trainingHistorySourceFilter !== "all") { state.trainingHistorySourceFilter = "all"; renderKeepingScroll(); }
+  const el = document.getElementById(`train-day-${dateStr}`);
+  if (el) { el.scrollIntoView({ block: "start" }); el.focus({ preventScroll: true }); }
+}
+window.scrollToTrainingDay = scrollToTrainingDay;
 
 /** Report section 11 — deterministic microcopy from the real activeDays count. Never a medical claim, never an outcome claim — purely how many distinct days this week had a real record. */
 function buildWeeklyActivityMicrocopy(activeDays, incompleteCount = 0) {
@@ -3211,9 +3453,12 @@ function buildWeeklyComparisonLabel(weekly) {
 function renderDataSegmentedNav(active) {
   const seg = (key, label, onclick) =>
     `<button class="patient-data-seg ${active === key ? "active" : ""}" onclick="${onclick}">${label}</button>`;
+  // UX round 4/5 — the three categories of 數據 (plus 總覽), always the same order
   return `<div class="patient-data-seg-nav">
     ${seg("overview", "總覽", "switchTab('data')")}
+    ${seg("assessment", "功能評估", "goF01TrackingHistory()")}
     ${seg("records", "訓練紀錄", "goActionRecords()")}
+    ${seg("feedback", "感受回報", "goFeedbackHistory()")}
   </div>`;
 }
 
@@ -3255,74 +3500,50 @@ function renderQualityTrendChart(points) {
  * functionalProgressService) as a plain series of result.totalDurationMs.
  * Neutral wording only; no cut-off lines, no rep durations.
  */
-function renderDataFunctionalSection(progress) {
+function renderDataFunctionalSection(progress, opts) {
+  // UX round 5/5 — the overview only SUMMARISES 功能評估 and has ONE entry to it (查看功能評估); the chart, every run and
+  // each week's before/after comparison live on that page (no second chart or comparison button here).
+  const latest = (opts && opts.latest) || null;
   const cur = progress.currentCycle;
   const sec = (ms) => (ms == null ? "—" : fmtFa5xSec(ms));
-  let cardHtml;
-  if (!cur) {
-    cardHtml = `<div class="card data-f01-card empty">
+  const title = `<h3 class="section-title">功能評估</h3>`;
+  if (!cur && !latest) {
+    return `${title}<div class="card data-f01-card empty">
         <b>尚未開始功能追蹤</b>
         <p class="small">完成一次 F01 五次坐站評估後，這裡會顯示你的功能追蹤。</p>
         <button class="btn btn-light full" onclick="goFunctionalDomainHome()">開始功能評估</button>
       </div>`;
-  } else if (cur.comparison) {
-    cardHtml = `<div class="card data-f01-card">
-        <div class="data-f01-head"><b>F01 下肢功能</b><span class="small">本週追蹤已完成</span></div>
-        <div class="data-f01-compare"><span>初次 <b>${cur.comparison.baselineText}</b></span><span aria-hidden="true">→</span><span>本次 <b>${cur.comparison.reassessmentText}</b></span></div>
-        <p class="small">${cur.comparison.differenceText}</p>
-        ${weekSyntheticNote(cur.cycle)}
-        <button class="btn btn-light full" onclick="goTrackingComparison('${cur.cycle.id}')">查看前後比較</button>
-      </div>`;
+  }
+  const rows = [];
+  if (latest) rows.push(["最近一次", `${latest.text}（${latest.dateText}・${latest.purpose}）`]);
+  if (!cur) rows.push(["7 日追蹤", "尚未開始"]);
+  else if (cur.comparison) {
+    rows.push(["本週比較", `${cur.comparison.baselineText} → ${cur.comparison.reassessmentText}`]);
+    rows.push(["數值變化", cur.comparison.differenceText]);
   } else {
     const v = cur.view;
-    const dayText = v.status === TRACKING_STATUS.READY_FOR_REASSESSMENT ? "可以再次評估" : `第 ${v.cycleDay} / ${TRACKING_CYCLE_LENGTH_DAYS} 天`;
-    const prev = progress.previousCycle;
-    const prevHtml = prev
-      ? `<div class="data-f01-prev">
-          <div><span class="small">上一週</span><b>${prev.comparison.baselineText} → ${prev.comparison.reassessmentText}</b></div>
-          <button class="data-f01-prev-link" onclick="goTrackingComparison('${prev.cycle.id}')">查看前後比較 ›</button>
-        </div>`
-      : "";
-    cardHtml = `<div class="card data-f01-card">
-        <div class="data-f01-head"><b>F01 下肢功能</b><span class="small">目前週期</span></div>
-        <div class="data-f01-facts">
-          <div><span>目前週期</span><b>${dayText}</b></div>
-          <div><span>目前基準</span><b>${sec(cur.baselineMs)}</b></div>
-          <div><span>本週完成</span><b>${fmtF01TrainingDays(cur.completedTrainingDays)}</b></div>
-          <div><span>再次評估</span><b>${formatDateKeyMonthDay(v.plannedReassessmentDateKey)}</b></div>
-        </div>
-        ${weekSyntheticNote(cur.cycle)}
-        ${prevHtml}
-      </div>`;
+    rows.push(["本週基準", sec(cur.baselineMs)]);
+    rows.push(["本週完成", `${fmtF01TrainingDays(cur.completedTrainingDays)}`]);
+    rows.push(["下次評估", v.status === TRACKING_STATUS.READY_FOR_REASSESSMENT ? "現在可以進行，尚未量測" : `${formatDateKeyMonthDay(v.plannedReassessmentDateKey)}，尚未量測`]);
   }
-  if (cur) cardHtml = cardHtml.replace(/<\/div>\s*$/, `<button class="data-f01-history-link" onclick="goF01TrackingHistory()">查看追蹤歷程 →</button></div>`);
-  const series = progress.assessmentSeries;
-  const trendHtml = series.length >= 2 ? `<div class="card data-f01-trend">
-      <b class="small">五次坐站完成時間</b>
-      <span class="small data-f01-trend-note">功能追蹤的初次與再次評估</span>
-      ${renderF01DurationChart(series)}
-      ${cur && trackingCycleService.listTrackingCycles(cur.cycle.userId).some((c) => describeWeekSynthetic(c, (id) => functionalAssessmentService.getById(id)).any) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">部分評估為展示用合成資料，詳見追蹤歷程各週標示。</span></div>` : ""}
-    </div>` : "";
-  return `<h3 class="section-title">功能追蹤</h3>${cardHtml}${trendHtml}`;
+  return `${title}<button class="card data-cat-card data-f01-card" onclick="goF01TrackingHistory()">
+      ${rows.map(([k, v]) => `<div class="data-cat-row"><span class="small">${k}</span><b>${v}</b></div>`).join("")}
+      ${cur ? weekSyntheticNote(cur.cycle) : ""}
+      <span class="data-cat-more">查看功能評估 ›</span>
+    </button>`;
 }
 
-/** 5xSTS totalDurationMs per tracking-chain assessment, oldest -> newest (plain line, no reference bands). */
-function renderF01DurationChart(series) {
-  const pts = series.slice(-8);
-  const W = 300, H = 110, PAD = 18;
-  const values = pts.map((p) => p.totalDurationMs / 1000);
-  const min = Math.min(...values), max = Math.max(...values);
-  const span = max - min || 1;
-  const xs = pts.map((_, i) => PAD + (i * (W - 2 * PAD)) / Math.max(1, pts.length - 1));
-  const ys = values.map((v) => PAD + ((max - v) / span) * (H - 2 * PAD));
-  // 5xSTS batch A — the line is broken between points measured in different ways
-  // (series point.connectsToPrevious, functionalProgressService); every point stays shown.
-  const d = xs.map((x, i) => `${i && pts[i].connectsToPrevious ? "L" : "M"} ${x.toFixed(1)} ${ys[i].toFixed(1)}`).join(" ");
-  return `<svg class="data-f01-trend-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="五次坐站完成時間：${pts.map((p) => `${formatDateKeyMonthDay(p.dateKey)} ${(p.totalDurationMs / 1000).toFixed(1)} 秒`).join("、")}">
-      <path class="data-f01-trend-line" d="${d}" />
-      ${xs.map((x, i) => `<circle cx="${x.toFixed(1)}" cy="${ys[i].toFixed(1)}" r="3.5" />`).join("")}
-    </svg>
-    <div class="data-f01-trend-labels">${pts.map((p) => `<span><b>${(p.totalDurationMs / 1000).toFixed(1)} 秒</b>${formatDateKeyMonthDay(p.dateKey)}</span>`).join("")}</div>`;
+/** UX round 5/5 — 總覽's first card: where the person is now and the next step (the SAME state and action as Home). */
+function renderDataStageCard(patientId) {
+  const st = trackingCardState(patientId);
+  if (!st) return "";
+  return `<div class="card data-stage-card">
+      <span class="small data-stage-eyebrow">目前階段</span>
+      <b class="data-stage-title">F01 7 日追蹤｜${st.dayLine}</b>
+      ${st.statusLine}
+      <button class="btn btn-primary full" onclick="${st.cta.fn}">${st.cta.label}</button>
+      ${st.secondaryHtml}
+    </div>`;
 }
 
 /**
@@ -3412,46 +3633,109 @@ function patientDataOverviewPage() {
 
   const header = `<div class="header"><h1 class="page-title">我的數據</h1><img class="icon" src="/images/data.png" alt="數據" /></div>`;
   const nav = renderDataSegmentedNav("overview");
-  const functionalHtml = renderDataFunctionalSection(progress);
+  // UX round 4/5 — three categories (功能評估 / 訓練紀錄 / 感受回報): each shows its main number and opens its page
+  const latestRun = functionalAssessmentService.getLatestCompletedByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND });
+  const latest = latestRun && latestRun.result && getFa5xResultStatus(latestRun.result) === FA5X_RESULT_STATUS.COMPLETED && Number.isFinite(latestRun.result.totalDurationMs)
+    ? { text: fmtFa5xSec(latestRun.result.totalDurationMs), dateText: formatDateKeyMonthDay(toLocalDateKey(latestRun.result.measuredAt || latestRun.completedAt)), purpose: (functionalProgressService.describePurpose(latestRun) || {}).label || "五次坐站" }
+    : null;
+  const functionalHtml = renderDataFunctionalSection(progress, { latest });
+  const fixedCount = f01FixedPracticeService.listForPatient(patientId).length;
+  const selfCount = selfReportedTrainingService.listForPatient(patientId).filter((r) => r.status !== "voided").length;
   // The window is the rolling 7 local days ending today (summarizeTrainingWeek), not a calendar week.
-  const weekHtml = `<h3 class="section-title">近 7 天訓練</h3>
-    <div class="patient-data-metrics">
-      <div class="card patient-data-metric m1"><span class="small">近 7 天訓練</span><b>${week.completedSessionCount} 次</b></div>
-      <div class="card patient-data-metric m2"><span class="small">近 7 天訓練天數</span><b>${week.activeDays} 天</b></div>
-      <div class="card patient-data-metric m3"><span class="small">近 7 天平均 AI 姿勢分數</span><b>${week.averageAiPoseScore != null ? week.averageAiPoseScore : "—"}</b></div>
-    </div>
-    ${week.completedSessionCount ? `<p class="small data-source-line">復健師安排 ${week.sourceCounts.therapist} 次・ReMotion 建議 ${week.sourceCounts.remotion} 次・自主練習 ${week.sourceCounts.self} 次${week.sourceCounts.legacy_unknown ? `・既有訓練 ${week.sourceCounts.legacy_unknown} 次` : ""}</p>` : ""}
-    ${week.latestAiPoseScore ? `<p class="small data-latest-score">最近一次 AI 姿勢分數：<b>${week.latestAiPoseScore.score}</b>（${formatDateKeyMonthDay(week.latestAiPoseScore.localDateKey)}${week.latestAiPoseScore.exerciseName ? `・${week.latestAiPoseScore.exerciseName}` : ""}）</p>` : ""}`;
-
-  if (records.length === 0) {
-    return `<div class="patient-data-page">
-      ${header}
-      ${nav}
-      ${functionalHtml}
-      ${weekHtml}
-      ${patientSummaryHtml}
-      <h3 class="section-title">AI 姿勢分數趨勢</h3>
-      <div class="card patient-data-trend-card">${renderQualityTrendChart([])}</div>
-      <div class="card patient-data-empty">
-        <img src="/images/robot/robot_encourage.png" alt="" />
-        <p class="small">完成第一次練習後，這裡會開始累積你的訓練紀錄。</p>
+  // UX round 5/5 — the card states that range; the first-practice hint only shows when nothing at all is recorded
+  // (坐站練習 / 自行回報 are kept separately and never counted in these numbers).
+  const rangeText = `${formatDateKeyMonthDay(addDaysToDateKey(realTodayKey, -6))}–${formatDateKeyMonthDay(realTodayKey)}`;
+  const nothingRecorded = records.length === 0 && fixedCount === 0 && selfCount === 0;
+  const weekHtml = `<h3 class="section-title">訓練紀錄</h3>
+    <button class="card data-cat-card" onclick="goActionRecords()">
+      <p class="small data-range-line">近 7 天：${rangeText}（含今天）</p>
+      <div class="patient-data-metrics">
+        <div class="patient-data-metric m1"><span class="small">訓練次數</span><b>${week.completedSessionCount} 次</b></div>
+        <div class="patient-data-metric m2"><span class="small">訓練天數</span><b>${week.activeDays ? `${week.activeDays} 天` : week.incompleteCount ? "確認完成 0 天" : "沒有紀錄"}</b></div>
+        <div class="patient-data-metric m3"><span class="small">平均 AI 姿勢分數</span><b>${week.averageAiPoseScore != null ? week.averageAiPoseScore : "—"}</b></div>
       </div>
-      <button class="btn btn-primary full" onclick="goSelfRehabEntry()">開始自主復健</button>
-    </div>`;
-  }
+      ${renderDataMiniWeek(canonicalWeeklyProgress(patientId).completedByDay)}
+      ${week.completedSessionCount ? `<p class="small data-source-line">復健師安排 ${week.sourceCounts.therapist} 次・ReMotion 建議 ${week.sourceCounts.remotion} 次・自主練習 ${week.sourceCounts.self} 次${week.sourceCounts.legacy_unknown ? `・既有訓練 ${week.sourceCounts.legacy_unknown} 次` : ""}</p>` : ""}
+      ${week.latestAiPoseScore ? `<p class="small data-latest-score">最近一次 AI 姿勢分數：<b>${week.latestAiPoseScore.score}</b>（${formatDateKeyMonthDay(week.latestAiPoseScore.localDateKey)}${week.latestAiPoseScore.exerciseName ? `・${week.latestAiPoseScore.exerciseName}` : ""}）</p>` : ""}
+      ${nothingRecorded ? `<p class="small">完成第一次練習後，這裡會開始累積你的訓練紀錄。</p>` : ""}
+      <div class="data-cat-split">
+        <div class="data-cat-row"><span class="small">坐站練習（全部）</span><b>${fixedCount} 筆</b></div>
+        <div class="data-cat-row"><span class="small">自行回報（本人填寫，全部）</span><b>${selfCount} 筆</b></div>
+      </div>
+      <p class="small data-cat-extra">坐站練習與自行回報分開保存，不計入上面的訓練次數與天數。</p>
+      <span class="data-cat-more">查看訓練紀錄 ›</span>
+    </button>`;
+  const todayKey = toLocalDateKey(new Date());
+  const fbStatus = dailyTrainingFeedbackService.cloudStatus();
+  const fbRecords = dailyTrainingFeedbackService.listForPatient(patientId);
+  const todayFb = fbRecords.find((r) => r.dateKey === todayKey);
+  const todayGeneral = todayFb ? latestForContext(todayFb, GENERAL_CONTEXT) : null;
+  const recentFb = fbRecords.filter((r) => r.dateKey >= addDaysToDateKey(todayKey, -6));
+  const recentDays = recentFb.length;
+  const discomfortDays = recentFb.filter((r) => { const l = (r.reports || [])[(r.reports || []).length - 1]; return l && l.discomfort === "yes"; }).length;
+  const feedbackHtml = `<h3 class="section-title">感受回報</h3>
+    <button class="card data-cat-card" onclick="goFeedbackHistory()">
+      <div class="data-cat-row"><span class="small">今天</span><b>${fbStatus === "failed" ? "無法確認" : fbStatus === "loading" ? "載入中…" : todayGeneral ? dailyFeedbackSummary(todayFb) : todayFb ? "有週期回報" : "尚未回報"}</b></div>
+      <div class="data-cat-row"><span class="small">近 7 天有回報</span><b>${fbStatus === "failed" ? "無法確認" : `${recentDays} 天`}</b></div>
+      ${fbStatus === "failed" ? "" : `<div class="data-cat-row"><span class="small">其中回報不舒服</span><b>${discomfortDays} 天</b></div>`}
+      <span class="data-cat-more">查看感受回報 ›</span>
+    </button>`;
+  // UX round 5/5 — fewer than 2 scores: one compact line instead of a titled empty chart
+  const trendReady = records.length > 0 && trendPoints.length >= 2;
+  const restHtml = `${patientSummaryHtml}
+    ${trendReady
+      ? `<h3 class="section-title">AI 姿勢分數趨勢</h3>
+    <div class="card patient-data-trend-card">${renderQualityTrendChart(trendPoints)}</div>`
+      : `<div class="card data-trend-compact"><b>AI 姿勢分數趨勢</b><span class="small">完成 2 次以上 AI 訓練後即可查看</span></div>`}
+    ${records.length ? `<p class="small data-score-note">AI 姿勢分數是動作辨識比對姿勢的參考分數，不是醫療評估。</p>` : ""}`;
 
   return `<div class="patient-data-page">
     ${header}
     ${nav}
+    ${renderDataStageCard(patientId)}
     ${functionalHtml}
     ${weekHtml}
-    ${patientSummaryHtml}
-    <h3 class="section-title">AI 姿勢分數趨勢</h3>
-    <div class="card patient-data-trend-card">${renderQualityTrendChart(trendPoints)}</div>
-    <p class="small data-score-note">AI 姿勢分數是動作辨識比對姿勢的參考分數，不是醫療評估。</p>
-    <button class="btn btn-light full" onclick="goActionRecords()">查看完整訓練紀錄</button>
+    ${feedbackHtml}
+    ${restHtml}
   </div>`;
 }
+
+/** UX round 5/5 — 7 small day cells (date + completed count in words; 「—」 = no completed training), same counts as 訓練紀錄. */
+function renderDataMiniWeek(completedByDay) {
+  const days = buildWeekdayStrip(completedByDay || {});
+  return `<ol class="data-mini-week" aria-label="近 7 天每天完成的訓練次數">${days.map((d) => `<li class="${d.active ? "is-on" : ""}${d.isToday ? " is-today" : ""}"><span>${Number(d.dateStr.slice(5, 7))}/${Number(d.dateStr.slice(8, 10))}</span><b>${d.count ? `${d.count} 次` : "—"}</b></li>`).join("")}</ol>`;
+}
+
+/** 數據 → 感受回報: the patient's own daily reports, newest first; one line per day, details on tap. */
+function setRecordsView(view) {
+  state.recordsView = view;
+  render();
+}
+window.setRecordsView = setRecordsView;
+function goFeedbackHistory() {
+  state.route = "feedbackHistory";
+  state.tab = "data";
+  render();
+}
+function feedbackHistoryPage() {
+  const patientId = getCurrentPatientId();
+  const header = `<div class="header exp-header"><button class="btn btn-light detail-back-btn" onclick="switchTab('data')">返回</button><b class="exp-header-title">感受回報</b><span></span></div>${renderDataSegmentedNav("feedback")}`;
+  const records = dailyTrainingFeedbackService.listForPatient(patientId).sort((a, b) => String(b.dateKey).localeCompare(String(a.dateKey)));
+  return `${header}
+    ${renderFeedbackWeek(records, Array.from({ length: 7 }, (_, i) => addDaysToDateKey(toLocalDateKey(new Date()), i - 6)), { cloudStatus: dailyTrainingFeedbackService.cloudStatus(), weekdayOf: (k) => WEEKDAY_LABELS[new Date(`${k}T00:00:00`).getDay()] })}
+    <p class="small data-page-lead">每天的一般回報與週期回報分開列出；點開可看當天的補充說明與歷次修改。</p>
+    ${renderDailyFeedbackHistory(records, { cloudStatus: dailyTrainingFeedbackService.cloudStatus(), title: "我的感受回報", limit: 30 })}`;
+}
+/** 近 7 天感受 → that day's own record in the history below (opened and brought into view). */
+function openFeedbackDay(dateKey) {
+  const d = document.getElementById(`fb-day-${dateKey}`);
+  if (!d) return;
+  d.open = true;
+  d.scrollIntoView({ block: "center" });
+  const s = d.querySelector("summary"); if (s) s.focus({ preventScroll: true });
+}
+window.openFeedbackDay = openFeedbackDay;
+window.goFeedbackHistory = goFeedbackHistory;
 
 function actionRecordsPage() {
   const patientId = state.user.id;
@@ -3466,15 +3750,32 @@ function actionRecordsPage() {
   // second/independent streak calculation).
   const streak = gamificationEngine.getCurrentStreak(patientId);
 
+  // UX round 4/5 — three separate lists: 訓練 (AI / plan trainings, the counts above), 坐站練習 (fixed practice: never
+  // a week's completion day) and 自行回報 (the person's own numbers, never added to an AI count).
+  const ownSelfReports = selfReportedTrainingService.listForPatient(patientId);
+  const fixedRecords = f01FixedPracticeService.listForPatient(patientId);
+  const view = ["training", "fixed", "self"].includes(state.recordsView) ? state.recordsView : "training";
   const header = `<div class="header">
       <button class="btn btn-light" onclick="switchTab('data')">返回</button>
       <b>訓練紀錄</b>
       <span></span>
-    </div>${renderDataSegmentedNav("records")}`;
+    </div>${renderDataSegmentedNav("records")}
+    <div class="records-views" role="tablist">${[["training", "訓練", allRecords.length], ["fixed", "坐站練習", fixedRecords.length], ["self", "自行回報", ownSelfReports.length]].map(([k, label, n]) => `<button role="tab" aria-selected="${view === k}" class="records-view${view === k ? " is-active" : ""}" onclick="setRecordsView('${k}')">${label}<span>${n}</span></button>`).join("")}</div>`;
+  if (view === "fixed") {
+    const rows = fixedRecords.length
+      ? fixedRecords.map((r) => `<button class="card data-run-row f01-fixed-history-row" onclick="goF01FixedPracticeRecord('${r.id}', 'records')"><span class="data-run-date">${formatDateKeyMonthDay(r.dateKey)}</span><span class="data-run-type">${r.ai ? "相機計次" : "只有自行回報"}</span><b class="data-run-main">${r.ai ? `${r.ai.countedReps} / ${r.target.repetitions} 次` : `${r.selfReport ? r.selfReport.totalReps : 0} 次`}</b><span class="data-run-more" aria-hidden="true">›</span>${r.ai && r.selfReport ? `<span class="data-run-sub">自行回報 ${r.selfReport.totalReps} 次（另外保存）</span>` : ""}${r.ai && r.ai.unconfirmedAttemptCount ? `<span class="data-run-sub">另有 ${r.ai.unconfirmedAttemptCount} 次無法確認，未計入</span>` : ""}${renderF01FixedPracticeSync(r)}</button>`).join("")
+      : `<div class="card patient-data-empty"><img src="/images/exercise/exercise_sit_to_stand.png" alt="" /><p class="small">還沒有坐站練習紀錄。</p><button class="btn btn-light full" onclick="goF01FixedPracticeFrom('work')">前往坐站練習</button></div>`;
+    return `${header}<p class="small data-page-lead">坐站練習是固定練習，不計入 7 日追蹤的完成天數；相機計次與自行回報分開保存。</p><div class="data-run-list">${rows}</div>`;
+  }
+  if (view === "self") {
+    return `${header}${renderSelfReportedTrainingHistory(ownSelfReports, { canVoid: true, cloudStatus: selfReportedTrainingService.cloudStatus() })}`;
+  }
 
   if (allRecords.length === 0) {
     // Report section 25 — "完全沒有歷史": one honest empty state, no Hero/Weekly Activity/filters to show yet.
-    return `${header}<div class="card patient-data-empty"><img src="/images/robot/robot_encourage.png" alt="" /><p class="small">完成第一次練習後，這裡會開始累積你的訓練紀錄。</p></div><button class="btn btn-primary full" onclick="goSelfRehabEntry()">開始自主復健</button>`;
+    // UX round 5/5 — with 坐站練習 / 自行回報 records the empty text says only this list is empty (no 「第一次練習」 hint)
+    const others = fixedRecords.length + ownSelfReports.length;
+    return `${header}<div class="card patient-data-empty"><img src="/images/robot/robot_encourage.png" alt="" /><p class="small">${others ? `還沒有訓練紀錄。你的坐站練習與自行回報在上方的分頁中。` : "完成第一次練習後，這裡會開始累積你的訓練紀錄。"}</p></div><button class="btn btn-primary full" onclick="goSelfRehabEntry()">開始自主復健</button>`;
   }
 
   // ---- Hero: horizontal story (report section 8/9) — main number + robot
@@ -3548,7 +3849,7 @@ function actionRecordsPage() {
     const relLabel = formatHistoryGroupLabel(dateStr);
     const label = relLabel === "今天" || relLabel === "昨天" ? `${relLabel} · ${formatMonthDay(dateStr)}` : relLabel;
     let group = groups.find((g) => g.label === label);
-    if (!group) { group = { label, entries: [] }; groups.push(group); }
+    if (!group) { group = { label, dateStr, entries: [] }; groups.push(group); }
     group.entries.push(entry);
   });
 
@@ -3561,7 +3862,7 @@ function actionRecordsPage() {
     historyBodyHtml = `<div class="empty-state"><img src="/images/robot/robot_search.png" alt="" /><div class="small">沒有符合篩選條件的紀錄</div><span class="more-link clickable" onclick="setTrainingHistorySourceFilter('all')">清除篩選</span></div>`;
   } else {
     // Report section 16 — group label de-emphasized (small gray text), not a big section-title heading.
-    historyBodyHtml = groups.map((g) => `<div class="history-date-group-label small">${g.label}</div>${g.entries.map(renderTrainingHistoryCard).join("")}`).join("");
+    historyBodyHtml = groups.map((g) => `<div class="history-date-group-label small" id="train-day-${g.dateStr}" tabindex="-1">${g.label}（${g.entries.length} 筆）</div>${g.entries.map(renderTrainingHistoryCard).join("")}`).join("");
   }
 
   return `
@@ -3748,9 +4049,10 @@ function renderLe05RecordDetail(record) {
   const rows=[{label:"完全站直",count:s.incompleteStandCount},{label:"軀幹控制",count:s.excessiveTrunkLeanCount},{label:"膝蓋方向",count:s.kneeValgusCount},{label:"左右出力",count:s.asymmetryCount},{label:"起身速度",count:s.tooFastCount},{label:"坐下控制",count:s.fastDescentCount}].filter(i=>i.count!=null);
   const completion=`<div class="card detail-block-card"><b class="detail-section-label">完成表現</b><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成次數</div></div><div class="result-summary-col"><div class="result-summary-value">${valid!=null?`${valid}/${total}`:"—"}</div><div class="small">符合品質條件</div></div><div class="result-summary-col"><div class="result-summary-value">${score!=null?`${score}<span class="result-summary-value-sep">/100</span>`:"—"}</div><div class="small">AI 姿勢分數</div></div></div>${target>0?`<div class="xp-track gamified completion-progress-bar"><span style="width:${Math.round(ratio*100)}%"></span><img class="xp-track-marker" src="/images/gamification/progress_star_green.png" alt="" style="left:${Math.round(ratio*100)}%" /></div>`:""}</div>`;
   const observations=rows.length?`<div class="card detail-block-card"><b class="detail-section-label">動作觀察</b>${rows.map(i=>`<div class="quality-issue-row"><span class="small">${i.label}</span>${i.count>0?`<span class="small quality-issue-count">${i.count} 次提醒</span>`:`<span class="quality-issue-ok"><img class="quality-issue-check" src="/images/gamification/checkmark_01.png" alt="" />0 次</span>`}</div>`).join("")}</div>`:"";
+  const countNote=`<div class="card detail-block-card"><p class="small fa5x-muted">${LE05_COUNT_BASIS_NOTE}</p>${le05UnconfirmedNote(s)}</div>`;
   const tc=s.trackingInterruptionCount??s.repsWithTrackingGap??0,tracking=tc>0?`<div class="card detail-block-card tracking-reliability-card"><img class="tracking-reliability-icon" src="/images/robot/robot_thinking.png" alt="" /><div><b class="detail-section-label">追蹤穩定度</b><div class="small">動作途中曾出現 ${tc} 次短暫追蹤中斷</div></div></div>`:"";
   const details=`<details class="result-tech-details"><summary>詳細數據</summary><div class="detail-metrics-grid"><div class="detail-metric-col"><div class="small">站立膝角度</div><b>${s.averageMaxKneeAngle==null?"—":`${Math.round(s.averageMaxKneeAngle)}°`}</b></div><div class="detail-metric-col"><div class="small">平均時間</div><b>${s.averageRepDuration==null?"—":`${(s.averageRepDuration/1000).toFixed(1)} 秒`}</b></div>${score!=null?`<div class="detail-metric-col"><div class="small">Prototype</div><b>${score}</b></div>`:""}</div>${record.remark?`<div class="small" style="margin-top:8px;"><b>AI 建議：</b>${record.remark}</div>`:""}<div class="small" style="margin-top:4px;color:#888;">本結果由 MediaPipe 人體關節點與規則式角度分析產生的 AI 姿勢辨識參考評估，非醫療診斷。</div></details>`;
-  return `${completion}${observations}${tracking}${details}`;
+  return `${completion}${countNote}${observations}${tracking}${details}`;
 }
 function renderLe03RecordDetail(record){const s=record.summary||{},total=s.totalReps??record.totalReps??0,target=s.targetReps??record.targetReps??0,valid=s.qualityValidReps??record.validReps??null,score=record.score??record.overallScore??null,ratio=target>0?Math.min(1,total/target):0,rows=[{label:"臀部抬升",count:s.insufficientLiftCount},{label:"髖部高度",count:s.overextensionCount},{label:"骨盆對稱",count:s.asymmetryCount},{label:"抬起速度",count:s.tooFastCount},{label:"放下控制",count:s.fastLoweringCount}].filter(i=>i.count!=null),tc=s.trackingInterruptionCount??s.repsWithTrackingGap??0;return `<div class="card detail-block-card"><b class="detail-section-label">完成表現</b><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成次數</div></div><div class="result-summary-col"><div class="result-summary-value">${valid!=null?`${valid}/${total}`:"—"}</div><div class="small">符合品質條件</div></div><div class="result-summary-col"><div class="result-summary-value">${score!=null?`${score}<span class="result-summary-value-sep">/100</span>`:"—"}</div><div class="small">AI 姿勢分數</div></div></div>${target>0?`<div class="xp-track gamified completion-progress-bar"><span style="width:${Math.round(ratio*100)}%"></span><img class="xp-track-marker" src="/images/gamification/progress_star_green.png" alt="" style="left:${Math.round(ratio*100)}%" /></div>`:""}</div>${rows.length?`<div class="card detail-block-card"><b class="detail-section-label">動作觀察</b>${rows.map(i=>`<div class="quality-issue-row"><span class="small">${i.label}</span>${i.count>0?`<span class="small quality-issue-count">${i.count} 次提醒</span>`:`<span class="quality-issue-ok"><img class="quality-issue-check" src="/images/gamification/checkmark_01.png" alt="" />0 次</span>`}</div>`).join("")}</div>`:""}${tc>0?`<div class="card detail-block-card tracking-reliability-card"><img class="tracking-reliability-icon" src="/images/robot/robot_thinking.png" alt="" /><div><b class="detail-section-label">追蹤穩定度</b><div class="small">動作途中曾出現 ${tc} 次短暫追蹤中斷</div></div></div>`:""}<details class="result-tech-details"><summary>詳細數據</summary><div class="detail-metrics-grid"><div class="detail-metric-col"><div class="small">最大髖角度</div><b>${s.averageMaxHipAngle==null?"—":`${Math.round(s.averageMaxHipAngle)}°`}</b></div><div class="detail-metric-col"><div class="small">平均時間</div><b>${s.averageRepDuration==null?"—":`${(s.averageRepDuration/1000).toFixed(1)} 秒`}</b></div>${score!=null?`<div class="detail-metric-col"><div class="small">Prototype</div><b>${score}</b></div>`:""}</div>${record.remark?`<div class="small" style="margin-top:8px;"><b>AI 建議：</b>${record.remark}</div>`:""}<div class="small" style="margin-top:4px;color:#888;">本結果由 MediaPipe 人體關節點與規則式角度分析產生的 AI 姿勢辨識參考評估，非醫療診斷。</div></details>`;}
 
@@ -4486,7 +4788,7 @@ function therapistCaseDetailPage() {
       const fa = functionalAssessmentService.getLatestCompletedByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.SHOULDER });
       return fa ? buildShoulderAssessmentFindings({ problemId: fa.problemId, movementResults: fa.movementResults }) : null;
     })();
-    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId)
+    const weeklySummaryHtml = renderTherapistWeeklySummary(patientId) + renderTherapistD5Reviews(patientId) + renderTherapistF01InitialReviews(patientId)
       + renderDailyFeedbackHistory(dailyTrainingFeedbackService.listForTherapist(state.user.id, patientId), { cloudStatus: dailyTrainingFeedbackService.cloudStatus() })
       + renderSelfReportedTrainingHistory(selfReportedTrainingService.listForTherapist(state.user.id, patientId), { cloudStatus: selfReportedTrainingService.cloudStatus() });
     bodyHtml = `
@@ -4741,6 +5043,7 @@ async function confirmCaseWeeklySummary(cycleId, draftToken) {
  * never pre-filled: an empty field keeps the exercise's catalog default.
  */
 const D5_REVIEW_ERROR_TEXT = {
+  proposal_version_outdated: "這份建議是依舊版規則產生，需由患者重新確認狀況後才能檢視。",
   proposal_changed: "患者在你檢視期間更新了狀況確認，內容已變更，請重新檢視。",
   review_reason_required: "請填寫調整理由。",
   review_exercise_not_allowed: "有動作不在可選範圍（同目標、且未命中目前的排除規則）。",
@@ -4762,6 +5065,171 @@ function d5ReviewVolumeText(exerciseId, dose) {
   return formatPlanVolume(describePlanVolume(exerciseService.getById(exerciseId), dose)) || "動作資料未提供訓練量";
 }
 
+/** docs/F01_INITIAL_REVIEW_PLAN.md stage 1 — first recommendations of this patient waiting for (or given) a review. */
+function renderTherapistF01InitialReviews(patientId) {
+  const therapistId = state.user && state.user.id;
+  const list = listInitialReviewsForPatient({ therapistId, patientId });
+  // 重新載入 stays available while nothing is listed: a plan the patient made after this login is fetched here.
+  if (!list.length) return `<h3 class="section-title">首次訓練安排</h3><div class="card small f01-initial-review-empty">目前沒有需要檢視的首次訓練安排。${renderF01ReloadControl("therapist")}</div>`;
+  return `<h3 class="section-title">首次訓練安排待檢視</h3>${renderF01ReloadControl("therapist")}${list.map(renderF01InitialReviewCard).join("")}`;
+}
+
+/**
+ * 重新載入 (first-recommendation sections) — the SAME cloud load the app runs at login
+ * (storageService.hydrateCloudForUser for the signed-in user), on demand: no logout, no page reload,
+ * no listener or polling. Pending local writes are flushed first; in-memory form drafts (state) are
+ * kept; the arrangement is recomputed by the next render. A failure keeps what is shown and says so.
+ * It never accepts a plan and never starts a cycle.
+ */
+const F01_RELOAD_OPTIONAL = ["trackingCycles", "f01InitialReviews", "d5TherapistReviews"];
+// Offline, the cloud reads do not fail — they wait for the connection. Past this the reload reports a
+// failure (and may be retried); if that load still completes later, the status line says so then.
+const F01_RELOAD_TIMEOUT_MS = 15000;
+let f01ReloadToken = 0;
+async function reloadF01InitialPlanData(scope) {
+  if (!state.user || (state.f01Reload && state.f01Reload.busy)) return;
+  const token = ++f01ReloadToken;
+  state.f01Reload = { scope, busy: true, result: null, at: null };
+  render();
+  const run = (async () => {
+    await waitForCloudWrites();
+    await storageService.hydrateCloudForUser(state.user);
+    return F01_RELOAD_OPTIONAL.some((n) => storageService.getOptionalCloudLoadStatus(n) === "failed") ? "failed" : "ok";
+  })().catch((error) => {
+    console.warn("[f01 reload] cloud reload failed; keeping the shown data", error);
+    return "failed";
+  });
+  let timer = null;
+  const timedOut = new Promise((resolve) => { timer = setTimeout(() => resolve("timeout"), F01_RELOAD_TIMEOUT_MS); });
+  const outcome = await Promise.race([run, timedOut]);
+  clearTimeout(timer);
+  if (token !== f01ReloadToken) return; // a newer reload owns the status line
+  state.f01Reload = { scope, busy: false, result: outcome === "ok" ? "ok" : "failed", at: new Date().toISOString() };
+  render();
+  if (outcome === "timeout") {
+    run.then((late) => {
+      if (token !== f01ReloadToken || late !== "ok") return;
+      state.f01Reload = { scope, busy: false, result: "ok", at: new Date().toISOString() };
+      render();
+    });
+  }
+}
+window.reloadF01InitialPlanData = reloadF01InitialPlanData;
+
+function renderF01ReloadControl(scope) {
+  const r = state.f01Reload && state.f01Reload.scope === scope ? state.f01Reload : null;
+  const busy = !!(state.f01Reload && state.f01Reload.busy);
+  const status = !r ? "" : r.busy ? "載入中…"
+    : r.result === "ok" ? `已重新載入（${new Date(r.at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}）`
+      : "更新失敗：以下是先前載入的內容，可能不是最新的；請確認網路後再試一次。";
+  return `<div class="f01-reload-row">
+      <button class="btn btn-light f01-reload-btn" onclick="reloadF01InitialPlanData('${scope}')" ${busy ? "disabled" : ""}>${busy ? "載入中…" : "重新載入"}</button>
+      ${status ? `<span class="small f01-reload-status ${r && r.result === "failed" ? "is-failed" : ""}" role="status">${status}</span>` : ""}
+    </div>`;
+}
+
+/**
+ * Home — the newest first plan's state and next step, from the SAME notice as the journey page
+ * (loadInitialPlanNotice -> getInitialArrangement). Shown next to (never instead of) the running
+ * week's card; not shown once the plan's own first week runs (the week card already says it).
+ */
+function renderF01InitialPlanHomeCard(patientId) {
+  const n = loadInitialPlanNotice(patientId, toLocalDateKey(new Date()));
+  if (!n || n.status === "started") return "";
+  const busy = state.f01InitialAcceptBusy === n.recommendationId;
+  const err = state.f01InitialAcceptError && state.f01InitialAcceptError.recommendationId === n.recommendationId ? state.f01InitialAcceptError.message : null;
+  // a week card is the primary task (e.g. 已接受，尚未啟用: the running week keeps its entry) -> one-line hint
+  if (homeHasWeekCard(patientId)) return `<div class="card f01-initial-plan-home is-hint"><div class="f01-initial-plan-hint-text"><span class="small f01-initial-plan-home-eyebrow">另有首次訓練安排</span><b>${n.title}</b></div><button class="btn btn-light" onclick="${n.cta.action}" ${busy ? "disabled" : ""}>${busy ? "處理中…" : n.cta.label}</button></div>`;
+  return `<div class="card f01-initial-plan-home home-primary-task">
+      <img class="home-primary-robot" src="/images/robot/${n.status === "awaiting_review_unlinked" ? "robot_thinking" : n.status === "awaiting_review" ? "robot_listening" : "robot_wave"}.png" alt="" />
+      <div class="small f01-initial-plan-home-eyebrow">首次訓練安排</div>
+      <b>${n.title}</b>
+      <p class="small">${n.text}</p>
+      <button class="btn btn-primary full" onclick="${n.cta.action}" ${busy ? "disabled" : ""}>${busy ? "處理中…" : n.cta.label}</button>
+      ${n.status === "awaiting_review_unlinked" ? `<button class="btn btn-light full home-link-entry" onclick="goTherapistLink()">輸入復健師邀請碼</button>` : ""}
+      ${err ? `<div class="small" style="color:#a33;margin-top:6px;">${err}</div>` : ""}
+      ${renderF01ReloadControl("patient")}
+    </div>`;
+}
+
+/** 我的 → 我的復健師: the invite-code entry (Home no longer carries the invite card). */
+function goTherapistLink() {
+  switchTab("profile");
+  const el = document.getElementById("profileTherapistLink");
+  if (el) { el.scrollIntoView({ block: "center" }); const input = document.getElementById("inviteCodeInput"); if (input) input.focus({ preventScroll: true }); }
+}
+
+/** The week card (renderTrackingCycleCard) is shown — same cycle, same rule. */
+function homeHasWeekCard(patientId) {
+  const cycle = getHomeTrackingCycle(patientId);
+  return !!cycle && getTrackingCycleViewState(cycle, getTrackingTodayKey()).status !== TRACKING_STATUS.NONE;
+}
+/** The first plan's card is the home's primary task: it has something to say and no week card is shown. */
+function homeInitialPlanIsPrimary(patientId) {
+  const n = loadInitialPlanNotice(patientId, toLocalDateKey(new Date()));
+  return !!n && n.status !== "started" && !homeHasWeekCard(patientId);
+}
+/** Plan data on this device: "loading" / "failed" are never shown as 「沒有安排」. null (no cloud) = loaded. */
+function homePlanLoadState() {
+  const st = ["trackingCycles", "f01InitialReviews"].map((n) => storageService.getOptionalCloudLoadStatus(n));
+  return st.includes("failed") ? "failed" : st.includes("loading") ? "loading" : "loaded";
+}
+function renderHomePlanLoadCard(load) {
+  return load === "failed"
+    ? `<div class="card home-primary-task home-plan-load is-failed"><img class="home-primary-robot" src="/images/robot/robot_sad.png" alt="" /><div class="home-primary-text"><span class="home-primary-eyebrow">今天的下一步</span><b>暫時無法載入你的訓練安排</b><p>這不代表沒有安排。請確認網路後重新載入。</p></div>${renderF01ReloadControl("patient")}</div>`
+    : `<div class="card home-primary-task home-plan-load" role="status"><img class="home-primary-robot" src="/images/robot/robot_loading.png" alt="" /><div class="home-primary-text"><span class="home-primary-eyebrow">今天的下一步</span><b>正在載入你的訓練安排…</b><p>載入完成後會顯示今天要做什麼。</p></div></div>`;
+}
+
+function renderF01InitialReviewCard(entry) {
+  const { rec, arrangement } = entry;
+  const plan = (items) => `<ol class="d5-ex-list">${items.map((it) => `<li>${d5ExerciseName(it.exerciseId)}<span class="small">｜${d5ReviewVolumeText(it.exerciseId, it.dose)}</span></li>`).join("")}</ol>`;
+  const limits = (rec.limitationIds || []).map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
+  const rv = arrangement.review;
+  const draft = state.d5ReviewDraft && state.d5ReviewDraft.kind === "initial" && state.d5ReviewDraft.proposalId === rec.id ? state.d5ReviewDraft : null;
+  const err = state.d5ReviewError && state.d5ReviewError.proposalId === rec.id ? state.d5ReviewError.message : null;
+  const reviewed = arrangement.status === "reviewed";
+  return `<div class="card d5-review-card f01-initial-review-card">
+    <div class="row" style="justify-content:space-between;"><b>首次推薦｜${escapeD5Text(rec.selectedGoalLabel || rec.selectedGoalId)}</b><span class="pill ${reviewed ? "active-status" : "pending"}">${reviewed ? `已確認（${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))}），患者接受功能尚未開放` : "待復健師檢視"}</span></div>
+    <b class="fa5x-section-title">系統候選安排（尚未生效）</b>${plan(arrangement.candidateItems)}
+    ${reviewed ? `<b class="fa5x-section-title">你確認的安排</b>${plan(arrangement.confirmedItems)}<div class="small">確認理由：${escapeD5Text(rv.reason)}</div>` : ""}
+    <b class="fa5x-section-title">需要檢視的原因</b>
+    <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${r.text}</li>`).join("")}${arrangement.staleReview ? "<li>先前的確認是針對舊版內容；內容已變更，需要重新檢視。</li>" : ""}</ul>
+    <div class="small">患者勾選：${limits.length ? limits.join("、") : "沒有"}${rec.availableMinutes ? `；可用時間 ${rec.availableMinutes} 分鐘` : ""}</div>
+    ${err ? `<div class="small" style="color:#a33;margin-top:6px;">${err}</div>` : ""}
+    ${draft ? renderD5ReviewForm(rec, draft) : `<button class="btn btn-primary full" style="margin-top:10px;" onclick="startF01InitialReview('${rec.id}')" ${state.d5ReviewBusy ? "disabled" : ""}>${reviewed ? "重新檢視" : "檢視並確認安排"}</button>`}
+  </div>`;
+}
+
+function startF01InitialReview(recommendationId) {
+  if (state.d5ReviewBusy) return;
+  const rec = recommendationService.getById(recommendationId);
+  if (!rec || rec.patientId !== state.selectedPatientId) return render();
+  const arrangement = getInitialArrangement(rec);
+  state.d5ReviewDraft = {
+    kind: "initial",
+    proposalId: recommendationId,
+    patientId: rec.patientId,
+    fingerprint: initialPlanFingerprint(rec),
+    // the confirmed items when this version was already reviewed, else the candidate list; amounts only where set — never pre-filled defaults
+    items: (arrangement.confirmedItems || arrangement.candidateItems || []).map((it) => ({ exerciseId: it.exerciseId, sets: it.dose ? it.dose.sets : null, repetitions: it.dose ? it.dose.repetitions : null, durationSeconds: it.dose ? it.dose.durationSeconds : null, countingBasis: it.dose ? it.dose.countingBasis || null : null })),
+    reason: "",
+  };
+  state.d5ReviewError = null;
+  render();
+}
+window.startF01InitialReview = startF01InitialReview;
+
+const F01_INITIAL_REVIEW_ERROR_TEXT = {
+  recommendation_changed: "這份訓練安排在你檢視期間已變更，請重新檢視。",
+  recommendation_not_found: "找不到這份訓練安排。",
+  recommendation_already_accepted: "患者已接受這份安排，無法再修改。",
+  review_not_needed: "這份訓練安排目前不需要復健師檢視。",
+  review_sync_failed: "確認尚未同步到雲端，你填寫的內容已保留；請確認網路後重試。",
+};
+
+/** Options of the review form for either kind (next-stage proposal / first recommendation). */
+const reviewFormOptions = (record, draft) => (draft && draft.kind === "initial" ? listInitialReviewOptions(record) : listD5ReviewOptions(record));
+
 function renderTherapistD5Reviews(patientId) {
   const therapistId = state.user && state.user.id;
   const list = listD5ReviewsForPatient({ therapistId, patientId, completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
@@ -4778,15 +5246,16 @@ function renderD5ReviewCard(entry) {
   const plan = (items) => `<ol class="d5-ex-list">${items.map((it) => `<li>${d5ExerciseName(it.exerciseId)}<span class="small">｜${d5ReviewVolumeText(it.exerciseId, it.dose)}</span></li>`).join("")}</ol>`;
   const limits = (d5.currentLimitations || []).map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
   const rv = arrangement.review;
-  const draft = state.d5ReviewDraft && state.d5ReviewDraft.proposalId === proposal.id ? state.d5ReviewDraft : null;
+  const draft = state.d5ReviewDraft && state.d5ReviewDraft.kind !== "initial" && state.d5ReviewDraft.proposalId === proposal.id ? state.d5ReviewDraft : null;
   const err = state.d5ReviewError && state.d5ReviewError.proposalId === proposal.id ? state.d5ReviewError.message : null;
-  const statusText = arrangement.status === "reviewed" ? `已確認（${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))}），等待患者接受` : "待復健師檢視";
+  const statusText = arrangement.status === "reviewed" ? `已確認（${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))}），等待患者接受` : arrangement.status === "needs_regeneration" ? "舊版建議，需重新產生" : "待復健師檢視";
   return `<div class="card d5-review-card">
     <div class="row" style="justify-content:space-between;"><b>規則判定：${arrangement.ruleLabel}</b><span class="pill ${arrangement.status === "reviewed" ? "active-status" : "pending"}">${statusText}</span></div>
     <b class="fa5x-section-title">上一週安排</b>${plan(ctx.recommendation.items)}
-    <b class="fa5x-section-title">目前的下一週內容</b>${plan(proposal.items || [])}
+    <b class="fa5x-section-title">${d5.decision === "no_auto_decision" && !rv ? "系統未自動安排下一週（以下是上一週內容，僅供參考）" : "目前的下一週內容"}</b>${plan(proposal.items || [])}
     <b class="fa5x-section-title">觸發原因</b>
-    <ul class="d5-decision-basis">${explainD5Decision(d5).map((l) => `<li>${l}</li>`).join("")}</ul>
+    <ul class="d5-decision-basis">${explainD5Decision(d5, ctx && ctx.comparison && ctx.comparison.eligible ? ctx.comparison : null).map((l) => `<li>${l}</li>`).join("")}</ul>
+    ${renderG01CycleDailyReports(proposal, ctx.cycle, "therapist")}
     <div class="small">患者回報：${d5.hasNewOrWorseningDiscomfort ? "有新的或加重的不適" : "沒有新的或加重的不適"}；目前勾選：${limits.length ? limits.join("、") : "沒有"}</div>
     ${d5.discomfortNote ? `<div class="small">患者補充說明：${escapeD5Text(d5.discomfortNote)}</div>` : ""}
     <b class="fa5x-section-title">待處理項目</b>
@@ -4795,7 +5264,7 @@ function renderD5ReviewCard(entry) {
     ${arrangement.draft ? renderD5DraftDetails(arrangement.draft) : ""}
     ${rv ? `<div class="small">上次確認理由：${escapeD5Text(rv.reason)}</div>` : ""}
     ${err ? `<div class="small" style="color:#a33;margin-top:6px;">${err}</div>` : ""}
-    ${draft ? renderD5ReviewForm(proposal, draft) : `<button class="btn btn-primary full" style="margin-top:10px;" onclick="startD5Review('${proposal.id}')" ${state.d5ReviewBusy ? "disabled" : ""}>${arrangement.status === "reviewed" ? "重新檢視" : "檢視並確認下一週安排"}</button>`}
+    ${arrangement.status === "needs_regeneration" ? `<p class="small">等待患者重新確認狀況；舊版內容不能檢視或確認。</p>` : draft ? renderD5ReviewForm(proposal, draft) : `<button class="btn btn-primary full" style="margin-top:10px;" onclick="startD5Review('${proposal.id}')" ${state.d5ReviewBusy ? "disabled" : ""}>${arrangement.status === "reviewed" ? "重新檢視" : "檢視並確認下一週安排"}</button>`}
   </div>`;
 }
 
@@ -4819,7 +5288,7 @@ function renderD5DraftDetails(draft) {
 }
 
 function renderD5ReviewForm(proposal, draft) {
-  const options = listD5ReviewOptions(proposal);
+  const options = reviewFormOptions(proposal, draft);
   const busy = state.d5ReviewBusy === proposal.id;
   const dis = busy ? "disabled" : "";
   const rows = draft.items.map((it, idx) => {
@@ -4845,7 +5314,7 @@ function renderD5ReviewForm(proposal, draft) {
   }).join("");
   const canAdd = draft.items.length < 3 && options.some((o) => !draft.items.some((it) => it.exerciseId === o.exerciseId));
   return `<div class="d5-review-form">
-    <b class="fa5x-section-title">確認下一週安排</b>
+    <b class="fa5x-section-title">${draft.kind === "initial" ? "確認首次訓練安排" : "確認下一週安排"}</b>
     <p class="small fa5x-muted">只能選擇同一訓練目標、且未命中目前排除規則的動作（未命中不代表已確認安全）。訓練量留空＝沿用動作資料的預設量，系統不會替你填入數值。</p>
     ${rows}
     ${canAdd ? `<button class="btn btn-light full" style="margin-top:6px;" onclick="addD5ReviewItem()" ${dis}>新增動作</button>` : ""}
@@ -4905,7 +5374,7 @@ function addD5ReviewItem() {
   const d = state.d5ReviewDraft;
   if (!d || state.d5ReviewBusy || d.items.length >= 3) return;
   const proposal = recommendationService.getById(d.proposalId);
-  const next = listD5ReviewOptions(proposal).find((o) => !d.items.some((it) => it.exerciseId === o.exerciseId));
+  const next = reviewFormOptions(proposal, d).find((o) => !d.items.some((it) => it.exerciseId === o.exerciseId));
   if (next) d.items.push({ exerciseId: next.exerciseId, sets: null, repetitions: null, durationSeconds: null, countingBasis: null });
   render();
 }
@@ -4936,14 +5405,17 @@ async function submitD5Review() {
   render();
   try {
     // F01 batch 2 §3C — a single supported counting option is the one shown fixed on the form; otherwise the therapist's choice.
-    const options = listD5ReviewOptions(recommendationService.getById(d.proposalId));
+    const options = reviewFormOptions(recommendationService.getById(d.proposalId), d);
     const items = d.items.map((it) => {
       const opt = options.find((o) => o.exerciseId === it.exerciseId);
       const single = opt && (opt.countingOptions || []).length === 1 ? opt.countingOptions[0] : null;
       return { ...it, countingBasis: it.countingBasis || single };
     });
-    const res = await reviewD5Proposal({ proposalId: d.proposalId, therapistId: state.user.id, items, reason: d.reason, expectedFingerprint: d.fingerprint }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
-    if (res.error) state.d5ReviewError = { proposalId: d.proposalId, message: D5_REVIEW_ERROR_TEXT[res.error] || d5ErrorText(res.error) };
+    const res = d.kind === "initial"
+      ? await reviewInitialRecommendation({ recommendationId: d.proposalId, therapistId: state.user.id, items, reason: d.reason, expectedFingerprint: d.fingerprint }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION })
+      : await reviewD5Proposal({ proposalId: d.proposalId, therapistId: state.user.id, items, reason: d.reason, expectedFingerprint: d.fingerprint }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    // the draft (the therapist's input) is kept on any error; cleared only after the write succeeded
+    if (res.error) state.d5ReviewError = { proposalId: d.proposalId, message: (d.kind === "initial" && F01_INITIAL_REVIEW_ERROR_TEXT[res.error]) || D5_REVIEW_ERROR_TEXT[res.error] || d5ErrorText(res.error) };
     else state.d5ReviewDraft = null;
   } finally {
     state.d5ReviewBusy = null;
@@ -5174,7 +5646,8 @@ function profilePage() {
             : `<button class="profile-link" onclick="toggleProfileTherapistManage()">管理復健師關係 ›</button>`}
         </div>`;
       }).join("") + renderPatientLeaveCard(myRelations[0])
-    : `<div class="card profile-card"><span class="small">尚未加入任何復健師</span></div>`;
+    // UX round 5/5 — the invite-code entry moved here from Home (same card, same handlers)
+    : `<div id="profileTherapistLink">${renderInviteCodeCard()}</div>`;
   const history = relationService.findHistoryByPatientId(uid);
   const careHistoryHtml = history.length
     ? `<details class="profile-history">
@@ -5182,9 +5655,11 @@ function profilePage() {
         ${renderPatientCareHistory(uid)}
       </details>`
     : `<div class="profile-history-empty small">照護歷史（0）</div>`;
+  const linkedNotice = myRelations.length && state.inviteMessage ? `<div class="card profile-card"><div class="small" style="color:#2e7d32;">${state.inviteMessage}</div></div>` : "";
+  if (linkedNotice) state.inviteMessage = null;
   const therapistSectionHtml = `<section class="profile-section">
       <h3 class="section-title">我的復健師</h3>
-      ${therapistsHtml}
+      ${linkedNotice}${therapistsHtml}
       ${careHistoryHtml}
     </section>`;
 
@@ -5237,6 +5712,10 @@ function profilePage() {
  * full-file audit).
  */
 function renderDashboard() {
+  if (!state.user) {
+    const guest = state.tab === "work" ? guestTrainingPage() : state.tab === "data" ? guestDataPage() : state.tab === "profile" ? guestProfilePage() : guestHomePage();
+    return phone(guest, true);
+  }
   const body = state.tab === "home"
     ? state.user.role === "patient" ? patientHome() : therapistHome()
     : state.tab === "work"
@@ -5271,6 +5750,7 @@ function render() {
 }
 
 function goAuth() {
+  if (state.route !== "auth") rememberAuthReturn();
   state.route = "auth";
   state.authStep = "chooseMode";
   state.authMode = null;
@@ -5761,7 +6241,8 @@ function renderTodayPlanNotice(notice) {
   return "";
 }
 
-const todayGroupHead = (title, sub, done, total) => `<div class="today-group-head"><div><b>${title}</b>${sub ? `<span class="small">${sub}</span>` : ""}</div><span class="today-group-count">${done} / ${total}</span></div>`;
+// UX round 5/5 — a group's own count only when both sources are listed (the overview card already has the total).
+const todayGroupHead = (title, sub, done, total, showCount = true) => `<div class="today-group-head"><div><b>${title}</b>${sub ? `<span class="small">${sub}</span>` : ""}</div>${showCount ? `<span class="today-group-count">${done} / ${total}</span>` : ""}</div>`;
 
 function todaySchedulePage() {
   const patientId = getCurrentPatientId();
@@ -5781,6 +6262,8 @@ function todaySchedulePage() {
   const dateLine = `${Number(mStr)} 月 ${Number(dStr)} 日・星期${WEEKDAY_LABELS[viewDt.getDay()]}`;
 
   // ① 今日概況 — one card: date, the X / Y of assigned tasks, sources as small chips.
+  // UX round 5/5 — the running week (本週訓練) is part of this same card (was a separate card above it).
+  const weekCycleId = hasRemotion && primary.kind === TODAY_PLAN_REMOTION_KIND.F01_CYCLE && primary.cycleId ? primary.cycleId : null;
   const chips = [
     hasTherapist ? `復健師安排 ${summary.therapistCount} 項` : "復健師 無安排",
     hasRemotion ? `ReMotion 建議 ${summary.remotionCount} 項` : "ReMotion 無建議",
@@ -5791,7 +6274,8 @@ function todaySchedulePage() {
       ${hasAny ? `<div class="today-overview-count"><span class="small">${plan.isFuture ? "預定安排" : `${dayLabel}安排`}</span><b>${summary.completedAssignedCount} / ${summary.totalAssignedCount}</b></div>` : ""}
     </div>
     ${hasAny ? `<div class="today-overview-bar">${renderProgressBar(summary.completedAssignedCount, summary.totalAssignedCount)}</div>` : ""}
-    <div class="today-overview-chips">${hasAny ? chips : `<span class="small">${dayWord}沒有指定訓練</span>`}</div>
+    ${hasAny ? `<div class="today-overview-chips">${chips}</div>` : ""}
+    ${weekCycleId ? `<div class="today-overview-week"><span class="small">本週訓練：${F01_FUNCTIONAL_DOMAIN.key} ${F01_FUNCTIONAL_DOMAIN.label}・7 日追蹤</span><button class="btn btn-light" onclick="goTrackingWeekTraining('${weekCycleId}', 'work')">查看本週訓練</button></div>` : ""}
   </div>`;
 
   const weekStripHtml = buildWeekStripDates(todayStr())
@@ -5818,7 +6302,7 @@ function todaySchedulePage() {
   } else {
     const therapistGroup = hasTherapist
       ? `<div class="today-group">
-          ${todayGroupHead("復健師安排", `${dayLabel} ${summary.therapistCount} 項`, summary.therapistCompleted, summary.therapistCount)}
+          ${todayGroupHead("復健師安排", `${dayLabel} ${summary.therapistCount} 項`, summary.therapistCompleted, summary.therapistCount, hasRemotion)}
           ${hasRemotion && summary.therapistCompleted < summary.therapistCount ? `<p class="small today-plan-hint">請優先依安排內容進行。</p>` : ""}
           ${plan.therapist.items.map((item) => renderTodayTherapistTask(item, schedule, plan)).join("")}
           <p class="small today-plan-reminder">${generateScheduleReminder(schedule)}</p>
@@ -5826,7 +6310,7 @@ function todaySchedulePage() {
       : `<p class="small today-plan-muted">${dayWord}沒有復健師安排。</p>`;
     const remotionGroup = hasRemotion
       ? `<div class="today-group">
-          ${todayGroupHead("ReMotion 建議", primary.kind === TODAY_PLAN_REMOTION_KIND.F01_CYCLE ? `${F01_FUNCTIONAL_DOMAIN.key} ${F01_FUNCTIONAL_DOMAIN.label}・本週功能追蹤` : "", summary.remotionCompleted, summary.remotionCount)}
+          ${todayGroupHead("ReMotion 建議", primary.kind === TODAY_PLAN_REMOTION_KIND.F01_CYCLE ? `${F01_FUNCTIONAL_DOMAIN.key} ${F01_FUNCTIONAL_DOMAIN.label}・本週功能追蹤` : "", summary.remotionCompleted, summary.remotionCount, hasTherapist)}
           ${primary.items.map((item) => renderTodayRemotionTask(item, primary, plan)).join("")}
         </div>`
       : noticeHtml;
@@ -5845,8 +6329,15 @@ function todaySchedulePage() {
 
   // ④ 快速功能 — compact utility rows.
   const utility = (fn, icon, title, sub) => `<div class="today-utility clickable" onclick="${fn}"><img src="${icon}" alt="" /><div><b>${title}</b><span class="small">${sub}</span></div><span class="today-utility-arrow">›</span></div>`;
+  // UX round 3/5 — fixed, easy-to-find entries for everyone (new patient, running week, after practice):
+  // 坐站練習 (fixed practice; never part of a week) and the six-domain explorer; then the small utilities.
+  const exploreCard = (fn, img, title, sub) => `<button class="card today-explore-card" onclick="${fn}"><img src="${img}" alt="" /><b>${title}</b><span class="small">${sub}</span></button>`;
   const quickHtml = `<section class="today-section">
-      <h3 class="section-title">快速功能</h3>
+      <h3 class="section-title">探索與練習</h3>
+      <div class="today-explore">
+        ${exploreCard("goF01FixedPracticeFrom('work')", "/images/exercise/exercise_sit_to_stand.png", "坐站練習", "固定練習，每次 5 次")}
+        ${exploreCard("goFunctionalDomainHome('work')", "/images/icon_body_lower_limb.png", "功能評估與練習", "目前開放下肢功能")}
+      </div>
       <div class="today-utilities">
         ${hasAny || !plan.isToday ? utility("goSelfPracticeLibrary()", "/images/train.png", "自主練習", "自己選動作，不列入今日安排") : ""}
         ${utility("goActionRecords()", "/images/data.png", "訓練紀錄", "查看過去訓練")}
@@ -6041,6 +6532,7 @@ function getExerciseReturnRoute(level) {
     return { fn: `goExerciseDetail('${scheduleId}', ${state.selectedExerciseIndex})`, label: "返回" };
   }
 
+  if (state.navigationOrigin === "f01FixedPractice") return { fn: "goF01FixedPractice()", label: "返回坐站練習" };
   if (state.navigationOrigin === "recommendation") {
     if (level === "listing") return state.exerciseListingOrigin === "training" ? { fn: "goSchedule()", label: "返回今日復健" } : { fn: "goTodaysRecommendation()", label: "返回 ReMotion 建議" };
     return { fn: `goRecommendationExerciseDetail('${exerciseId}')`, label: "返回" };
@@ -6475,6 +6967,18 @@ function sarcopeniaScreeningPage() {
   `;
 }
 
+// The approved preparation text — one copy for the 五次坐站 page and the public 首次評估準備 page.
+const FA5X_INTRO_TEXT = "記錄你連續完成 5 次坐下、站起所需的時間，了解目前的下肢功能表現。";
+const FA5X_PREP_STEPS_HTML = `<div class="card fa5x-steps-card">
+      <b class="fa5x-section-title">測試前準備</b>
+      <ol class="fa5x-steps">
+        <li>準備一張穩固、不易滑動的椅子</li>
+        <li>手機固定在前方，周圍保留足夠站立空間</li>
+        <li>系統會先協助你調整拍攝距離</li>
+      </ol>
+    </div>`;
+const FA5X_SAFETY_TEXT = "請在安全、穩定的環境下進行，如有需要可請家人或陪同者在旁協助。";
+
 function goFiveTimesSitToStandAssessment() {
   state.route = "fiveTimesSitToStandAssessment";
   state.tab = "home";
@@ -6498,15 +7002,9 @@ function fiveTimesSitToStandAssessmentPage() {
     </div>
     ${renderTrackingReassessmentBanner()}
     ${renderNextCycleBaselineBanner()}
-    <p class="fa5x-intro">記錄你連續完成 5 次坐下、站起所需的時間，了解目前的下肢功能表現。</p>
-    <div class="card fa5x-steps-card">
-      <b class="fa5x-section-title">測試前準備</b>
-      <ol class="fa5x-steps">
-        <li>準備一張穩固、不易滑動的椅子</li>
-        <li>手機固定在前方，周圍保留足夠站立空間</li>
-        <li>系統會先協助你調整拍攝距離</li>
-      </ol>
-    </div>
+    ${renderInitialPlanBaselineBanner()}
+    <p class="fa5x-intro">${FA5X_INTRO_TEXT}</p>
+    ${FA5X_PREP_STEPS_HTML}
     <div class="card fa5x-steps-card">
       <b class="fa5x-section-title">測試怎麼做</b>
       <ol class="fa5x-steps">
@@ -6521,7 +7019,7 @@ function fiveTimesSitToStandAssessmentPage() {
     <div class="fa5x-callout">測試從<b>坐姿</b>開始。請先完成相機位置調整，再依提示坐下準備。</div>
     <button class="btn btn-primary full" style="margin-top:14px;" onclick="goFiveTimesSitToStandDetection()">開始評估 →</button>
     ${hasResult ? `<button class="btn btn-light full" style="margin-top:10px;" onclick="goFiveTimesSitToStandResult(null, 'assessment')">查看最近一次評估結果</button>` : ""}
-    <p class="small fa5x-safety">請在安全、穩定的環境下進行，如有需要可請家人或陪同者在旁協助。</p>
+    <p class="small fa5x-safety">${FA5X_SAFETY_TEXT}</p>
   `;
 }
 
@@ -6535,7 +7033,7 @@ function goFiveTimesSitToStandResult(sessionId = null, origin = null) {
   if (origin) state.fa5xResultOrigin = origin;
   state.fa5xResultSessionId = sessionId || null;
   state.route = "fiveTimesSitToStandResult";
-  state.tab = "home";
+  state.tab = state.fa5xResultOrigin === "data" ? "data" : "home"; // opened from 數據 → 功能評估 stays under 數據
   render();
 }
 
@@ -6600,7 +7098,8 @@ function fa5xResultBackAction(session) {
     return cycle && cycle.reassessmentId === session.id ? `goTrackingComparison('${cycle.id}')` : "switchTab('home')";
   }
   if (role === NEXT_CYCLE_BASELINE_ROLE) return "switchTab('home')";
-  return state.fa5xResultOrigin === "home" ? "switchTab('home')" : "goF01LowerLimbHome()";
+  if (role === INITIAL_PLAN_BASELINE_ROLE) return `goF01RecommendationResult('${session.result.initialRecommendationId}')`;
+  return state.fa5xResultOrigin === "home" ? "switchTab('home')" : state.fa5xResultOrigin === "data" ? "goF01TrackingHistory()" : "goF01LowerLimbHome()";
 }
 
 /**
@@ -6620,8 +7119,9 @@ function renderFa5xConditionSection(session, info) {
   const askSameChair = role === REASSESSMENT_ROLE || role === NEXT_CYCLE_BASELINE_ROLE;
   const radios = (name, options) => options.map(([value, label]) => `<label class="fa5x-cond-option"><input type="radio" name="${name}" value="${value}" /> ${label}</label>`).join("");
   const form = getCurrentPatientId() === session.patientId
-    ? `<details class="fa5x-cond-form"${latest ? "" : " open"}>
-        <summary>${latest ? "補充或更正測試條件" : "確認測試條件"}</summary>
+    // UX round 4/5 — a short entry; the questions open only when tapped (nothing pre-selected, same rules)
+    ? `<details class="fa5x-cond-form">
+        <summary class="fa5x-cond-entry">${latest ? "補充或更正測試條件" : "回答測試條件（約 30 秒）"}</summary>
         <p class="small">請依實際情況回答。不確定可以選「不確定」，沒有回答的題目也會記為不確定。新的回答會另外保存，先前的回答不會被刪除。</p>
         <fieldset class="fa5x-cond-q"><legend>起身時有沒有用手撐椅面、扶手、膝蓋或其他物品？</legend>${radios("fa5xCondArms", [["no", "沒有"], ["yes", "有"], ["unknown", "不確定"]])}</fieldset>
         <fieldset class="fa5x-cond-q"><legend>測試時有沒有人扶你或協助你？</legend>${radios("fa5xCondAssist", [["no", "沒有"], ["yes", "有"], ["unknown", "不確定"]])}</fieldset>
@@ -6632,11 +7132,10 @@ function renderFa5xConditionSection(session, info) {
       </details>`
     : "";
   return `<div class="card fa5x-condition-card">
-      <b class="fa5x-section-title">測試條件（使用者回報）</b>
-      <p class="small">${reportedLine}</p>
+      <div class="fa5x-cond-head"><b class="fa5x-section-title">測試條件</b>${latest ? `<span class="small">${reportedLine}</span>` : ""}</div>
       ${issues.length ? `<ul class="small fa5x-cond-issues">${issues.map((t) => `<li>${t}</li>`).join("")}</ul>` : ""}
-      <p class="small fa5x-muted">測試條件由使用者回報，系統沒有驗證；回報不會改變上方的量測結果。</p>
       ${form}
+      <p class="small fa5x-muted">由你回報，系統沒有驗證；不會改變上方的完成時間。</p>
     </div>`;
 }
 
@@ -6683,9 +7182,14 @@ function fiveTimesSitToStandResultPage() {
   const isReassessment = !!(result && result.assessmentRole === REASSESSMENT_ROLE);
   // Phase D5 — a run started from an accepted proposal's 「開始下一週期基準評估」.
   const isNextBaseline = !!(result && result.assessmentRole === NEXT_CYCLE_BASELINE_ROLE);
+  const isInitialBaseline = !!(result && result.assessmentRole === INITIAL_PLAN_BASELINE_ROLE);
+  // UX round 4/5 — every result says what it was for (首次 / 再次 / 新週期基準 / a week's 初次 / a single run)
+  const purpose = session && !isReassessment && !isNextBaseline && !isInitialBaseline ? functionalProgressService.describePurpose(session) : null;
   const roleTag = isReassessment
     ? `<span class="fa5x-role-tag">F01 7 日追蹤｜再次評估</span>`
-    : isNextBaseline ? `<span class="fa5x-role-tag">F01 7 日追蹤｜下一週期基準評估</span>` : "";
+    : isNextBaseline ? `<span class="fa5x-role-tag">F01 7 日追蹤｜下一週期基準評估</span>`
+      : isInitialBaseline ? `<span class="fa5x-role-tag">F01 7 日追蹤｜第一週基準評估</span>`
+        : purpose ? `<span class="fa5x-role-tag">${purpose.kind === "cycle_baseline" ? "F01 7 日追蹤｜初次評估" : `五次坐站｜${purpose.label}`}</span>` : "";
   const header = `
     <div class="header">
       <button class="btn btn-light" onclick="${fa5xResultBackAction(session)}">返回</button>
@@ -6750,7 +7254,9 @@ function fiveTimesSitToStandResultPage() {
   // shorter than totalDurationMs). It is kept in the stored result for
   // traceability but never shown as 「第 N 次 X 秒」; the result is the total time.
   const rejectedCount = Array.isArray(result.rejectedAttempts) ? result.rejectedAttempts.length : 0;
+  // UX round 5/5 — version codes and the measurement-version note live in 量測說明 (details); the rules are unchanged.
   const legacyNote = result.algorithmVersion ? "" : `<p class="small fa5x-muted">此紀錄以舊版偵測流程量測。</p>`;
+  const save = fa5xSaveState(session);
   // Phase D2 — completed reassessment: say whether it really closed its cycle;
   // the next step is the tracking card, never a new recommendation / cycle.
   const reCycle = isReassessment ? trackingCycleService.getTrackingCycleById(result.trackingCycleId) : null;
@@ -6768,11 +7274,17 @@ function fiveTimesSitToStandResultPage() {
   // Result wording fix (docs/verification/fa5x-result-wording/): no sentence promises that these
   // seconds WILL be used for a later comparison — whether two runs can be compared depends on the
   // test conditions and the measurement version (decided elsewhere; nothing here changes that logic).
+  // the save state itself is the hero's chip (fa5xSaveState); this row only says what the result is kept for
   const note = isReassessment
-    ? { title: reLinked ? "再次評估已完成" : "評估已完成", text: reLinked ? "這次結果已記錄在同一個 7 日追蹤中。已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" : "這次結果已保存，但沒有記錄為追蹤週期的再次評估（該週期可能已完成）。" }
+    ? { title: reLinked ? "已記錄為本週的再次評估" : "沒有記錄為再次評估", text: reLinked ? "這次結果已記錄在同一個 7 日追蹤中。" : "這次結果沒有記錄為追蹤週期的再次評估（該週期可能已完成）。" }
     : isNextBaseline
-      ? { title: "下一週期基準評估已完成", text: "已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" }
-      : { title: "本次評估已完成", text: "已保留本次紀錄；是否能與其他測驗比較，需另行確認測試條件與量測版本。" };
+      ? { title: "下一個 7 日追蹤的基準", text: "這次結果是下一個 7 日追蹤的基準。" }
+      : { title: "之後可以再次查看", text: "可以在「數據 → 功能評估」再次查看。" };
+  const techHtml = `<details class="fa5x-tech"><summary>量測說明</summary>
+      <p class="small">是否能與其他測驗比較，需另行確認測試條件與量測版本。</p>
+      ${legacyNote}
+      <p class="small fa5x-muted">量測版本：${result.algorithmVersion || "舊版（未記錄）"}${result.geometryCoordinateSpace ? `・${result.geometryCoordinateSpace}` : ""}</p>
+    </details>`;
   // Phase D5 — a completed next-cycle baseline starts the confirmed next cycle (never Phase C).
   const nextCycle = isNextBaseline ? trackingCycleService.getNextTrackingCycle(patientId, result.sourceCycleId) : null;
   const nextCycleLinked = !!(nextCycle && nextCycle.baselineAssessmentId === session.id);
@@ -6811,16 +7323,36 @@ function fiveTimesSitToStandResultPage() {
   // per-rep phase durations are never shown).
   const doneMarksHtml = Array.from({ length: completedReps }, (_, i) => `<span class="fa5x-done-mark"><i aria-hidden="true"></i><small>${i + 1}</small></span>`).join("");
 
+  // UX round 5/5 — completion, saving, test conditions and comparison / recommendation use are separate facts
+  // (no single green ✓ for all of them). Each line only reads an existing decision; nothing is decided here.
+  const issueTexts = conditionInfo.issues.map((c) => FA5X_CONDITION_ISSUE_TEXT[c] || c);
+  const conditionLine = !conditionInfo.reported ? "尚未回報（可在下方回答）" : issueTexts.length ? issueTexts.join("、") : `${conditionInfo.conditionText}（本人回報，系統沒有驗證）`;
+  let compareLine;
+  if (isReassessment) {
+    const c = reLinked ? (trackingCycleService.getTrackingCycleComparison({ cycleId: reCycle.id, userId: session.patientId }).comparison || null) : null;
+    compareLine = !reLinked ? "沒有記錄為追蹤週期的再次評估，不做前後比較" : c && c.eligible ? "可與本週初次評估比較（量測方式相容）" : `無法與本週初次評估直接比較：${(c && c.missing && c.missing[0]) || "資料不完整"}`;
+  } else if (isNextBaseline || isInitialBaseline || (purpose && purpose.kind === "cycle_baseline")) {
+    compareLine = "這是 7 日追蹤的基準；完成再次評估後才會判斷能否比較";
+  } else {
+    compareLine = "目前不屬於 7 日追蹤，暫不做前後比較";
+  }
+  const recommendLine = isReassessment || isNextBaseline ? null : "可用來產生訓練建議（系統只確認評估已完成，秒數不決定動作）";
+  const statusList = `<dl class="fa5x-status-list">
+      <div><dt>完成狀態</dt><dd>已完成 ${completedReps} / ${FA5X_TARGET_REPS} 次</dd></div>
+      <div><dt>保存狀態</dt><dd class="fa5x-save-chip is-${save.key}" role="status">${save.chip}</dd></div>
+      <div><dt>測試條件</dt><dd class="${conditionInfo.issues.length ? "is-warn" : ""}">${conditionLine}</dd></div>
+      <div><dt>前後比較</dt><dd>${compareLine}</dd></div>
+      ${recommendLine ? `<div><dt>訓練建議</dt><dd>${recommendLine}</dd></div>` : ""}
+    </dl>`;
+
   return `${header}
     <div class="card fa5x-result-hero result-state result-state--${fa5xResultPresentation(status)} completed">
       <img class="fa5x-hero-illustration" src="/images/exercise/exercise_sit_to_stand.png" alt="" />
       ${roleTag}
-      <span class="fa5x-status-chip completed">✓ 已完成 ${completedReps} / ${FA5X_TARGET_REPS}</span>
       <div class="fa5x-hero-value">${(result.totalDurationMs / 1000).toFixed(1)}<span>秒</span></div>
-      <div class="fa5x-hero-label">完成五次坐站所需時間</div>
-      <div class="small fa5x-condition-label">${conditionInfo.timeLabel}${conditionInfo.issues.length ? `｜${conditionInfo.issues.map((c) => FA5X_CONDITION_ISSUE_TEXT[c] || c).join("、")}` : ""}</div>
+      <div class="fa5x-hero-label">${conditionInfo.timeLabel === "觀察時間" ? "完成五次坐站所需時間（觀察時間）" : "完成五次坐站所需時間"}</div>
       <div class="small fa5x-date">${dateText}</div>
-      ${legacyNote}
+      ${statusList}
     </div>
     ${renderFa5xConditionSection(session, conditionInfo)}
     ${repDurations.length ? `<div class="card fa5x-record-card">
@@ -6834,7 +7366,21 @@ function fiveTimesSitToStandResultPage() {
       <div><b>${note.title}</b><p class="small">${note.text}</p></div>
     </div>
     ${nextHtml}
+    ${techHtml}
   `;
+}
+
+/** UX round 5/5 — the result's real save state on this device (never 「已保存」 while the write is still on its way or failed). */
+function fa5xSaveState(session) {
+  const name = "functionalAssessmentSessions";
+  if (!storageService.isCloudSyncActive()) return { key: "local", chip: "已保存在這台裝置", title: "評估已保存在這台裝置" };
+  if (storageService.isCloudWritePending(name, session.id)) {
+    setTimeout(() => { if (state.route === "fiveTimesSitToStandResult" && state.fa5xResultSessionId === session.id) renderKeepingScroll(); }, 700);
+    return { key: "pending", chip: "保存中…", title: "評估保存中…" };
+  }
+  const last = storageService.getLastCloudWriteOutcome(name, session.id);
+  if (last && !last.ok) return { key: "failed", chip: "尚未同步到雲端", title: "評估尚未同步到雲端（已先保存在這台裝置）" };
+  return { key: "saved", chip: "✓ 評估已保存", title: "評估已保存" };
 }
 
 /**
@@ -6863,6 +7409,7 @@ let fa5xSetupFrame = null;
 let fa5xRunContext = null;
 /** Phase D5 — { proposalId, sourceCycleId } when THIS run is the fresh baseline of an accepted D5 proposal's next cycle; else null. */
 let fa5xNextBaselineRun = null;
+let fa5xInitialBaselineRun = null; // first recommendation stage 2: { recommendationId } of an initial-plan baseline run
 /** Context/mode discriminator stored on the result (Training Mode's le05 records are the "training" side). */
 const LE05_CONTEXT_MODE = { TRAINING: "training", ASSESSMENT_5XSTS: "assessment_5xsts" };
 /** Development-only numbers panel: add ?fa5xDebug=1 to the URL (same convention as ?shoulderDev=1). */
@@ -6922,6 +7469,7 @@ function goFiveTimesSitToStandDetection() {
   fa5xRejectedUntil = 0;
   fa5xRunContext = resolveFa5xReassessmentRun(patientId);
   fa5xNextBaselineRun = fa5xRunContext ? null : resolveFa5xNextCycleBaselineRun(patientId);
+  fa5xInitialBaselineRun = fa5xRunContext || fa5xNextBaselineRun ? null : resolveFa5xInitialPlanBaselineRun(patientId);
   initSquatVoiceSelection();
   primeFa5xSpeech();
   primeFa5xAudio();
@@ -7262,6 +7810,8 @@ function finalizeFa5xAssessment(result) {
     ...(fa5xRunContext ? { assessmentRole: REASSESSMENT_ROLE, trackingCycleId: fa5xRunContext.cycleId, baselineAssessmentId: fa5xRunContext.baselineAssessmentId } : {}),
     // Phase D5 — explicit next-cycle baseline context (traceability + the only way it can start the next cycle).
     ...(fa5xNextBaselineRun ? { assessmentRole: NEXT_CYCLE_BASELINE_ROLE, sourceCycleId: fa5xNextBaselineRun.sourceCycleId, d5ProposalId: fa5xNextBaselineRun.proposalId } : {}),
+    // First recommendation stage 2 — explicit initial-plan baseline context (the only way it can start that plan's first week).
+    ...(fa5xInitialBaselineRun ? { assessmentRole: INITIAL_PLAN_BASELINE_ROLE, initialRecommendationId: fa5xInitialBaselineRun.recommendationId } : {}),
   };
   const created = functionalAssessmentService.create({ patientId: fa5xPatientId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND });
   if (created.error) { alert(created.error); return; }
@@ -7290,12 +7840,36 @@ function finalizeFa5xAssessment(result) {
     if (made.error) console.warn("[tracking cycle] next cycle not created:", made.error);
     else state.fa5xNextBaselineContext = null;
   }
+  // First recommendation stage 2 — only a COMPLETED initial-plan baseline starts the accepted plan's first
+  // week (synced; on failure the plan stays accepted and the recommendation page offers a retry).
+  if (fa5xInitialBaselineRun && stored.status === FA5X_RESULT_STATUS.COMPLETED) {
+    const recommendationId = fa5xInitialBaselineRun.recommendationId;
+    startInitialPlanCycle({ recommendationId, userId: fa5xPatientId, baselineSession: functionalAssessmentService.getById(sessionId), todayDateKey: toLocalDateKey(new Date()) }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION })
+      .then((made) => {
+        if (made.error) console.warn("[tracking cycle] first week not started:", made.error);
+        else state.fa5xInitialBaselineContext = null;
+        render();
+      });
+  }
+  fa5xInitialBaselineRun = null;
   fa5xNextBaselineRun = null;
   fa5xRunContext = null;
   fa5xAssessment = null;
   setTimeout(() => {
     if (state.route === "fiveTimesSitToStandDetection") goFiveTimesSitToStandResult(sessionId, "assessment");
   }, 1000);
+}
+
+// 本機瀏覽器驗證 only (Vite dev build + localhost + ?emulator=1, js/data/firebase.js): hands a SYNTHETIC
+// finished 5xSTS run to the real completion handler in place of the camera / detector, for browser checks
+// of the flows after a run (scripts/f01InitialReviewBrowserCheck.mjs). Never defined in any other mode.
+// The stored result is marked emulatorSynthetic; nothing here touches camera recognition.
+if (EMULATOR_MODE && typeof window !== "undefined") {
+  window.__emulatorFinishFa5xRun = (result) => {
+    if (state.route !== "fiveTimesSitToStandDetection" || !fa5xAssessment || fa5xFinalized) return { error: "no_running_assessment" };
+    finalizeFa5xAssessment({ ...result, emulatorSynthetic: true });
+    return { ok: true };
+  };
 }
 
 function stopFa5xCamera() { if (fa5xCameraController) fa5xCameraController.stop(); fa5xCameraController = null; fa5xCanvasCtx = null; }
@@ -7510,58 +8084,67 @@ const FUNCTIONAL_DOMAINS = [
   { key: "F06", label: "柔軟度／活動能力", icon: "/images/Medical/body_health/medical_joint_mobility.png", available: false },
 ];
 
+/**
+ * 2026-10-29 功能構面: the open domain (F01) is the primary entry — same action / route as before
+ * (goF01LowerLimbHomeFrom). The code (F01…F06) stays as an internal id (data-domain), not the visible title.
+ */
 function renderFunctionalDomainButton(domain) {
-  const iconHtml = domain.icon
-    ? `<img class="body-region-icon" src="${domain.icon}" alt="" />`
-    : `<span class="body-region-icon body-region-icon-fallback"></span>`;
+  const iconHtml = domain.icon ? `<img class="body-region-icon" src="${domain.icon}" alt="" />` : "";
   if (domain.available) {
-    return `<div class="body-region-btn available clickable" onclick="goF01LowerLimbHome()">
+    return `<button type="button" class="card body-region-btn available domain-primary" data-domain="${domain.key}" onclick="goF01LowerLimbHomeFrom('domains')">
       ${iconHtml}
-      <span>${domain.key}　${domain.label}</span>
-    </div>`;
+      <span class="domain-primary-text"><b>${domain.label}</b><span class="small">五次坐站評估、坐站練習與訓練建議</span></span>
+      <span class="domain-primary-more" aria-hidden="true">›</span>
+    </button>`;
   }
-  return `<div class="body-region-btn disabled" aria-disabled="true">
-    ${iconHtml}
-    <span>${domain.key}　${domain.label}</span>
-    <span class="body-region-soon">建置中</span>
-  </div>`;
+  // a closed domain: name + 尚未開放 in words — not clickable, not focusable
+  return `<li class="body-region-btn disabled" data-domain="${domain.key}">${iconHtml}<span class="body-region-name">${domain.label}</span><span class="body-region-soon">尚未開放</span></li>`;
 }
 
-function goFunctionalDomainHome() {
+/** @param from "work" when opened from the 訓練 tab (返回 goes back there, 訓練 stays highlighted); otherwise Home. */
+function goFunctionalDomainHome(from) {
+  state.domainFrom = from === "work" ? "work" : null;
   state.route = "functionalDomainHome";
-  state.tab = "home";
+  state.tab = state.domainFrom === "work" ? "work" : "home";
   render();
 }
 
 function functionalDomainHomePage() {
-  const domainsHtml = FUNCTIONAL_DOMAINS.map(renderFunctionalDomainButton).join("");
+  const open = FUNCTIONAL_DOMAINS.filter((d) => d.available), closed = FUNCTIONAL_DOMAINS.filter((d) => !d.available);
   return `
     <div class="header">
-      <button class="btn btn-light" onclick="switchTab('home')">返回</button>
+      <button class="btn btn-light" onclick="switchTab('${state.domainFrom === "work" ? "work" : "home"}')">返回</button>
       <b>功能構面</b>
       <span></span>
     </div>
-    <div class="body-region-intro">
-      <b>選擇想了解或訓練的功能構面</b>
-      <div class="small">從六大功能構面出發，找到適合你的評估與訓練內容</div>
-    </div>
-    <div class="body-region-grid">${domainsHtml}</div>
-    <div class="small body-region-footer">目前僅開放「下肢功能」，其餘構面將陸續推出。</div>
+    <p class="body-region-intro">目前可進行下肢功能評估與練習</p>
+    ${open.map(renderFunctionalDomainButton).join("")}
+    <details class="d5-more domain-closed">
+      <summary>其他構面・尚未開放（${closed.length}）</summary>
+      <ul class="domain-closed-list">${closed.map(renderFunctionalDomainButton).join("")}</ul>
+    </details>
   `;
 }
 
 function goF01LowerLimbHome() {
   state.fa5xReassessmentContext = null; // normal F01 entry — not the tracking reassessment CTA
   state.fa5xNextBaselineContext = null; // ... nor a D5 next-cycle baseline
+  state.fa5xInitialBaselineContext = null; // ... nor a first-week baseline of an accepted first recommendation
   state.route = "f01LowerLimbHome";
-  state.tab = "home";
+  state.tab = f01EntryTab();
   render();
 }
+/** Where F01 was opened from: "work" = 訓練 tab, otherwise Home -> 功能構面. Kept while inside F01. */
+function goF01LowerLimbHomeFrom(from) {
+  state.f01HomeFrom = from === "work" ? "work" : "domains";
+  goF01LowerLimbHome();
+}
+const f01EntryTab = () => (state.f01HomeFrom === "work" || (state.f01HomeFrom === "domains" && state.domainFrom === "work") ? "work" : "home");
 
 function f01LowerLimbHomePage() {
   return `
     <div class="header">
-      <button class="btn btn-light" onclick="goFunctionalDomainHome()">返回</button>
+      <button class="btn btn-light" onclick="${state.f01HomeFrom === "work" ? "switchTab('work')" : `goFunctionalDomainHome('${state.domainFrom === "work" ? "work" : ""}')`}">返回</button>
       <b>F01 下肢功能</b>
       <span></span>
     </div>
@@ -7572,6 +8155,14 @@ function f01LowerLimbHomePage() {
     <div class="card functional-assessment-problem-card clickable" style="margin-top:10px;" onclick="goF01DirectTraining()">
       <b>B｜直接開始訓練</b>
       <p class="small">已知道想進行的訓練，可直接選擇動作。</p>
+    </div>
+    <div class="card functional-assessment-problem-card clickable f01-fixed-practice-entry" style="margin-top:10px;" onclick="goF01FixedPracticeFrom('f01')">
+      <img class="f01-fixed-entry-img" src="/images/exercise/exercise_sit_to_stand.png" alt="" />
+      <div class="f01-fixed-entry-text">
+        <b>坐站練習</b>
+        <p class="small">每次 5 次，依步驟練習並記錄。固定練習，非個別訓練安排。</p>
+      </div>
+      <span class="f01-fixed-entry-arrow" aria-hidden="true">›</span>
     </div>
   `;
 }
@@ -10068,7 +10659,7 @@ function renderKn03AnalysisResult(record) {
 function renderLe05AnalysisResult(record){const s=record.summary||{},total=s.totalReps??record.totalReps??0,target=s.targetReps??record.targetReps??0,score=record.score??record.overallScore??null,reached=target>0&&total>=target,tracking=s.trackingInterruptionCount??s.repsWithTrackingGap??0,xp=gamificationEngine.computeSessionXp(record),level=gamificationEngine.getPatientLevel(record.patientId);
 const issues=[s.incompleteStandCount>0?{count:s.incompleteStandCount,code:LE05_QUALITY_ISSUE.INCOMPLETE_STAND}:null,s.excessiveTrunkLeanCount>0?{count:s.excessiveTrunkLeanCount,code:LE05_QUALITY_ISSUE.EXCESSIVE_TRUNK_LEAN}:null,s.kneeValgusCount>0?{count:s.kneeValgusCount,code:LE05_QUALITY_ISSUE.KNEE_VALGUS}:null,s.asymmetryCount>0?{count:s.asymmetryCount,code:LE05_QUALITY_ISSUE.ASYMMETRY}:null,s.tooFastCount>0?{count:s.tooFastCount,code:LE05_QUALITY_ISSUE.TOO_FAST}:null,s.fastDescentCount>0?{count:s.fastDescentCount,code:LE05_QUALITY_ISSUE.FAST_DESCENT}:null].filter(Boolean).sort((a,b)=>b.count-a.count).slice(0,3);
 const feedback=issues.length?issues.map(i=>`<div class="result-feedback-row"><div class="small">↓ ${LE05_QUALITY_ISSUE_LABELS[i.code]} ×${i.count}</div><div class="small" style="color:#666;">${LE05_QUALITY_SUGGESTIONS[i.code]}</div></div>`).join(""):`<div class="small">這次沒有特別需要注意的地方，繼續保持！</div>`;const sub=total===0?"這次沒有偵測到完整的動作。":score!=null?`本次 AI 姿勢分數 ${score} 分${reached?"，做得很好！":"，再累積一些就更接近目標了。"}`:"繼續保持穩定的動作。";const breakdown=!xp.isLegacyFlatRate?renderXpBreakdownGrid(xp.breakdown):"";
-return `<div class="detail-analysis-result"><div class="card result-hero">${renderRobot(reached?"celebrate":total>0?"happy":"encourage","sm")}<div class="result-hero-headline">今天完成 ${total} 次${reached?"！":""}</div><div class="small result-hero-sub">${sub}</div><div class="result-hero-badges">${xp.xp>0?`<span class="result-hero-badge"><img src="/images/gamification/xp_coin.png" alt="" />+${xp.xp} XP</span>`:""}${reached?`<span class="result-hero-badge"><img src="/images/gamification/star_sparkle.png" alt="" />目標達成</span>`:""}</div></div><div class="card" style="margin-top:10px;"><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成</div></div><div class="result-summary-col"><div class="result-summary-value">${score!=null?`${score}<span class="result-summary-value-sep">/100</span>`:"-"}</div><div class="small">AI 姿勢分數</div></div><div class="result-summary-col"><div class="result-summary-value">${tracking}</div><div class="small">追蹤中斷</div></div></div></div><div class="card result-feedback-card" style="margin-top:10px;"><div class="small result-feedback-title"><b>主要提醒</b></div>${feedback}</div><div class="card result-reward-card"><div class="result-reward-headline"><img class="result-reward-xp-icon" src="/images/gamification/xp_coin.png" alt="" />本次獲得　+${xp.xp} XP</div><div class="result-reward-level-row small">Lv.${level.level}　${level.currentLevelXp} / ${level.nextLevelXp} XP</div><div class="result-reward-level-bar"><span style="width:${Math.round((level.currentLevelXp/level.nextLevelXp)*100)}%"></span></div>${breakdown}</div><details class="result-tech-details"><summary>詳細分析</summary><div class="small" style="margin-top:8px;">平均站立膝角度：${s.averageMaxKneeAngle==null?"-":`${Math.round(s.averageMaxKneeAngle)}°`}｜平均每次時間：${s.averageRepDuration==null?"-":`${(s.averageRepDuration/1000).toFixed(1)}秒`}</div><div class="small" style="margin-top:6px;"><b>AI 建議：</b>${record.remark||"—"}</div><div class="small" style="margin-top:8px;color:#888;">AI 姿勢分數：${score??"—"} 分（${record.quality||"—"}）</div><div class="small" style="margin-top:4px;color:#888;">本結果由 MediaPipe 人體關節點與規則式角度分析產生的 AI 姿勢辨識參考評估，非醫療診斷。</div></details></div>`;}
+return `<div class="detail-analysis-result"><div class="card result-hero">${renderRobot(reached?"celebrate":total>0?"happy":"encourage","sm")}<div class="result-hero-headline">今天完成 ${total} 次${reached?"！":""}</div><div class="small result-hero-sub">${sub}</div><p class="small fa5x-muted">${LE05_COUNT_BASIS_NOTE}</p>${le05UnconfirmedNote(s)}<div class="result-hero-badges">${xp.xp>0?`<span class="result-hero-badge"><img src="/images/gamification/xp_coin.png" alt="" />+${xp.xp} XP</span>`:""}${reached?`<span class="result-hero-badge"><img src="/images/gamification/star_sparkle.png" alt="" />目標達成</span>`:""}</div></div><div class="card" style="margin-top:10px;"><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成</div></div><div class="result-summary-col"><div class="result-summary-value">${score!=null?`${score}<span class="result-summary-value-sep">/100</span>`:"-"}</div><div class="small">AI 姿勢分數</div></div><div class="result-summary-col"><div class="result-summary-value">${tracking}</div><div class="small">追蹤中斷</div></div></div></div><div class="card result-feedback-card" style="margin-top:10px;"><div class="small result-feedback-title"><b>主要提醒</b></div>${feedback}</div><div class="card result-reward-card"><div class="result-reward-headline"><img class="result-reward-xp-icon" src="/images/gamification/xp_coin.png" alt="" />本次獲得　+${xp.xp} XP</div><div class="result-reward-level-row small">Lv.${level.level}　${level.currentLevelXp} / ${level.nextLevelXp} XP</div><div class="result-reward-level-bar"><span style="width:${Math.round((level.currentLevelXp/level.nextLevelXp)*100)}%"></span></div>${breakdown}</div><details class="result-tech-details"><summary>詳細分析</summary><div class="small" style="margin-top:8px;">平均站立膝角度：${s.averageMaxKneeAngle==null?"-":`${Math.round(s.averageMaxKneeAngle)}°`}｜平均每次時間：${s.averageRepDuration==null?"-":`${(s.averageRepDuration/1000).toFixed(1)}秒`}</div><div class="small" style="margin-top:6px;"><b>AI 建議：</b>${record.remark||"—"}</div><div class="small" style="margin-top:8px;color:#888;">AI 姿勢分數：${score??"—"} 分（${record.quality||"—"}）</div><div class="small" style="margin-top:4px;color:#888;">本結果由 MediaPipe 人體關節點與規則式角度分析產生的 AI 姿勢辨識參考評估，非醫療診斷。</div></details></div>`;}
 
 function renderLe03AnalysisResult(record){const s=record.summary||{},total=s.totalReps??record.totalReps??0,target=s.targetReps??record.targetReps??0,score=record.score??record.overallScore??null,reached=target>0&&total>=target,tracking=s.trackingInterruptionCount??s.repsWithTrackingGap??0,xp=gamificationEngine.computeSessionXp(record),level=gamificationEngine.getPatientLevel(record.patientId),issues=[s.insufficientLiftCount>0?{count:s.insufficientLiftCount,code:LE03_QUALITY_ISSUE.INSUFFICIENT_LIFT}:null,s.overextensionCount>0?{count:s.overextensionCount,code:LE03_QUALITY_ISSUE.OVEREXTENSION}:null,s.asymmetryCount>0?{count:s.asymmetryCount,code:LE03_QUALITY_ISSUE.ASYMMETRY}:null,s.tooFastCount>0?{count:s.tooFastCount,code:LE03_QUALITY_ISSUE.TOO_FAST}:null,s.fastLoweringCount>0?{count:s.fastLoweringCount,code:LE03_QUALITY_ISSUE.FAST_LOWERING}:null].filter(Boolean).sort((a,b)=>b.count-a.count).slice(0,3),feedback=issues.length?issues.map(i=>`<div class="result-feedback-row"><div class="small">↓ ${LE03_QUALITY_ISSUE_LABELS[i.code]} ×${i.count}</div><div class="small" style="color:#666;">${LE03_QUALITY_SUGGESTIONS[i.code]}</div></div>`).join(""):`<div class="small">這次沒有特別需要注意的地方，繼續保持！</div>`,sub=total===0?"這次沒有偵測到完整的動作。":score!=null?`本次 AI 姿勢分數 ${score} 分${reached?"，做得很好！":"，再累積一些就更接近目標了。"}`:"繼續保持穩定的動作。",breakdown=!xp.isLegacyFlatRate?renderXpBreakdownGrid(xp.breakdown):"";return `<div class="detail-analysis-result"><div class="card result-hero">${renderRobot(reached?"celebrate":total>0?"happy":"encourage","sm")}<div class="result-hero-headline">今天完成 ${total} 次${reached?"！":""}</div><div class="small result-hero-sub">${sub}</div><div class="result-hero-badges">${xp.xp>0?`<span class="result-hero-badge"><img src="/images/gamification/xp_coin.png" alt="" />+${xp.xp} XP</span>`:""}${reached?`<span class="result-hero-badge"><img src="/images/gamification/star_sparkle.png" alt="" />目標達成</span>`:""}</div></div><div class="card" style="margin-top:10px;"><div class="result-summary-row"><div class="result-summary-col"><div class="result-summary-value">${total}<span class="result-summary-value-sep">/${target}</span></div><div class="small">完成</div></div><div class="result-summary-col"><div class="result-summary-value">${score!=null?`${score}<span class="result-summary-value-sep">/100</span>`:"-"}</div><div class="small">AI 姿勢分數</div></div><div class="result-summary-col"><div class="result-summary-value">${tracking}</div><div class="small">追蹤中斷</div></div></div></div><div class="card result-feedback-card" style="margin-top:10px;"><div class="small result-feedback-title"><b>主要提醒</b></div>${feedback}</div><div class="card result-reward-card"><div class="result-reward-headline"><img class="result-reward-xp-icon" src="/images/gamification/xp_coin.png" alt="" />本次獲得　+${xp.xp} XP</div><div class="result-reward-level-row small">Lv.${level.level}　${level.currentLevelXp} / ${level.nextLevelXp} XP</div><div class="result-reward-level-bar"><span style="width:${Math.round((level.currentLevelXp/level.nextLevelXp)*100)}%"></span></div>${breakdown}</div><details class="result-tech-details"><summary>詳細分析</summary><div class="small" style="margin-top:8px;">平均最大髖角度：${s.averageMaxHipAngle==null?"-":`${Math.round(s.averageMaxHipAngle)}°`}｜平均每次時間：${s.averageRepDuration==null?"-":`${(s.averageRepDuration/1000).toFixed(1)}秒`}</div><div class="small" style="margin-top:6px;"><b>AI 建議：</b>${record.remark||"—"}</div><div class="small" style="margin-top:8px;color:#888;">AI 姿勢分數：${score??"—"} 分（${record.quality||"—"}）</div><div class="small" style="margin-top:4px;color:#888;">本結果由 MediaPipe 人體關節點與規則式角度分析產生的 AI 姿勢辨識參考評估，非醫療診斷。</div></details></div>`;}
 
@@ -10293,12 +10884,12 @@ function exerciseDetailPage() {
   if (!context) return state.exerciseContext === "self_practice" ? selfPracticeLibraryPage() : todaySchedulePage();
   const { mode, schedule, ex, catalog } = context;
 
-  // One-shot: a just-finished training shows the Training Result view once.
+  // A just-finished training shows the Training Result view. UX round 5/5: it stays while the person is on this
+  // page (a re-render after the cloud write settles used to drop it at once); leaving the page clears it (render()).
   const feedback = state.rewardFeedback;
   let rewardFeedbackHtml = "";
   if (state.rewardFeedback) {
     rewardFeedbackHtml = renderRewardFeedbackPanel(state.rewardFeedback, { omitBack: true });
-    state.rewardFeedback = null;
   }
 
   const statusText = SCHEDULE_STATUS_LABELS[ex.status] || "待開始";
@@ -10345,11 +10936,14 @@ function exerciseDetailPage() {
       rewardHtml: rewardFeedbackHtml,
       observations,
       detailsHtml: analysisResultHtml,
+      saveHtml: latestRecord ? renderTrainingSaveState("analysisRecords", latestRecord.id) : "",
       ctaHtml: `<button class="btn btn-primary full exp-cta" onclick="${toTraining ? "goSchedule()" : backFn}">${toTraining ? "返回今日復健" : "完成"}</button>`,
     });
   }
 
-  const ctaHtml = isAssigned && ex.status === "completed"
+  const ctaHtml = f01InitialReviewTrainingBlocked()
+    ? `<button class="btn btn-light full exp-cta" disabled>待復健師檢視，暫不能開始訓練</button>`
+    : isAssigned && ex.status === "completed"
     ? `<button class="btn btn-light full exp-cta" disabled>已完成</button>`
     : `<button class="btn btn-primary full exp-cta" onclick="goDetectionPrep()">${ex.status === "in_progress" ? "繼續訓練" : "開始訓練"}</button>`;
   return renderExerciseDetailView(model, {
@@ -10360,6 +10954,29 @@ function exerciseDetailPage() {
     extraHtml: (analysisResultHtml ? `<details class="exp-fold"><summary>${isAssigned ? "分析結果" : "最近一次紀錄"}</summary>${analysisResultHtml}</details>` : "")
       + (mode === "self_practice" && state.navigationOrigin === "self_practice" ? `<button class="btn btn-light full" onclick="goSelfReportedTraining()">不使用相機，自行回報</button>${renderSelfReportedTrainingHistory(selfReportedTrainingService.listForPatient(state.user.id, ex.exerciseId), { canVoid: true, cloudStatus: selfReportedTrainingService.cloudStatus() })}` : ""),
   });
+}
+
+/** UX round 5/5 — a training record's real save state on this device (updated in place while the write is on its way). */
+function trainingSaveState(name, id) {
+  if (!storageService.isCloudSyncActive()) return { key: "local", text: "已保存在這台裝置（沒有連上雲端帳號）" };
+  if (storageService.isCloudWritePending(name, id)) return { key: "pending", text: "儲存中…" };
+  const last = storageService.getLastCloudWriteOutcome(name, id);
+  if (last && !last.ok) return { key: "failed", text: "尚未同步到雲端（已先保存在這台裝置）" };
+  return { key: "saved", text: "已同步到雲端" };
+}
+function renderTrainingSaveState(name, id) {
+  const s = trainingSaveState(name, id);
+  if (s.key === "pending") watchTrainingSaveState(name, id);
+  return `<p class="exp-save-state is-${s.key}" id="expSaveState" role="status">${s.text}</p>`;
+}
+function watchTrainingSaveState(name, id) {
+  setTimeout(() => {
+    const el = document.getElementById("expSaveState");
+    if (!el) return;
+    const s = trainingSaveState(name, id);
+    el.className = `exp-save-state is-${s.key}`; el.textContent = s.text;
+    if (s.key === "pending") watchTrainingSaveState(name, id);
+  }, 600);
 }
 
 function detectionPrepPage() {
@@ -10495,8 +11112,14 @@ function detectionPrepPage() {
 
   // Core Mobile UX — one-viewport preparation; the analyzer's own notice is
   // kept, folded under 「注意事項與 AI 說明」.
+  const fixedRun = isF01FixedPracticeRun() ? state.f01FixedPracticeRun : null;
   return renderPreparationView(withF01PlanDoseLabel(buildExerciseExperience(catalog, { planItem: ex }), ex), {
     backFn,
+    // G01 坐站練習: the run's own target snapshot, shown next to the name; the intro page already gave the
+    // steps and reminders, so this page is placement + camera only
+    targetHtml: fixedRun ? `<span class="exp-prep-target f01-fixed-prep-target">本次 ${fixedRun.target.repetitions} 次</span>` : "",
+    name: fixedRun ? "坐站練習" : undefined,
+    showCare: !fixedRun,
     moreHtml: analysisNoticeHtml,
     ctaHtml: `<button class="btn btn-primary full exp-cta" onclick="openCameraPlaceholder()">開啟鏡頭</button>${hasPoseAnalyzer ? "" : `<button class="btn btn-light full" onclick="openUploadPlaceholder()">上傳影片</button>`}`,
   });
@@ -11813,7 +12436,18 @@ function persistSquatSession() {
   // training events (gamificationEngine.computeSessionXp below). gameService.js
   // and the gameProfiles collection are kept untouched.
 
-  const gamificationAfter = gamificationEngine.getGamificationSummary(meta.patientId);
+  const { gamificationAfter, xpResult } = setTrainingRewardFeedback(meta.patientId, gamificationBefore, record);
+
+  squatSessionFinalized = true;
+  return { record, xpResult, gamificationAfter, allDone: state.rewardFeedback.allDone };
+}
+
+/**
+ * The Training Result data (state.rewardFeedback) shown by exerciseDetailPage() until the person leaves that page.
+ * Shared by the squat and (UX round 5/5) the 坐姿起立 trainings; the numbers are read, never guessed.
+ */
+function setTrainingRewardFeedback(patientId, gamificationBefore, record) {
+  const gamificationAfter = gamificationEngine.getGamificationSummary(patientId);
   const newlyUnlockedAchievements = gamificationAfter.achievements.filter(
     (a, i) => a.unlocked && !gamificationBefore.achievements[i].unlocked
   );
@@ -11821,7 +12455,7 @@ function persistSquatSession() {
   // gamificationEngine's SESSION_XP_RULES audit note), shown broken down by
   // source so the patient can see WHY, not just a bare number. Only bonuses
   // actually earned are non-zero — never fabricated.
-  const xpResult = gamificationEngine.computeSessionXp(record);
+  const xpResult = record ? gamificationEngine.computeSessionXp(record) : { xp: 0, breakdown: [], isLegacyFlatRate: false };
   // Phase 4 — lightweight, one-shot reward feedback, still consumed by the
   // next exerciseDetailPage() render (see navigateAfterSquat) once the
   // patient actually navigates there via 查看成果.
@@ -11833,11 +12467,10 @@ function persistSquatSession() {
     newLevel: gamificationAfter.level,
     newLevelTitle: gamificationAfter.title,
     newAchievements: newlyUnlockedAchievements,
-    allDone: getTodayStructuredStatus(meta.patientId).allDone,
+    allDone: getTodayStructuredStatus(patientId).allDone,
+    recordId: record ? record.id : null,
   };
-
-  squatSessionFinalized = true;
-  return { record, xpResult, gamificationAfter, allDone: state.rewardFeedback.allDone };
+  return { gamificationAfter, xpResult };
 }
 
 /**
@@ -12108,6 +12741,16 @@ function rehabMapPage() {
           ${p ? `<div class="rehab-progress"><div class="rehab-progress-bar"><span style="width:${progressPct}%"></span></div><span class="small">本週訓練日 ${p.current} / ${p.target}</span></div>` : ""}
           ${adventure.cta ? `<button class="btn btn-primary full rehab-journey-cta" onclick="${adventure.cta.action}">${adventure.cta.label}</button>` : ""}
         </div>`;
+  // First recommendation stage 2 — the newest first plan's state from the shared arrangement (current view only).
+  const ip = !reviewWeek ? currentAdventure.initialPlan : null;
+  const initialPlanHtml = ip
+    ? `<div class="card rehab-challenge-card waiting f01-initial-plan-notice">
+        <div class="rehab-eyebrow">首次訓練安排</div>
+        <b class="rehab-challenge-title">${ip.title}</b>
+        <p class="small rehab-challenge-req">${ip.text}</p>
+        <button class="btn btn-primary full rehab-journey-cta" onclick="${ip.cta.action}">${ip.cta.label}</button>
+      </div>`
+    : "";
   const chapterTitle = !adventure.started
     ? adventure.chapterLabel
     : `${selectedWeek && selectedWeek.weekNumber ? `第 ${selectedWeek.weekNumber} 週` : "目前旅程"}｜${adventure.allCompleted ? "已完成" : adventure.waitingReason ? "等待確認" : "進行中"}`;
@@ -12137,7 +12780,7 @@ function rehabMapPage() {
         </div>
       </div>
 
-      ${summaryHtml}
+      ${initialPlanHtml}${summaryHtml}
 
       <div class="card clickable rehab-achievement-entry" onclick="goAchievements()">
         <img class="rehab-achievement-entry-icon" src="/images/gamification/achievement_medal.png" alt="" />
@@ -12194,13 +12837,11 @@ patientHome = function() {
   // highest-priority card a subtle "look here first" focus accent.
   const primaryAction = getPrimaryHomeAction(todayStatus);
   const isAssignedFocus = primaryAction.fn === "goSchedule()";
-  const isSelfPracticeFocus = primaryAction.fn === "goSelfPracticeLibrary()";
 
   const hasTherapist = relationService.findAcceptedByPatientId(patientId).length > 0;
+  // UX round 5/5 — the invite-code entry lives in 我的 → 我的復健師 (and the unlinked first-plan card links there).
   let inviteCardHtml = "";
-  if (!hasTherapist) {
-    inviteCardHtml = renderInviteCodeCard();
-  } else if (state.inviteMessage) {
+  if (hasTherapist && state.inviteMessage) {
     // one-time success banner right after accepting an invite; cleared so it
     // doesn't linger on subsequent renders of this same page
     inviteCardHtml = `<div class="card" style="margin-bottom:14px;"><div class="small" style="color:#2e7d32;">${state.inviteMessage}</div></div>`;
@@ -12221,15 +12862,14 @@ patientHome = function() {
   // stays small/muted. One very low-opacity decorative sparkle, purely
   // cosmetic (pointer-events disabled, never over the text or robot).
   const encouragementText = buildHomeEncouragementText(todayStatus);
-  const companionBannerHtml = `<div class="home-companion-banner">
-    <img class="home-companion-decor" src="/images/gamification/sparkle_03.png" alt="" />
+  // UX round 3/5 — the greeting is short; the next step lives in the ONE primary task card right below.
+  void encouragementText;
+  const companionBannerHtml = `<div class="home-companion-banner home-greeting">
     <div class="home-companion-text">
       <div class="home-companion-greeting">${getTimeGreetingPrefix()}，${state.user.name}</div>
       <b class="home-companion-message">${greetingLines.status}</b>
-      ${greetingLines.next ? `<b class="home-companion-message">${greetingLines.next}</b>` : ""}
-      <div class="small home-companion-encourage">${encouragementText}</div>
     </div>
-    <img class="robot-avatar robot-avatar-xl" src="/images/robot/robot_encourage.png" alt="AI 復健陪伴機器人" />
+    <img class="robot-avatar home-greeting-robot" src="/images/robot/robot_encourage.png" alt="AI 復健陪伴機器人" />
   </div>`;
 
   // Level / XP / streak — compact status strip, still never the focal
@@ -12258,7 +12898,7 @@ patientHome = function() {
   // CTA/data/route below are unchanged.
   const scheduleImageHtml = `<img class="home-schedule-image" src="/images/gamification/streak_calendar.png" alt="" />`;
   let myScheduleCardHtml;
-  if (todayStatus.totalItems > 0) {
+  if (todayStatus.assignedTotal > 0) {
     const scheduleCtaLabel = todayStatus.allDone ? "查看" : primaryAction.label;
     const breakdown = [
       todayStatus.assignedTotal > 0 ? `復健師安排 ${todayStatus.assignedCompleted}/${todayStatus.assignedTotal}` : "",
@@ -12280,32 +12920,9 @@ patientHome = function() {
         <div class="home-schedule-bar">${renderProgressBar(todayStatus.totalCompleted, todayStatus.totalItems)}</div>
       </div>`;
   } else {
-    // Compact, friendly empty state — never a bare "目前沒有……" message.
-    myScheduleCardHtml = `
-      <div class="card home-schedule-card">
-        <div class="home-schedule-row">
-          ${scheduleImageHtml}
-          <div class="home-schedule-main">
-            <div class="home-schedule-text">
-              <b>今日復健</b>
-              <div class="small">今天沒有安排的訓練</div>
-            </div>
-            <span class="card-inline-cta" onclick="goSelfPracticeLibrary()">前往自主練習 →</span>
-          </div>
-        </div>
-      </div>`;
+    // UX round 3/5 — no empty 今日復健 card on Home: the primary task card already says what to do next.
+    myScheduleCardHtml = "";
   }
-
-  // 自主練習 — compact full-width row (icon + text + arrow), ~72-88px tall.
-  // exercise_plan.png was replaced with a genuinely transparent asset
-  // (verified via raw alpha channel — corners/edges are alpha=0), so the
-  // icon-tile wrapper that used to hide its old opaque white canvas has
-  // been removed; the icon now sits directly in the row.
-  const selfPracticeSectionHtml = `<div class="secondary-section-card clickable ${isSelfPracticeFocus ? "home-focus-card" : ""}" onclick="goSelfPracticeLibrary()">
-    <img class="secondary-section-icon" src="/images/exercise/exercise_plan.png" alt="" />
-    <div class="secondary-section-text"><b>想自己練？</b><div class="small">依部位、難度或目標自由選擇</div></div>
-    <span class="more-link">→</span>
-  </div>`;
 
   // Phase 7.1.1 — AI 動態功能評估 becomes Home's primary featured section
   // (IA restructure spec sections 3-4), replacing the old AI 個人化建議
@@ -12359,7 +12976,8 @@ patientHome = function() {
     : "";
   // Homepage redesign — ONE hero: while an F01 tracking cycle exists it shows
   // 本週功能追蹤 (renderTrackingCycleCard); otherwise the 開始自主復健 entry.
-  const functionalAssessmentSectionHtml = renderTrackingCycleCard(patientId) || `<div class="card functional-assessment-feature-card">
+  const planLoad = homePlanLoadState();
+  const defaultHeroHtml = `<div class="card functional-assessment-feature-card">
     <div class="functional-assessment-feature-header">
       <div class="functional-assessment-feature-text">
         <b class="functional-assessment-feature-title">開始自主復健</b>
@@ -12376,6 +12994,7 @@ patientHome = function() {
       ${latestF01ActionHtml || functionalAssessmentResultActionHtml}
     </div>
   </div>`;
+  const functionalAssessmentSectionHtml = renderTrackingCycleCard(patientId) || (planLoad !== "loaded" ? renderHomePlanLoadCard(planLoad) : homeInitialPlanIsPrimary(patientId) ? "" : defaultHeroHtml);
 
   // Sarcopenia Redesign Phase 2 — the Phase 1.5 primary loop-tracking card
   // (screening -> 5x sit-to-stand -> home training -> re-assessment
@@ -12390,34 +13009,6 @@ patientHome = function() {
   // routes/functions are untouched and still defined below, still wired
   // into render()'s dispatch and still window-exposed, for F01's assessment
   // flow to keep using.
-
-  // 我的成就 preview — at most 3 unlocked badges + the next locked one
-  // (never all 5), real "下一個目標" hint from gamificationEngine's
-  // remainingHint (unlock thresholds unchanged). Its own "我的成就" header
-  // lives INSIDE the card — no external section title (Phase 4.3 spec
-  // section 1: no duplicated heading-then-card pattern).
-  const unlockedAchievements = gamification.achievements.filter((a) => a.unlocked);
-  const nextLockedAchievement = gamification.achievements.find((a) => !a.unlocked);
-  const shownBadges = [...unlockedAchievements.slice(0, 3), ...(nextLockedAchievement ? [nextLockedAchievement] : [])];
-  const nextGoalHtml = nextLockedAchievement
-    ? `<div class="small achievement-next-goal">下一個目標：${nextLockedAchievement.remainingHint ? `${nextLockedAchievement.remainingHint}「${nextLockedAchievement.title}」` : nextLockedAchievement.title}</div>`
-    : `<div class="small achievement-next-goal">目前的成就已經全部解鎖了！</div>`;
-  // Phase 6.4.2 report section 5/29 — restored to a half-width card
-  // (home-half-card) sitting side by side with 我的進度 again. Only the
-  // CONTAINER changed back from Phase 6.4's full-width stack; achievement
-  // data/logic/thresholds are completely untouched below.
-  const achievementPreviewHtml = `<div class="card home-half-card achievement-preview-card clickable" onclick="goAchievements()">
-    <div class="row" style="justify-content:space-between; align-items:center;">
-      <b>我的成就</b><span class="more-link">查看全部 →</span>
-    </div>
-    <div class="small" style="margin:2px 0 8px;">已解鎖 ${gamification.unlockedCount} / ${gamification.totalAchievements}</div>
-    <div class="achievement-badge-row">
-      ${shownBadges
-        .map((a) => `<div class="achievement-badge-mini ${a.unlocked ? "" : "locked"}" title="${a.title}">${a.unlocked ? `<img src="${a.icon}" alt="${a.title}" />` : `<span class="achievement-badge-lock">?</span>`}</div>`)
-        .join("")}
-    </div>
-    ${nextGoalHtml}
-  </div>`;
 
   // 我的進度 — Phase 6.4.2 report section 6/7: still the compact summary
   // Phase 6.4 established (Home only ever answers "did I train recently?"),
@@ -12460,7 +13051,7 @@ patientHome = function() {
       </div>`;
   }
 
-  const progressCardHtml = `<div class="card home-half-card home-progress-compact clickable" onclick="goActionRecords()">
+  const progressCardHtml = `<div class="card home-progress-compact clickable" onclick="goActionRecords()">
     <div class="row" style="justify-content:space-between; align-items:center;">
       <b>我的進度</b><span class="more-link">›</span>
     </div>
@@ -12487,7 +13078,7 @@ patientHome = function() {
   // (functionalAssessmentSectionHtml) is once again Home's first featured
   // card, its primary action now opening the six-Functional-Domain grid
   // (goFunctionalDomainHome()).
-  return `<div class="top-profile-container"><div class="header"><h1 class="page-title">Re<span class="logo-dark">Motion</span></h1><div class="top-actions">${accountIconHtml}</div></div></div>${companionBannerHtml}${levelXpCardHtml}${successBannerHtml}${functionalAssessmentSectionHtml}${renderTrackingSecondaryActions(patientId)}${renderDailyTrainingFeedback(patientId)}${inviteCardHtml}${myScheduleCardHtml}${selfPracticeSectionHtml}<div class="home-two-col">${progressCardHtml}${achievementPreviewHtml}</div>`;
+  return `<div class="top-profile-container"><div class="header"><h1 class="page-title">Re<span class="logo-dark">Motion</span></h1><div class="top-actions">${accountIconHtml}</div></div></div>${companionBannerHtml}${successBannerHtml}${functionalAssessmentSectionHtml}${renderF01InitialPlanHomeCard(patientId)}${renderTrackingSecondaryActions(patientId)}${renderDailyTrainingFeedback(patientId)}<section class="home-week"><h3 class="section-title">本週進度</h3>${levelXpCardHtml}${progressCardHtml}</section>${myScheduleCardHtml}${inviteCardHtml}`;
 };
 // DEPRECATED (Phase 6.5 report section 21) — this was the "Training
 // Landing" page previously rendered by the bottom-nav 訓練 tab. It only
@@ -13494,20 +14085,319 @@ function persistKn03Session() {
 function finalizeKn03Training() { if (!kn03SessionTracker || !kn03SessionTracker.getSummary().totalReps) { alert("尚未偵測到完整動作，請至少完成一次後再儲存。"); return; } stopKn03Camera(); const meta = kn03SessionMeta; if (persistKn03Session()) { kn03SessionTracker = null; kn03SessionMeta = null; navigateAfterSquat(meta); } }
 function exitKn03Detection() { stopKn03Camera(); const meta = kn03SessionMeta; kn03SessionTracker = null; kn03SessionMeta = null; navigateAfterSquat(meta); }
 
+// ── G01 坐站固定練習 (docs/F01_G01_PROGRAM_SELECTION.md 第六節 Decision A) ─────────────
+// One fixed NHS sit-to-stand (5 repetitions) for everyone: never a tracking cycle, plan completion
+// day, D5 input or analysisRecord. Runs through the existing F01-04 preparation + LE05 detector with
+// the run's own target snapshot; the record lives in f01FixedPracticeRecords (owner-only).
+function isF01FixedPracticeRun() {
+  return state.navigationOrigin === "f01FixedPractice" && !!state.f01FixedPracticeRun && state.selectedExerciseId === FP.F01_FIXED_PRACTICE_EXERCISE_ID;
+}
+function goF01FixedPractice() {
+  state.route = "f01FixedPractice";
+  state.tab = f01EntryTab();
+  render();
+}
+/** 坐站練習 from the 訓練 tab (返回 goes straight back there) or from the F01 page. */
+function goF01FixedPracticeFrom(from) {
+  state.f01FixedFrom = from === "work" ? "work" : "f01";
+  if (from === "work") state.f01HomeFrom = "work";
+  goF01FixedPractice();
+}
+function goF01FixedPracticeHistory() {
+  state.route = "f01FixedPracticeHistory";
+  state.tab = f01EntryTab();
+  render();
+}
+function goF01FixedPracticeSelfRecord() {
+  state.route = "f01FixedPracticeSelf";
+  state.tab = f01EntryTab();
+  render();
+}
+function setF01FixedPracticeRead(checked) {
+  state.f01FixedPracticeReadAt = checked ? nowIso() : null;
+  // patched in place: a full render would reset the scroll position right under the person's finger
+  const row = document.querySelector(".fp-read");
+  if (!row) return render();
+  row.classList.toggle("is-checked", !!checked);
+  document.querySelectorAll(".fp-start, .fp-self-btn").forEach((b) => { b.disabled = !checked; });
+  const hint = document.querySelector(".fp-hint");
+  if (hint) hint.hidden = !!checked;
+}
+const fixedRunId = () => generateId("run").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64);
+/** Starts one run: the target snapshot is fixed here and travels with the run (prep, camera, record). */
+function beginF01FixedPracticeRun() {
+  if (!state.f01FixedPracticeReadAt) return null;
+  state.f01FixedPracticeRun = { runId: fixedRunId(), target: { ...FP.F01_FIXED_PRACTICE_TARGET }, version: FP.F01_FIXED_PRACTICE_VERSION, instructionsReadAt: state.f01FixedPracticeReadAt, startedAt: nowIso() };
+  return state.f01FixedPracticeRun;
+}
+function startF01FixedPracticeCamera() {
+  if (!beginF01FixedPracticeRun()) return alert("請先閱讀說明並勾選「我已閱讀以上說明」。");
+  // a plain self-practice context: no tracking cycle, no ReMotion plan execution is armed
+  state.f01TrainingContext = null;
+  state.f01RecommendationExecution = null;
+  state.exerciseContext = "self_practice";
+  state.navigationOrigin = "f01FixedPractice";
+  state.selectedExerciseId = FP.F01_FIXED_PRACTICE_EXERCISE_ID;
+  state.selectedScheduleId = null;
+  state.selectedExerciseIndex = null;
+  state.tab = "work";
+  goDetectionPrep();
+}
+const fixedExerciseName = () => (exerciseService.getNormalizedById(FP.F01_FIXED_PRACTICE_EXERCISE_ID) || {}).name || "坐姿起立";
+async function saveF01FixedPracticeSelfReportOnly() {
+  const input = document.getElementById("f01FixedSelfReps");
+  const n = input && input.value !== "" ? Number(input.value) : NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 1000) return alert("請輸入 0 以上的整數次數。");
+  const run = beginF01FixedPracticeRun();
+  if (!run) return alert("請先閱讀說明並勾選「我已閱讀以上說明」。");
+  const now = nowIso();
+  state.f01FixedPracticeBusy = true;
+  const saving = f01FixedPracticeService.saveRun({ patientId: getCurrentPatientId(), runId: run.runId, exerciseName: fixedExerciseName(), instructionsReadAt: run.instructionsReadAt, startedAt: run.startedAt, completedAt: now, dateKey: toLocalDateKey(now), ai: null, selfReport: { totalReps: n, reportedAt: now } });
+  state.f01FixedPracticeRun = null;
+  showFixedPracticeResultWhileSaving(getCurrentPatientId(), run.runId);
+  const res = await saving;
+  state.f01FixedPracticeBusy = false;
+  if (res.error) { render(); return alert("無法保存這次紀錄，請再試一次。"); }
+  settleFixedPracticeResult(res.record.id);
+}
+/** The record exists on this device as soon as the save starts: show the result now (「儲存中…」), not after the cloud. */
+function showFixedPracticeResultWhileSaving(patientId, runId) {
+  const id = f01FixedPracticeService.recordIdFor(patientId, runId);
+  if (id && f01FixedPracticeService.getById(id)) goF01FixedPracticeRecord(id, "done");
+}
+function settleFixedPracticeResult(id) {
+  if (state.route === "f01FixedPracticeRecord" && state.f01FixedPracticeRecordId === id) render();
+  else goF01FixedPracticeRecord(id, "done");
+}
+/** End of a camera run (target reached or ended early): the actual count is saved as it is. */
+async function finalizeF01FixedPracticeRun() {
+  const m = le05SessionMeta;
+  const s = le05SessionTracker ? le05SessionTracker.getSummary() : null;
+  stopLe05Camera();
+  if (!m || !m.fixedPractice || !s) return goF01FixedPractice();
+  const now = nowIso();
+  const ai = FP.buildFixedPracticeAi(s, { endedEarly: !s.completed });
+  const saving = f01FixedPracticeService.saveRun({ patientId: m.patientId, runId: m.fixedPractice.runId, exerciseName: m.exerciseName, instructionsReadAt: m.fixedPractice.instructionsReadAt, startedAt: m.fixedPractice.startedAt, completedAt: now, dateKey: toLocalDateKey(now), ai, emulatorSynthetic: !!m.fixedPractice.emulatorSynthetic });
+  le05SessionTracker = null; le05SessionMeta = null; state.f01FixedPracticeRun = null;
+  showFixedPracticeResultWhileSaving(m.patientId, m.fixedPractice.runId);
+  const res = await saving;
+  if (res.error) return alert("無法保存這次紀錄，請再試一次。");
+  settleFixedPracticeResult(res.record.id);
+}
+/**
+ * @param from "done" right after a run (the result page: 查看練習紀錄 / 返回訓練), "history" from 練習紀錄 (返回 goes
+ *   back there), otherwise the practice page
+ */
+function goF01FixedPracticeRecord(id, from) {
+  state.f01FixedPracticeRecordId = id;
+  state.f01FixedPracticeRecordFrom = from === "history" || from === "done" || from === "records" ? from : null;
+  state.route = "f01FixedPracticeRecord";
+  state.tab = state.f01FixedPracticeRecordFrom === "records" ? "data" : state.f01FixedPracticeRecordFrom === "done" ? "work" : f01EntryTab();
+  render();
+}
+const FIXED_SYNC_TEXT = { synced: "已同步到雲端", pending: "儲存中…", failed: "尚未同步到雲端（目前只保存在這台裝置）", local_only: "僅保存在這台裝置（目前沒有連上雲端帳號）" };
+function renderF01FixedPracticeSync(record) {
+  const st = f01FixedPracticeService.syncStatus(record.id);
+  const busy = state.f01FixedPracticeBusy === record.id;
+  return `<div class="small f01-fixed-sync is-${st}">${FIXED_SYNC_TEXT[st]}${st === FIXED_PRACTICE_SYNC.FAILED ? ` <button class="btn btn-light f01-fixed-retry" onclick="event.stopPropagation();retryF01FixedPracticeSync('${record.id}')" ${busy ? "disabled" : ""}>${busy ? "重試中…" : "重試同步"}</button>` : ""}</div>`;
+}
+async function retryF01FixedPracticeSync(id) {
+  state.f01FixedPracticeBusy = id; render();
+  await f01FixedPracticeService.retrySync({ patientId: getCurrentPatientId(), recordId: id });
+  state.f01FixedPracticeBusy = null; render();
+}
+/** What is typed survives the page re-render when the cloud save settles (「儲存中…」 → 已同步). */
+function keepF01FixedSelfDraft(id, value) { state.f01FixedSelfDraft = { id, value: String(value).slice(0, 5) }; }
+window.keepF01FixedSelfDraft = keepF01FixedSelfDraft;
+function setF01FixedSelfOpen(id, open) { state.f01FixedSelfOpen = open ? id : null; }
+window.setF01FixedSelfOpen = setF01FixedSelfOpen;
+async function addF01FixedPracticeSelfReport(id) {
+  const input = document.getElementById("f01FixedRecordSelfReps");
+  const n = input && input.value !== "" ? Number(input.value) : NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 1000) return alert("請輸入 0 以上的整數次數。");
+  state.f01FixedSelfDraft = { id, value: String(n) };
+  state.f01FixedPracticeBusy = id; render();
+  const res = await f01FixedPracticeService.addSelfReport({ patientId: getCurrentPatientId(), recordId: id, totalReps: n, reportedAt: nowIso() });
+  if (!res.error) state.f01FixedSelfDraft = null;
+  state.f01FixedSelfError = res.error ? id : null;
+  state.f01FixedPracticeBusy = null; render();
+  if (res.error) alert("無法保存自行回報，請再試一次。");
+}
+// Patient screens only say what to do; sources, the Otago borrowing, the 5xSTS / 10 s policies, version and
+// fields live in docs/F01_G01_PROGRAM_SELECTION.md 6-3 (7) (constants kept in js/data/f01FixedPractice.js).
+const FIXED_PRACTICE_NAME = "坐站練習";
+function f01FixedPracticePage() {
+  const patientId = getCurrentPatientId();
+  const read = !!state.f01FixedPracticeReadAt;
+  const count = patientId ? f01FixedPracticeService.listForPatient(patientId).length : 0;
+  return `<div class="fp-page">
+    <div class="header">
+      <button class="btn btn-light" onclick="${state.f01FixedFrom === "work" ? "switchTab('work')" : "goF01LowerLimbHome()"}">返回</button>
+      <b>${FIXED_PRACTICE_NAME}</b>
+      <span></span>
+    </div>
+    <section class="card fp-hero">
+      <img class="fp-hero-img" src="/images/exercise/exercise_sit_to_stand.png" alt="坐站練習示意：坐在沒有扶手的椅子上，雙手向前" />
+      <div class="fp-hero-text">
+        <span class="fp-tag">固定練習，非個別訓練安排</span>
+        <div class="fp-target"><span>本次目標</span><b>${FP.F01_FIXED_PRACTICE_TARGET.repetitions} 次</b></div>
+        <p>依照步驟練習，記錄本次完成次數。</p>
+      </div>
+    </section>
+    <section class="card fp-section">
+      <h3 class="fp-section-title">動作步驟</h3>
+      <ol class="exp-steps">${FP.F01_FIXED_PRACTICE_STEPS.map((t, i) => `<li><span class="exp-step-n">${i + 1}</span><span>${t}</span></li>`).join("")}</ol>
+      <p class="fp-note">${FP.F01_FIXED_PRACTICE_PACE_TEXT}</p>
+    </section>
+    <section class="card fp-section">
+      <h3 class="fp-section-title">使用前提醒</h3>
+      <ul class="fp-reminders">${FP.F01_FIXED_PRACTICE_REMINDERS.map((t) => `<li>${t}</li>`).join("")}</ul>
+      <p class="fp-note">${FP.F01_FIXED_PRACTICE_LIMIT_TEXT}</p>
+    </section>
+    <label class="fp-read${read ? " is-checked" : ""}" for="f01FixedRead">
+      <input type="checkbox" id="f01FixedRead" ${read ? "checked" : ""} onchange="setF01FixedPracticeRead(this.checked)" />
+      <span><b>${FP.F01_FIXED_PRACTICE_READ_LABEL}</b><small>${FP.F01_FIXED_PRACTICE_READ_NOTE}</small></span>
+    </label>
+    <div class="fp-secondary">
+      <button class="btn btn-light fp-self-btn" onclick="goF01FixedPracticeSelfRecord()" ${read ? "" : "disabled"}>自行記錄</button>
+      <button class="btn btn-light" onclick="goF01FixedPracticeHistory()">查看練習紀錄${count ? `（${count}）` : ""}</button>
+    </div>
+  </div>${PAGE_ACTION_OPEN}<div class="exp-cta-bar">
+    <button class="btn btn-primary full exp-cta fp-start" onclick="startF01FixedPracticeCamera()" ${read ? "" : "disabled"}>開始準備</button>
+    <p class="fp-hint"${read ? " hidden" : ""}>看完步驟與提醒，勾選「${FP.F01_FIXED_PRACTICE_READ_LABEL}」後即可開始。</p>
+  </div>${PAGE_ACTION_CLOSE}`;
+}
+const fixedPracticeHeader = (title, backFn) => `<div class="header"><button class="btn btn-light" onclick="${backFn}">返回</button><b>${title}</b><span></span></div>`;
+/** 自行記錄 — no camera; the number is saved as the person's own (never an AI count). */
+function f01FixedPracticeSelfPage() {
+  const header = fixedPracticeHeader("自行記錄", "goF01FixedPractice()");
+  if (!state.f01FixedPracticeReadAt) return `<div class="fp-page">${header}<div class="card fp-section"><p class="fp-note">請先回到${FIXED_PRACTICE_NAME}，看完步驟與提醒並勾選「${FP.F01_FIXED_PRACTICE_READ_LABEL}」。</p><button class="btn btn-light full" onclick="goF01FixedPractice()">回到${FIXED_PRACTICE_NAME}</button></div></div>`;
+  return `<div class="fp-page">${header}
+    <section class="card fp-section f01-fixed-self">
+      <h3 class="fp-section-title">${FIXED_PRACTICE_NAME}｜本次完成次數</h3>
+      <p class="fp-note">不使用相機。會記為「本人填寫」，不會變成 AI 計次。</p>
+      <label class="fp-field" for="f01FixedSelfReps"><span>完成次數（目標 ${FP.F01_FIXED_PRACTICE_TARGET.repetitions} 次）</span>
+        <input id="f01FixedSelfReps" type="number" inputmode="numeric" min="0" max="1000" placeholder="例如 5" /></label>
+    </section>
+  </div>${PAGE_ACTION_OPEN}<div class="exp-cta-bar"><button class="btn btn-primary full exp-cta" onclick="saveF01FixedPracticeSelfReportOnly()" ${state.f01FixedPracticeBusy ? "disabled" : ""}>保存自行回報</button></div>${PAGE_ACTION_CLOSE}`;
+}
+/** 練習紀錄 — every record of this patient (existing data), newest first; each opens its record page. */
+function f01FixedPracticeHistoryPage() {
+  const patientId = getCurrentPatientId();
+  const list = patientId ? f01FixedPracticeService.listForPatient(patientId) : [];
+  const rows = list.length
+    ? list.map((r) => `<div class="card f01-fixed-history-row clickable" onclick="goF01FixedPracticeRecord('${r.id}', 'history')"><b>${formatDateKeyMonthDay(r.dateKey)}</b><div class="small">${FP.describeFixedPracticeRecord(r).join("｜")}</div>${renderF01FixedPracticeSync(r)}</div>`).join("")
+    : `<div class="card fp-section"><p class="fp-note">還沒有練習紀錄。</p></div>`;
+  return `<div class="fp-page">${fixedPracticeHeader("練習紀錄", "goF01FixedPractice()")}
+    <p class="fp-note">${FIXED_PRACTICE_NAME}的紀錄，不計入 7 日追蹤的完成天數。</p>
+    <div class="fp-history">${rows}</div>
+  </div>`;
+}
+/** Why an attempt was not counted — plain words; each kept attempt is listed, never hidden. */
+const FIXED_UNCONFIRMED_TEXT = { tracking_lost: "追蹤中斷，無法確認是否完成", rise_not_observed: "沒有看到從坐姿起身（例如站著入鏡後才坐下）", long_cycle_with_tracking_gap: "動作較慢且中途追蹤中斷" };
+/**
+ * 練習結果 (right after a run) / 練習紀錄 (one record). The camera count against the target is the main number;
+ * a star only when the target was reached (a count is not a quality pass); the person's own number apart.
+ */
+function f01FixedPracticeRecordPage() {
+  const r = state.f01FixedPracticeRecordId ? f01FixedPracticeService.getById(state.f01FixedPracticeRecordId) : null;
+  const from = state.f01FixedPracticeRecordFrom;
+  const fromHistory = from === "history", done = from === "done", fromRecords = from === "records";
+  const header = fixedPracticeHeader(done ? "練習結果" : "練習紀錄", fromRecords ? "goActionRecords()" : fromHistory ? "goF01FixedPracticeHistory()" : "goF01FixedPractice()");
+  if (!r || r.patientId !== getCurrentPatientId()) return `<div class="fp-page">${header}<div class="card"><p class="small">找不到這筆紀錄。</p></div></div>`;
+  const busy = state.f01FixedPracticeBusy === r.id;
+  const target = r.target.repetitions;
+  const ai = r.ai;
+  const reached = !!(ai && ai.targetReached);
+  const when = `${formatDateKeyMonthDay(r.dateKey)} ${r.completedAt ? new Date(r.completedAt).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" }) : ""}`.trim();
+  const chip = !ai ? `<span class="fpr-chip">本人填寫</span>` : reached ? `<span class="fpr-chip is-done">完成本次目標</span>` : `<span class="fpr-chip is-short">${ai.endedEarly ? "提前結束" : "未達本次目標"}</span>`;
+  const hero = ai
+    ? `<div class="fpr-value"><b>${ai.countedReps}</b><span>/ ${target} 次</span></div><span class="fpr-label">AI 計次（相機辨識）</span>`
+    : `<div class="fpr-value"><b>${r.selfReport ? r.selfReport.totalReps : 0}</b><span>次</span></div><span class="fpr-label">自行回報（這次沒有使用相機）</span>`;
+  const reasons = ai && Array.isArray(ai.unconfirmedReasons) ? ai.unconfirmedReasons.reduce((m, k) => ({ ...m, [k]: (m[k] || 0) + 1 }), {}) : {};
+  const unconfirmedHtml = ai && ai.unconfirmedAttemptCount
+    ? `<div class="card fp-section fpr-unconfirmed"><b>另有 ${ai.unconfirmedAttemptCount} 次動作無法確認，沒有計入</b><ul>${Object.entries(reasons).map(([k, n]) => `<li>${FIXED_UNCONFIRMED_TEXT[k] || "無法確認"}${n > 1 ? `（${n} 次）` : ""}</li>`).join("")}</ul></div>`
+    : "";
+  // UX round 5/5 — the self-report form is a secondary entry (closed until opened); it stays open while a draft
+  // is kept, so a re-render (saving / sync settled / failed save) never hides the typed number.
+  const draft = state.f01FixedSelfDraft && state.f01FixedSelfDraft.id === r.id ? state.f01FixedSelfDraft.value : "";
+  const selfOpen = state.f01FixedSelfOpen === r.id || draft !== "";
+  const selfFailed = state.f01FixedSelfError === r.id;
+  const selfHtml = ai && r.selfReport
+    ? `<div class="card fp-section f01-fixed-self fpr-self"><span class="fpr-label">自行回報（本人填寫）</span><b>${r.selfReport.totalReps} 次</b><p class="small">本人填寫，另外保存，沒有加入 AI 計次。</p></div>`
+    : ai ? `<details class="card fp-section f01-fixed-self fpr-self-entry"${selfOpen ? " open" : ""} ontoggle="setF01FixedSelfOpen('${r.id}', this.open)"><summary><span>補記自己完成的次數</span><span class="small">可略過</span></summary><p class="small">會另外記為「本人填寫」，不會改變或加到 AI 計次。</p><input id="f01FixedRecordSelfReps" type="number" inputmode="numeric" min="0" max="1000" placeholder="你自己記得的完成次數" value="${draft}" oninput="keepF01FixedSelfDraft('${r.id}', this.value)" />${selfFailed ? `<p class="small fpr-self-error" role="alert">剛才沒有保存成功，輸入的次數還在，請再按一次保存。</p>` : ""}<button class="btn btn-light full" onclick="addF01FixedPracticeSelfReport('${r.id}')" ${busy ? "disabled" : ""}>${busy ? "保存中…" : "保存自行回報"}</button></details>` : "";
+  const actions = done
+    ? `<button class="btn btn-primary full" onclick="goF01FixedPracticeHistory()">查看練習紀錄</button><button class="btn btn-light full" onclick="switchTab('work')">返回訓練</button>`
+    : fromRecords ? `<button class="btn btn-primary full" onclick="goActionRecords()">回到訓練紀錄</button>`
+    : fromHistory ? `<button class="btn btn-primary full" onclick="goF01FixedPracticeHistory()">回到練習紀錄</button><button class="btn btn-light full" onclick="switchTab('work')">返回訓練</button>`
+      : `<button class="btn btn-primary full" onclick="goF01FixedPractice()">回到${FIXED_PRACTICE_NAME}</button>`;
+  return `<div class="fp-page">${header}
+    <div class="card fpr-hero f01-fixed-record${reached ? " is-reached" : ""}">
+      ${reached ? `<img class="fpr-star" src="/images/gamification/star_glow_01.png" alt="" />` : `<img class="fpr-figure" src="/images/exercise/exercise_sit_to_stand.png" alt="" />`}
+      <div class="fpr-text"><span class="fpr-eyebrow">${FIXED_PRACTICE_NAME}｜${when}</span>${chip}${hero}</div>
+      ${ai ? `<p class="small fpr-limit">${FP.F01_FIXED_PRACTICE_LIMIT_TEXT}計入的次數不代表動作品質合格。</p>` : ""}
+      ${renderF01FixedPracticeSync(r)}
+    </div>
+    <div class="fpr-actions">${actions}</div>
+    ${ai && r.selfReport ? selfHtml : ""}
+    ${unconfirmedHtml}
+    ${ai && !r.selfReport ? selfHtml : ""}
+  </div>`;
+}
+// 本機瀏覽器驗證 only (same gate as __emulatorFinishFa5xRun): feeds SYNTHETIC knee-angle metrics to the real LE05
+// session of a running FIXED-PRACTICE run (no camera in the check). The saved record is marked emulatorSynthetic.
+if (EMULATOR_MODE && typeof window !== "undefined") {
+  window.__emulatorFeedFixedPracticeFrames = (frames) => {
+    if (state.route !== "le05Detection" || !le05SessionTracker || !le05SessionMeta || !le05SessionMeta.fixedPractice) return { error: "no_fixed_practice_run" };
+    le05SessionMeta.fixedPractice.emulatorSynthetic = true;
+    let last = null;
+    for (const f of frames || []) {
+      last = f.knee == null ? le05SessionTracker.processFrame({ timestamp: f.t, bodyReady: false })
+        : le05SessionTracker.processFrame({ timestamp: f.t, averageKneeAngle: f.knee, trunkLeanDeg: 12, kneeAsymmetryDeg: 3, kneeValgus: false, bodyReady: true });
+    }
+    const s = le05SessionTracker.getSummary();
+    setLe05("le05TotalReps", String(s.totalReps)); setLe05("le05RepCounterValue", String(s.totalReps));
+    return { ok: true, totalReps: s.totalReps, unconfirmed: s.unconfirmedAttemptCount, completed: s.completed, last: last && last.unconfirmedAttempt ? last.unconfirmedAttempt.reason : null };
+  };
+  // SYNTHETIC landmark frames through the page's own handleLe05Frame (skeleton, counter, guidance) — the real camera's
+  // frames are ignored while this is used, so the check controls the input. Any F01-04 run (fixed or not).
+  window.__emulatorFeedLe05Landmarks = (frames) => {
+    if (state.route !== "le05Detection" || !le05SessionTracker || !le05SessionMeta) return { error: "no_le05_run" };
+    le05SyntheticFeed = true;
+    if (le05SessionMeta.fixedPractice) le05SessionMeta.fixedPractice.emulatorSynthetic = true;
+    if (le05Camera !== "failed") le05Camera = "ready";
+    for (const f of frames || []) handleLe05Frame(f.landmarks, f.t);
+    const s = le05SessionTracker.getSummary();
+    return { ok: true, totalReps: s.totalReps, unconfirmed: s.unconfirmedAttemptCount, completed: s.completed, gate: le05SessionTracker.getGate() };
+  };
+}
+Object.assign(window, { goF01FixedPractice, goF01FixedPracticeFrom, goF01FixedPracticeHistory, goF01FixedPracticeSelfRecord, goF01LowerLimbHomeFrom, setF01FixedPracticeRead, startF01FixedPracticeCamera, saveF01FixedPracticeSelfReportOnly, goF01FixedPracticeRecord, retryF01FixedPracticeSync, addF01FixedPracticeSelfReport });
 let le05SessionMeta=null,le05CameraController=null,le05CanvasCtx=null,le05DetectionStability=null,le05SessionTracker=null,le05TargetReached=false,le05SessionFinalized=false;
-function goLe05Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le05SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:f01FormalTargetReps(ex.exerciseId,calculateSquatTargetReps(ex)),rewardXp:ex.rewardXp||DEFAULT_LE05_REWARD_XP};le05TargetReached=false;le05SessionFinalized=false;state.route="le05Detection";render();beginLe05CameraSession();}
-function le05DetectionPage(){const m=le05SessionMeta||{exerciseName:"坐站",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitLe05Detection()">返回</button><b>AI 坐站偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div><h2 style="margin:10px 0 4px;">${m.exerciseName}</h2><div class="small" style="margin-bottom:10px;">使用穩固椅子，雙腳踩穩；完整站起後再慢慢坐下，並讓全身入鏡。</div><div class="squat-camera-wrap"><video id="le05Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="le05OverlayCanvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="le05RepCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72" width="72" height="72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="le05RepRingProgress" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="le05RepCounterValue">0</span><span class="squat-rep-counter-sep">/ ${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="le05ReadinessDot"></span><span id="le05ReadinessText">尚未偵測</span></div><div class="squat-status-overlay" id="le05StatusOverlay">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px;"><div class="stat"><span class="small">完成次數</span><b><span id="le05TotalReps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">動作狀態</span><b id="le05MotionState">坐姿</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="le05LiveScore">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px;"><div class="small">追蹤狀態：<b id="le05Readiness">--</b></div><div class="small">平均膝角度：<b id="le05KneeAngle">--</b>　軀幹傾斜：<b id="le05TrunkLean">--</b></div><div class="small">即時提醒：<b id="le05Feedback">請坐好並保持全身入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888;">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="le05FinishBtn" onclick="finalizeLe05Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitLe05Detection()">放棄本次訓練</button>`;}
-function beginLe05CameraSession(){const v=document.getElementById("le05Video"),c=document.getElementById("le05OverlayCanvas");if(!v||!c||!le05SessionMeta)return;stopLe05Camera();le05CanvasCtx=c.getContext("2d");le05SessionTracker=createSitToStandSession({targetReps:le05SessionMeta.targetReps});le05DetectionStability=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:LE05_THRESHOLDS.MIN_VISIBILITY},LE05_REQUIRED_LANDMARKS);le05CameraController=createSquatCameraController({videoEl:v,onStatus:handleLe05Status,onFrame:handleLe05Frame,onFatalError:m=>{const e=document.getElementById("le05StatusOverlay");if(e)e.textContent=m;}});le05CameraController.start();}
-function handleLe05Status(s){const e=document.getElementById("le05StatusOverlay");if(!e)return;e.textContent=s==="requesting-permission"?"正在請求攝影機權限…":s==="loading-model"?"AI 模型載入中，請稍候…":s==="ready"?"":e.textContent;}
+// Camera page guidance (js/ai/exercises/sitToStand/trainingGuidance.js): camera / model status + the counter's own gate.
+let le05Camera="starting",le05FailText="",le05EverReady=false,le05Guide=null,le05LastInput=null,le05SyntheticFeed=false;
+const LE05_DEV_TRACE=typeof import.meta!=="undefined"&&!!(import.meta.env&&import.meta.env.DEV);
+/** Developer-only per-frame trace (window.__le05Trace, newest 3000) — never rendered to the patient. */
+function le05DevTrace(row){if(!LE05_DEV_TRACE||typeof window==="undefined")return;const a=window.__le05Trace||(window.__le05Trace=[]);a.push(row);if(a.length>3000)a.shift();}
+function goLe05Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le05SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:isF01FixedPracticeRun()?state.f01FixedPracticeRun.target.repetitions:f01FormalTargetReps(ex.exerciseId,calculateSquatTargetReps(ex)),fixedPractice:isF01FixedPracticeRun()?{...state.f01FixedPracticeRun}:null,rewardXp:ex.rewardXp||DEFAULT_LE05_REWARD_XP};le05TargetReached=false;le05SessionFinalized=false;state.route="le05Detection";render();beginLe05CameraSession();}
+function le05DetectionPage(){const m=le05SessionMeta||{exerciseName:"坐站",targetReps:10};const title=m.fixedPractice?"坐站練習":m.exerciseName;return `<div class="le05-page"${m.fixedPractice?` data-fixed-run="${m.fixedPractice.runId}"`:""}><div class="header le05-header"><button class="btn btn-light detail-back-btn" onclick="exitLe05Detection()">返回</button><b class="le05-title">${title}</b><span></span></div><div class="squat-camera-wrap le05-camera"><video id="le05Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="le05OverlayCanvas" class="squat-overlay-canvas"></canvas><div class="le05-status" id="le05Status" data-tone="wait"><span class="le05-status-dot"></span><span id="le05StatusText">正在開啟相機</span></div><div class="squat-status-overlay" id="le05StatusOverlay"><div><p id="le05OverlayText">正在開啟相機，請允許使用相機</p><button class="btn btn-primary" id="le05RetryBtn" onclick="retryLe05Camera()" hidden>重新開始</button></div></div></div><div class="le05-panel"><div class="le05-count" id="le05RepCounter" aria-label="已計次數"><b id="le05RepCounterValue">0</b><span>/ ${m.targetReps} 次</span></div><p class="le05-guide" id="le05Guide" role="status" aria-live="polite">正在開啟相機，請允許使用相機</p></div></div>${PAGE_ACTION_OPEN}<div class="exp-cta-bar"><button class="btn btn-primary full exp-cta" id="le05FinishBtn" onclick="finalizeLe05Training()">結束練習</button></div>${PAGE_ACTION_CLOSE}`;}
+function beginLe05CameraSession(){const v=document.getElementById("le05Video"),c=document.getElementById("le05OverlayCanvas");if(!v||!c||!le05SessionMeta)return;stopLe05Camera();le05CanvasCtx=c.getContext("2d");le05SessionTracker=createSitToStandSession({targetReps:le05SessionMeta.targetReps});le05DetectionStability=createDetectionStabilityTracker({...SQUAT_THRESHOLDS,MIN_VISIBILITY:LE05_THRESHOLDS.MIN_VISIBILITY},LE05_REQUIRED_LANDMARKS);le05Camera="starting";le05FailText="";le05EverReady=false;le05Guide=createLe05GuidanceTracker();le05LastInput=null;le05SyntheticFeed=false;setLe05("le05RepCounterValue","0");renderLe05Guide(performance.now());le05CameraController=createSquatCameraController({videoEl:v,onStatus:handleLe05Status,onFrame:(l,t)=>{if(!le05SyntheticFeed)handleLe05Frame(l,t);},onFatalError:m=>{le05Camera="failed";le05FailText=m;renderLe05Guide(performance.now());}});le05CameraController.start();}
+/** 模型載入失敗 / 相機無法開啟: the same page starts the camera + model again (no reps were possible yet). */
+function retryLe05Camera(){if(state.route!=="le05Detection")return;beginLe05CameraSession();}
+function handleLe05Status(s){le05Camera=s==="requesting-permission"?"starting":s==="loading-model"?"loading":s==="ready"?"ready":le05Camera;renderLe05Guide(performance.now());}
+/** One place that writes the status chip, the guidance line and the over-video message — all from deriveLe05Guidance(). */
+function renderLe05Guide(now,input){if(input)le05LastInput=input;const i=le05LastInput||{landmarks:false,bodyReady:false,missing:[],framing:null,gate:{state:"seated",seatedObserved:false},reps:0};const g=deriveLe05Guidance({camera:le05Camera,failText:le05FailText,lostAfterReady:le05EverReady,target:le05SessionMeta?le05SessionMeta.targetReps:5,...i});const d=le05Guide?le05Guide.update(g,now):g;const chip=document.getElementById("le05Status");if(chip)chip.dataset.tone=d.tone;setLe05("le05StatusText",d.status);setLe05("le05Guide",d.key==="failed"?"請按畫面上的「重新開始」再試一次":d.text);const o=document.getElementById("le05StatusOverlay"),retry=document.getElementById("le05RetryBtn");const over=d.key==="camera_starting"||d.key==="model_loading"||d.key==="failed"||d.key==="completed";if(o)o.hidden=!over;if(over)setLe05("le05OverlayText",d.text);if(retry)retry.hidden=d.key!=="failed";}
 function drawLe05Skeleton(l){const c=document.getElementById("le05OverlayCanvas"),v=document.getElementById("le05Video");if(!c||!le05CanvasCtx)return;if(v&&v.videoWidth&&(c.width!==v.videoWidth||c.height!==v.videoHeight)){c.width=v.videoWidth;c.height=v.videoHeight;}const x=le05CanvasCtx;if(!c.width)return;x.clearRect(0,0,c.width,c.height);if(!l)return;x.strokeStyle="#7ea866";x.fillStyle="#5f8d49";x.lineWidth=Math.max(2,c.width*.004);POSE_CONNECTIONS.forEach(({start,end})=>{const a=l[start],b=l[end];if(!a||!b||(a.visibility!=null&&a.visibility<LE05_THRESHOLDS.MIN_VISIBILITY)||(b.visibility!=null&&b.visibility<LE05_THRESHOLDS.MIN_VISIBILITY))return;x.beginPath();x.moveTo(a.x*c.width,a.y*c.height);x.lineTo(b.x*c.width,b.y*c.height);x.stroke();});l.forEach(p=>{if(!p||(p.visibility!=null&&p.visibility<LE05_THRESHOLDS.MIN_VISIBILITY))return;x.beginPath();x.arc(p.x*c.width,p.y*c.height,Math.max(2,c.width*.006),0,Math.PI*2);x.fill();});}
 function setLe05(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
-function updateLe05Readiness(d,f){const dot=document.getElementById("le05ReadinessDot"),text=document.getElementById("le05ReadinessText");if(!dot||!text)return;dot.className=`squat-readiness-dot ${d===DETECTION_DISPLAY_STATE.READY?"ready":d===DETECTION_DISPLAY_STATE.PARTIAL||d===DETECTION_DISPLAY_STATE.LOST_SUSTAINED?"partial":"not-found"}`;let label=SQUAT_READINESS_LABELS[d]||"請保持全身入鏡";if(d===DETECTION_DISPLAY_STATE.READY)label=f==="TOO_CLOSE"?"請稍微退後，讓全身進入畫面":f==="TOO_FAR"?"請靠近一些":"已偵測到全身，可以開始坐站";text.textContent=label;}
-function updateLe05Ring(n,t){const r=document.getElementById("le05RepRingProgress");if(r)r.style.strokeDashoffset=String(188.5*(1-calculateProgressRatio(n,t)));}
-function handleLe05Frame(l,time){if(state.route!=="le05Detection"||!le05DetectionStability||!le05SessionTracker||le05TargetReached)return;drawLe05Skeleton(l);const{displayState,framing}=le05DetectionStability.update(l,time);updateLe05Readiness(displayState,framing);setLe05("le05Readiness",framing?`${displayState}（${framing}）`:displayState);const m=computeSitToStandMetrics(l,LE05_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,LE05_THRESHOLDS,LE05_REQUIRED_LANDMARKS),result=le05SessionTracker.processFrame({timestamp:time,...m,kneeValgus:ready?computeKneeValgusSuspected(l):false,bodyReady:ready}),s=result.summary;setLe05("le05KneeAngle",m.averageKneeAngle==null?"--":`${Math.round(m.averageKneeAngle)}°`);setLe05("le05TrunkLean",m.trunkLeanDeg==null?"--":`${Math.round(m.trunkLeanDeg)}°`);setLe05("le05TotalReps",String(s.totalReps));setLe05("le05RepCounterValue",String(s.totalReps));setLe05("le05LiveScore",s.totalReps?String(calculateSitToStandScore(s).score):"--");setLe05("le05MotionState",{seated:"坐姿",rising:"起身中",standing:"站立",lowering:"坐下中"}[s.state]||s.state);updateLe05Ring(s.totalReps,s.targetReps);if(result.repCompleted){const c=document.getElementById("le05RepCounter");if(c){c.classList.toggle("complete",s.completed);c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse");}const issue=result.completedRep.issues[0];setLe05("le05Feedback",issue?LE05_QUALITY_ISSUE_LABELS[issue]:"很好，完整站起並穩定坐下");}else if(!ready)setLe05("le05Feedback","請調整位置，讓全身完整入鏡");else if(m.trunkLeanDeg>LE05_THRESHOLDS.TRUNK_LEAN_MAX_DEG)setLe05("le05Feedback","身體前傾後記得穩定站直");else setLe05("le05Feedback",s.state==="standing"?"很好，慢慢控制坐下":"雙腳踩穩後平順站起");if(s.completed){le05TargetReached=true;stopLe05Camera();const o=document.getElementById("le05StatusOverlay");if(o)o.textContent="訓練次數已完成！請儲存結果";const b=document.getElementById("le05FinishBtn");if(b)b.textContent="儲存並查看結果";}}
+function handleLe05Frame(l,time){if(state.route!=="le05Detection"||!le05DetectionStability||!le05SessionTracker||le05TargetReached)return;drawLe05Skeleton(l);const{framing}=le05DetectionStability.update(l,time);const m=computeSitToStandMetrics(l,LE05_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,LE05_THRESHOLDS,LE05_REQUIRED_LANDMARKS),result=le05SessionTracker.processFrame({timestamp:time,...m,kneeValgus:ready?computeKneeValgusSuspected(l):false,bodyReady:ready}),s=result.summary,gate=le05SessionTracker.getGate(),missing=le05MissingJoints(l,LE05_THRESHOLDS);if(ready)le05EverReady=true;le05DevTrace({t:Math.round(time),ready,missing,knee:m.averageKneeAngle==null?null:Math.round(m.averageKneeAngle),kneeL:m.leftKneeAngle==null?null:Math.round(m.leftKneeAngle),kneeR:m.rightKneeAngle==null?null:Math.round(m.rightKneeAngle),framing,state:gate.state,seatedObserved:gate.seatedObserved,reps:s.totalReps,unconfirmed:result.unconfirmedAttempt?result.unconfirmedAttempt.reason:null});setLe05("le05RepCounterValue",String(s.totalReps));if(result.repCompleted){const c=document.getElementById("le05RepCounter");if(c){c.classList.toggle("complete",s.completed);c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse");}const issue=result.completedRep.issues[0];le05Guide.flash(issue?`已計入第 ${s.totalReps} 次。${LE05_QUALITY_ISSUE_LABELS[issue]}`:`已計入第 ${s.totalReps} 次`,time);}else if(result.unconfirmedAttempt&&result.unconfirmedAttempt.reason!=="rise_not_observed"){le05Guide.flash(LE05_UNCONFIRMED_TEXT[result.unconfirmedAttempt.reason]||"這一下無法確認，未計入",time);}renderLe05Guide(time,{landmarks:!!l,bodyReady:ready,missing,framing,gate,reps:s.totalReps});if(s.completed){le05TargetReached=true;stopLe05Camera();renderLe05Guide(time);}}
 function stopLe05Camera(){if(le05CameraController)le05CameraController.stop();le05CameraController=null;le05CanvasCtx=null;le05DetectionStability=null;}
+/** F01-04 slow-rep fix — why an attempt was not counted (never guessed as complete). */
+const LE05_UNCONFIRMED_TEXT={tracking_lost:"這一下追蹤中斷，無法確認是否完成，未計入",rise_not_observed:"沒有看到從坐姿起身，這一下無法確認，未計入",long_cycle_with_tracking_gap:"這一下較慢且中途追蹤中斷，無法確認是否完成，未計入"};
+/** Count basis — knee-angle posture only; hand support is never seen, so a counted rep is not a quality pass. */
+const LE05_COUNT_BASIS_NOTE="次數依膝角姿態判定；系統看不到手，無法確認是否用手撐，計入或「符合品質條件」都不代表沒有用手。";
+function le05UnconfirmedNote(s){const n=s&&s.unconfirmedAttemptCount;return n?`<p class="small fa5x-muted">另有 ${n} 次動作無法確認（追蹤中斷或沒看到從坐姿起身），沒有計入。</p>`:"";}
 function persistLe05Session(){if(le05SessionFinalized||!le05SessionMeta||!le05SessionTracker)return false;const m=le05SessionMeta,s=le05SessionTracker.getSummary(),assigned=m.mode==="assigned";let schedule=null,ex=null;if(assigned){schedule=scheduleService.getById(m.scheduleId);ex=schedule?schedule.exercises[m.exerciseIndex]:null;if(!schedule||!ex){alert("找不到課表或動作資訊，本次結果未儲存。");return false;}if(ex.status==="completed")return false;}const{score,quality}=calculateSitToStandScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:assigned?schedule.id:null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:LE05_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score,overallScore:score,quality,remark:buildSitToStandRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(assigned)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});le05SessionFinalized=true;return true;}
-function finalizeLe05Training(){if(!le05SessionTracker||!le05SessionTracker.getSummary().totalReps){alert("尚未偵測到完整動作，請至少完成一次後再儲存。");return;}stopLe05Camera();const m=le05SessionMeta;if(persistLe05Session()){le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}}
-function exitLe05Detection(){stopLe05Camera();const m=le05SessionMeta;le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}
+function finalizeLe05Training(){if(le05SessionMeta&&le05SessionMeta.fixedPractice)return finalizeF01FixedPracticeRun();if(!le05SessionTracker||!le05SessionTracker.getSummary().totalReps){alert("尚未偵測到完整動作，請至少完成一次後再儲存。");return;}stopLe05Camera();const m=le05SessionMeta;const before=gamificationEngine.getGamificationSummary(m.patientId);if(persistLe05Session()){/* UX round 5/5 — the same Training Result view as the squat trainings */const rec=analysisService.getByPatientId(m.patientId).filter(r=>r.analysisMode===LE05_ANALYSIS_MODE&&r.exerciseId===m.exerciseId).sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")))[0]||null;setTrainingRewardFeedback(m.patientId,before,rec);le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}}
+function exitLe05Detection(){stopLe05Camera();const m=le05SessionMeta;if(m&&m.fixedPractice){le05SessionTracker=null;le05SessionMeta=null;state.f01FixedPracticeRun=null;return goF01FixedPractice();}le05SessionTracker=null;le05SessionMeta=null;navigateAfterSquat(m);}
 let le03SessionMeta=null,le03CameraController=null,le03CanvasCtx=null,le03DetectionStability=null,le03SessionTracker=null,le03TargetReached=false,le03SessionFinalized=false;
 function goLe03Detection(){const c=getExercisePageContext();if(!c)return;const{mode,schedule,ex}=c;if(mode==="assigned"&&ex.status==="completed")return goExerciseDetail(schedule.id,state.selectedExerciseIndex);const rel=mode==="self_practice"?relationService.findAcceptedByPatientId(state.user.id)[0]:null;le03SessionMeta={mode,navigationOrigin:state.navigationOrigin,scheduleId:mode==="assigned"?schedule.id:null,exerciseIndex:mode==="assigned"?state.selectedExerciseIndex:null,exerciseId:ex.exerciseId,exerciseName:ex.exerciseName,patientId:state.user.id,therapistId:mode==="assigned"?schedule.therapistId:(rel?rel.therapistId:null),targetReps:f01FormalTargetReps(ex.exerciseId,calculateSquatTargetReps(ex)),rewardXp:ex.rewardXp||DEFAULT_LE03_REWARD_XP};le03TargetReached=false;le03SessionFinalized=false;state.route="le03Detection";render();beginLe03CameraSession();}
 function le03DetectionPage(){const m=le03SessionMeta||{exerciseName:"橋式",targetReps:10};return `<div class="header"><button class="btn btn-light detail-back-btn" onclick="exitLe03Detection()">返回</button><b>AI 橋式偵測</b><img class="icon" src="/images/ai_robot.png" alt="AI" /></div><h2 style="margin:10px 0 4px;">${m.exerciseName}</h2><div class="small" style="margin-bottom:10px;">側面或斜側面拍攝；屈膝踩穩，抬臀至肩、髖、膝接近一直線後慢慢放下。</div><div class="squat-camera-wrap"><video id="le03Video" class="squat-camera-video" playsinline muted autoplay></video><canvas id="le03OverlayCanvas" class="squat-overlay-canvas"></canvas><div class="squat-rep-counter" id="le03RepCounter"><svg class="squat-rep-ring" viewBox="0 0 72 72" width="72" height="72"><circle class="squat-rep-ring-bg" cx="36" cy="36" r="30"></circle><circle class="squat-rep-ring-progress" id="le03RepRingProgress" cx="36" cy="36" r="30"></circle></svg><div class="squat-rep-counter-text"><span id="le03RepCounterValue">0</span><span class="squat-rep-counter-sep">/ ${m.targetReps}</span></div></div><div class="squat-readiness-indicator"><span class="squat-readiness-dot" id="le03ReadinessDot"></span><span id="le03ReadinessText">尚未偵測</span></div><div class="squat-status-overlay" id="le03StatusOverlay">正在請求攝影機權限…</div></div><div class="stats" style="margin-top:12px;"><div class="stat"><span class="small">完成次數</span><b><span id="le03TotalReps">0</span> / ${m.targetReps}</b></div><div class="stat"><span class="small">動作狀態</span><b id="le03MotionState">墊面</b></div><div class="stat"><span class="small">AI 姿勢分數</span><b id="le03LiveScore">--</b></div></div><div class="card" style="display:grid;gap:8px;margin-top:12px;"><div class="small">追蹤狀態：<b id="le03Readiness">--</b></div><div class="small">平均髖角度：<b id="le03HipAngle">--</b>　左右差異：<b id="le03Asymmetry">--</b></div><div class="small">即時提醒：<b id="le03Feedback">請躺好並保持肩膀、髖部與膝蓋入鏡</b></div></div><div class="small" style="margin:10px 0;color:#888;">角度與分數為 AI 姿勢辨識的參考判定，不代表醫療診斷。</div><button class="btn btn-primary full" id="le03FinishBtn" onclick="finalizeLe03Training()">結束並儲存結果</button><button class="btn btn-light full" onclick="exitLe03Detection()">放棄本次訓練</button>`;}
@@ -13517,7 +14407,7 @@ function setLe03(id,v){const e=document.getElementById(id);if(e)e.textContent=v;
 function handleLe03Frame(l,time){if(state.route!=="le03Detection"||!le03DetectionStability||!le03SessionTracker||le03TargetReached)return;drawLe03Skeleton(l);const{displayState,framing}=le03DetectionStability.update(l,time);updateLe03Ready(displayState,framing);setLe03("le03Readiness",framing?`${displayState}（${framing}）`:displayState);const m=computeBridgeMetrics(l,LE03_THRESHOLDS),ready=!!l&&hasFullLowerBody(l,LE03_THRESHOLDS,LE03_REQUIRED_LANDMARKS),result=le03SessionTracker.processFrame({timestamp:time,...m,bodyReady:ready}),s=result.summary;setLe03("le03HipAngle",m.averageHipAngle==null?"--":`${Math.round(m.averageHipAngle)}°`);setLe03("le03Asymmetry",m.hipAsymmetryDeg==null?"--":`${Math.round(m.hipAsymmetryDeg)}°`);setLe03("le03TotalReps",String(s.totalReps));setLe03("le03RepCounterValue",String(s.totalReps));setLe03("le03LiveScore",s.totalReps?String(calculateBridgeScore(s).score):"--");setLe03("le03MotionState",{down:"墊面",rising:"抬臀中",top:"頂點",lowering:"放下中"}[s.state]||s.state);updateLe03Ring(s.totalReps,s.targetReps);if(result.repCompleted){const c=document.getElementById("le03RepCounter");if(c){c.classList.toggle("complete",s.completed);c.classList.remove("pulse");void c.offsetWidth;c.classList.add("pulse");}const issue=result.completedRep.issues[0];setLe03("le03Feedback",issue?LE03_QUALITY_ISSUE_LABELS[issue]:"很好，抬升與放下都很穩定");}else if(!ready)setLe03("le03Feedback","請讓肩膀、髖部與雙膝完整入鏡");else if(m.hipAsymmetryDeg>LE03_THRESHOLDS.HIP_ASYMMETRY_MAX_DEG)setLe03("le03Feedback","雙腳平均出力，保持骨盆水平");else setLe03("le03Feedback",s.state==="top"?"很好，慢慢控制骨盆放下":"收緊臀部並穩定抬起");if(s.completed){le03TargetReached=true;stopLe03Camera();const o=document.getElementById("le03StatusOverlay");if(o)o.textContent="訓練次數已完成！請儲存結果";const b=document.getElementById("le03FinishBtn");if(b)b.textContent="儲存並查看結果";}}
 function stopLe03Camera(){if(le03CameraController)le03CameraController.stop();le03CameraController=null;le03CanvasCtx=null;le03DetectionStability=null;}function persistLe03Session(){if(le03SessionFinalized||!le03SessionMeta||!le03SessionTracker)return false;const m=le03SessionMeta,s=le03SessionTracker.getSummary(),assigned=m.mode==="assigned";let schedule=null,ex=null;if(assigned){schedule=scheduleService.getById(m.scheduleId);ex=schedule?schedule.exercises[m.exerciseIndex]:null;if(!schedule||!ex){alert("找不到課表或動作資訊，本次結果未儲存。");return false;}if(ex.status==="completed")return false;}const{score,quality}=calculateBridgeScore(s),now=nowIso(),record=analysisService.create({id:generateId("analysis"),patientId:m.patientId,therapistId:m.therapistId,scheduleId:assigned?schedule.id:null,exerciseId:m.exerciseId,exerciseName:m.exerciseName,completedAt:now,capturedAt:now,createdAt:now,analysisMode:LE03_ANALYSIS_MODE,source:assigned?ANALYSIS_RECORD_SOURCES.ASSIGNED:ANALYSIS_RECORD_SOURCES.SELF_PRACTICE,totalReps:s.totalReps,targetReps:s.targetReps,validReps:s.validReps,score,overallScore:score,quality,remark:buildBridgeRemark(s),repRecords:s.repRecords,summary:{...s,repRecords:undefined}}, trainingRecordOptions());if(assigned)scheduleService.updateExerciseAt(schedule.id,m.exerciseIndex,{status:"completed",completedAt:now,analysisRecordId:record.id});le03SessionFinalized=true;return true;}function finalizeLe03Training(){if(!le03SessionTracker||!le03SessionTracker.getSummary().totalReps){alert("尚未偵測到完整動作，請至少完成一次後再儲存。");return;}stopLe03Camera();const m=le03SessionMeta;if(persistLe03Session()){le03SessionTracker=null;le03SessionMeta=null;navigateAfterSquat(m);}}function exitLe03Detection(){stopLe03Camera();const m=le03SessionMeta;le03SessionTracker=null;le03SessionMeta=null;navigateAfterSquat(m);}
 
-render = function() {if (state.route === "splash") app.innerHTML = renderSplash(); if (state.route === "auth") app.innerHTML = renderAuth(); if (state.route === "dashboard") app.innerHTML = renderDashboard(); if (state.route === "squat") app.innerHTML = renderSquat(); if (state.route === "analysis") app.innerHTML = phone(analysisPage(), true); if (state.route === "history") app.innerHTML = phone(historyPage(), true); if (state.route === "heatmap") app.innerHTML = phone(heatmapPage(), true); if (state.route === "records") app.innerHTML = phone(actionRecordsPage(), true); if (state.route === "achievements") app.innerHTML = phone(patientAchievementsPage(), true); if (state.route === "caseList") app.innerHTML = phone(therapistCaseListPage(), true); if (state.route === "caseDetail") app.innerHTML = phone(therapistCaseDetailPage(), true); if (state.route === "assignPlan") app.innerHTML = phone(assignPlanPage(), true); if (state.route === "schedule") app.innerHTML = phone(todaySchedulePage(), true); if (state.route === "reward") app.innerHTML = phone(rewardPage(), true); if (state.route === "map") app.innerHTML = phone(rehabMapPage(), true); if (state.route === "scheduleTracking") app.innerHTML = phone(therapistScheduleTrackingPage(), true); if (state.route === "exerciseDetail") app.innerHTML = phone(exerciseDetailPage(), true); if (state.route === "detectionPrep") app.innerHTML = phone(detectionPrepPage(), true); if (state.route === "squatDetection") app.innerHTML = phone(squatDetectionPage(), true); if (state.route === "hp02Detection") app.innerHTML = phone(hp02DetectionPage(), true); if (state.route === "cr05Detection") app.innerHTML = phone(cr05DetectionPage(), true); if (state.route === "kn03Detection") app.innerHTML = phone(kn03DetectionPage(), true); if (state.route === "le05Detection") app.innerHTML = phone(le05DetectionPage(), true); if (state.route === "le03Detection") app.innerHTML = phone(le03DetectionPage(), true); if (state.route === "devAccounts") app.innerHTML = phone(devAccountsPage(), true); if (state.route === "patientAssessmentIntro") app.innerHTML = phone(patientAssessmentIntroPage(), true); if (state.route === "selfRehabEntry") app.innerHTML = phone(selfRehabEntryPage(), true); if (state.route === "patientAssessmentForm") app.innerHTML = phone(patientAssessmentFormPage(), true); if (state.route === "patientAssessmentSummary") app.innerHTML = phone(patientAssessmentSummaryPage(), true); if (state.route === "assessmentSettings") app.innerHTML = phone(assessmentSettingsPage(), true); if (state.route === "selfPracticeLibrary") app.innerHTML = phone(selfPracticeLibraryPage(), true); if (state.route === "todaysRecommendation") app.innerHTML = phone(todaysRecommendationPage(), true); if (state.route === "functionalAssessmentBodyRegion") app.innerHTML = phone(functionalAssessmentBodyRegionPage(), true); if (state.route === "functionalDomainHome") app.innerHTML = phone(functionalDomainHomePage(), true); if (state.route === "f01LowerLimbHome") app.innerHTML = phone(f01LowerLimbHomePage(), true); if (state.route === "f01DirectTraining") app.innerHTML = phone(f01DirectTrainingPage(), true); if (state.route === "sarcopeniaScreening") app.innerHTML = phone(sarcopeniaScreeningPage(), true); if (state.route === "fiveTimesSitToStandAssessment") app.innerHTML = phone(fiveTimesSitToStandAssessmentPage(), true); if (state.route === "fiveTimesSitToStandResult") app.innerHTML = phone(fiveTimesSitToStandResultPage(), true); if (state.route === "fiveTimesSitToStandDetection") app.innerHTML = phone(fiveTimesSitToStandDetectionPage(), false); if (state.route === "functionalChangeTrend") app.innerHTML = phone(functionalChangeTrendPage(), true); if (state.route === "functionalAssessmentShoulderProblem") app.innerHTML = phone(functionalAssessmentShoulderProblemPage(), true); if (state.route === "functionalAssessmentShoulderPrep") app.innerHTML = phone(functionalAssessmentShoulderPrepPage(), false); if (state.route === "functionalAssessmentShoulderIntro") app.innerHTML = phone(functionalAssessmentShoulderIntroPage(), false); if (state.route === "functionalAssessmentShoulderSession") app.innerHTML = phone(functionalAssessmentShoulderSessionPage(), false); if (state.route === "functionalAssessmentShoulderComplete") app.innerHTML = phone(functionalAssessmentShoulderCompletePage(), false); if (state.route === "functionalAssessmentShoulderResult") app.innerHTML = phone(functionalAssessmentShoulderResultPage(), true); if (state.route === "trainingRecordDetail") app.innerHTML = phone(trainingRecordDetailPage(), true); attachImageFallbacks(app);};
+render = function() {if (state.rewardFeedback && state.route !== "exerciseDetail" && !isTrainingSessionRoute(state.route)) state.rewardFeedback = null; if (state.route === "splash") app.innerHTML = renderSplash(); if (state.route === "auth") app.innerHTML = renderAuth(); if (state.route === "dashboard") app.innerHTML = renderDashboard(); if (state.route === "squat") app.innerHTML = renderSquat(); if (state.route === "analysis") app.innerHTML = phone(analysisPage(), true); if (state.route === "history") app.innerHTML = phone(historyPage(), true); if (state.route === "heatmap") app.innerHTML = phone(heatmapPage(), true); if (state.route === "records") app.innerHTML = phone(actionRecordsPage(), true); if (state.route === "achievements") app.innerHTML = phone(patientAchievementsPage(), true); if (state.route === "caseList") app.innerHTML = phone(therapistCaseListPage(), true); if (state.route === "caseDetail") app.innerHTML = phone(therapistCaseDetailPage(), true); if (state.route === "assignPlan") app.innerHTML = phone(assignPlanPage(), true); if (state.route === "schedule") app.innerHTML = phone(todaySchedulePage(), true); if (state.route === "reward") app.innerHTML = phone(rewardPage(), true); if (state.route === "map") app.innerHTML = phone(rehabMapPage(), true); if (state.route === "scheduleTracking") app.innerHTML = phone(therapistScheduleTrackingPage(), true); if (state.route === "exerciseDetail") app.innerHTML = phone(exerciseDetailPage(), true); if (state.route === "detectionPrep") app.innerHTML = phone(detectionPrepPage(), true); if (state.route === "squatDetection") app.innerHTML = phone(squatDetectionPage(), true); if (state.route === "hp02Detection") app.innerHTML = phone(hp02DetectionPage(), true); if (state.route === "cr05Detection") app.innerHTML = phone(cr05DetectionPage(), true); if (state.route === "kn03Detection") app.innerHTML = phone(kn03DetectionPage(), true); if (state.route === "le05Detection") app.innerHTML = phone(le05DetectionPage(), true); if (state.route === "le03Detection") app.innerHTML = phone(le03DetectionPage(), true); if (state.route === "devAccounts") app.innerHTML = phone(devAccountsPage(), true); if (state.route === "patientAssessmentIntro") app.innerHTML = phone(patientAssessmentIntroPage(), true); if (state.route === "selfRehabEntry") app.innerHTML = phone(selfRehabEntryPage(), true); if (state.route === "patientAssessmentForm") app.innerHTML = phone(patientAssessmentFormPage(), true); if (state.route === "patientAssessmentSummary") app.innerHTML = phone(patientAssessmentSummaryPage(), true); if (state.route === "assessmentSettings") app.innerHTML = phone(assessmentSettingsPage(), true); if (state.route === "selfPracticeLibrary") app.innerHTML = phone(selfPracticeLibraryPage(), true); if (state.route === "todaysRecommendation") app.innerHTML = phone(todaysRecommendationPage(), true); if (state.route === "functionalAssessmentBodyRegion") app.innerHTML = phone(functionalAssessmentBodyRegionPage(), true); if (state.route === "functionalDomainHome") app.innerHTML = phone(functionalDomainHomePage(), true); if (state.route === "f01LowerLimbHome") app.innerHTML = phone(f01LowerLimbHomePage(), true); if (state.route === "f01DirectTraining") app.innerHTML = phone(f01DirectTrainingPage(), true); if (state.route === "sarcopeniaScreening") app.innerHTML = phone(sarcopeniaScreeningPage(), true); if (state.route === "fiveTimesSitToStandAssessment") app.innerHTML = phone(fiveTimesSitToStandAssessmentPage(), true); if (state.route === "fiveTimesSitToStandResult") app.innerHTML = phone(fiveTimesSitToStandResultPage(), true); if (state.route === "fiveTimesSitToStandDetection") app.innerHTML = phone(fiveTimesSitToStandDetectionPage(), false); if (state.route === "functionalChangeTrend") app.innerHTML = phone(functionalChangeTrendPage(), true); if (state.route === "functionalAssessmentShoulderProblem") app.innerHTML = phone(functionalAssessmentShoulderProblemPage(), true); if (state.route === "functionalAssessmentShoulderPrep") app.innerHTML = phone(functionalAssessmentShoulderPrepPage(), false); if (state.route === "functionalAssessmentShoulderIntro") app.innerHTML = phone(functionalAssessmentShoulderIntroPage(), false); if (state.route === "functionalAssessmentShoulderSession") app.innerHTML = phone(functionalAssessmentShoulderSessionPage(), false); if (state.route === "functionalAssessmentShoulderComplete") app.innerHTML = phone(functionalAssessmentShoulderCompletePage(), false); if (state.route === "functionalAssessmentShoulderResult") app.innerHTML = phone(functionalAssessmentShoulderResultPage(), true); if (state.route === "trainingRecordDetail") app.innerHTML = phone(trainingRecordDetailPage(), true); if (state.route === "f01FixedPractice") app.innerHTML = phone(f01FixedPracticePage(), true); if (state.route === "f01FixedPracticeRecord") app.innerHTML = phone(f01FixedPracticeRecordPage(), true); if (state.route === "f01FixedPracticeHistory") app.innerHTML = phone(f01FixedPracticeHistoryPage(), true); if (state.route === "f01FixedPracticeSelf") app.innerHTML = phone(f01FixedPracticeSelfPage(), true); if (state.route === "feedbackHistory") app.innerHTML = phone(feedbackHistoryPage(), true); attachImageFallbacks(app);};
 function goSchedule(){ state.scheduleViewDate = todayStr(); state.route = "schedule"; state.tab = "work"; render(); }
 function goReward(){ state.route = "reward"; state.tab = "work"; render(); }
 function goMap(){ state.route = "map"; state.tab = "profile"; render(); }
@@ -13731,6 +14621,7 @@ function passF01FinalCheck() {
 }
 
 function goDetectionPrep() {
+  if (f01InitialReviewTrainingBlocked()) return blockF01InitialReviewTraining();
   // F01 batch 1 (spec 4.2) — preparation stage of a formal F01 training: the
   // day's target is frozen / read BEFORE anything below resolves the amount.
   if (isF01FormalTrainingContext()) {
@@ -13746,6 +14637,7 @@ function goDetectionPrep() {
 }
 
 function openCameraPlaceholder() {
+  if (f01InitialReviewTrainingBlocked()) return blockF01InitialReviewTraining();
   const context = getExercisePageContext();
   if (!context) {
     alert("找不到動作資訊，請重新進入。");
@@ -13831,6 +14723,7 @@ window.finalizeKn03Training = finalizeKn03Training;
 window.goLe05Detection = goLe05Detection;
 window.exitLe05Detection = exitLe05Detection;
 window.finalizeLe05Training = finalizeLe05Training;
+window.retryLe05Camera = retryLe05Camera;
 window.goLe03Detection = goLe03Detection;
 window.exitLe03Detection = exitLe03Detection;
 window.finalizeLe03Training = finalizeLe03Training;
@@ -15336,7 +16229,7 @@ function f01RecommendationSetupPage() {
   `;
 }
 
-function generateF01RecommendationFromSetup() {
+async function generateF01RecommendationFromSetup() {
   const s = state.f01RecSetup;
   if (!s || !s.selectedGoalId) return alert("請先選擇這次想優先加強的部分。");
   const patientId = getCurrentPatientId();
@@ -15351,6 +16244,8 @@ function generateF01RecommendationFromSetup() {
     availableMinutes: s.availableMinutes,
     catalog: exerciseService.listNormalized(),
     excludeAutoRecommendationPending: true, // F01 batch 2 §3B
+    // G01 condition screen — the latest report of THIS recommendation's own assessment (never another account's)
+    g01Conditions: s.selectedGoalId === F01_G01_SCREEN_GOAL_ID ? buildG01ConditionSnapshot({ patientId, assessmentId: s.sourceAssessmentId, session }) : null,
   });
   if (result.missingExerciseIds.length) console.warn("[F01 recommendation] missing exercise data:", result.missingExerciseIds);
   if (result.status === "blocked") {
@@ -15367,10 +16262,14 @@ function generateF01RecommendationFromSetup() {
     state.f01RecommendationId = saved.recommendation.id;
     // Phase D1 — a completed baseline + a saved recommendation starts (or
     // re-links) the F01 7-day tracking cycle. Never blocks the recommendation.
-    const tracked = trackingCycleService.createOrGetTrackingCycle({ userId: patientId, baselineSession: session, recommendation: saved.recommendation, completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    // Integrity pass — the plan is synced to the cloud first, then the cycle; a failed sync is shown
+    // with a retry on the recommendation page, never as a started week.
+    state.f01RecCycleError = null;
+    const tracked = await startRecommendationCycle({ userId: patientId, recommendationId: saved.recommendation.id }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
     if (tracked.error) console.warn("[tracking cycle] not linked:", tracked.error);
     // F01 batch 2 §3D — a plan without executable counting definitions never takes effect silently.
     if (tracked.error === "counting_basis_undefined") alert("這份訓練安排中有動作尚未設定可執行的計量方式（每側或合計），因此不會開始本週追蹤。請重新設定訓練需求，或請專業人員協助安排。" + countingGapText(tracked.undefinedItems));
+    if (tracked.error && F01_CYCLE_START_ERROR_TEXT[tracked.error]) state.f01RecCycleError = { recommendationId: saved.recommendation.id, code: tracked.error, message: F01_CYCLE_START_ERROR_TEXT[tracked.error] };
     state.f01RecCycleNotice = tracked.reason === "another_active_cycle" ? tracked.cycle : null;
   }
   state.f01RecResultOrigin = "setup";
@@ -15379,10 +16278,27 @@ function generateF01RecommendationFromSetup() {
   render();
 }
 
+async function retryF01RecommendationCycleFromUi(recommendationId) {
+  if (state.f01RecCycleBusy) return;
+  state.f01RecCycleBusy = recommendationId;
+  render();
+  try {
+    const res = await startRecommendationCycle({ userId: getCurrentPatientId(), recommendationId }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    state.f01RecCycleError = res.error && F01_CYCLE_START_ERROR_TEXT[res.error] ? { recommendationId, code: res.error, message: F01_CYCLE_START_ERROR_TEXT[res.error] } : null;
+    state.f01RecCycleNotice = res.reason === "another_active_cycle" ? res.cycle : null;
+  } finally {
+    state.f01RecCycleBusy = null;
+    render();
+  }
+}
+window.retryF01RecommendationCycleFromUi = retryF01RecommendationCycleFromUi;
+
 function goF01RecommendationResult(recommendationId = null) {
-  if (recommendationId) state.f01RecommendationId = recommendationId;
+  // Opening a specific saved plan never shows a previous no-candidate result (e.g. G01 condition screen) instead.
+  if (recommendationId) { state.f01RecommendationId = recommendationId; state.f01RecEmpty = null; }
   state.route = "f01RecommendationResult";
-  state.tab = "home";
+  state.tab = state.f01RecTab || "home"; // one-shot: only 本週訓練 (goTrackingWeekTraining) asks for 訓練
+  state.f01RecTab = null;
   render();
 }
 
@@ -15400,7 +16316,164 @@ function goF01RecommendationExerciseDetail(exerciseId, fromTrainingTab = false) 
 }
 
 /** 開始訓練: same context as 查看動作, then straight to the exercise's pre-camera preparation page. */
+/**
+ * docs/F01_INITIAL_REVIEW_PLAN.md stage 1 — a training entered from a first recommendation that is
+ * pending / reviewed but not accepted never starts (counted or uncounted). One guard for every entry
+ * (recommendation page, exercise detail, preparation, camera).
+ */
+function f01InitialReviewTrainingBlocked() {
+  return state.navigationOrigin === "f01Recommendation" && !!state.f01RecommendationId && !canTrainFromRecommendation(state.f01RecommendationId);
+}
+const F01_INITIAL_REVIEW_BLOCK_TEXT = "這份訓練安排需由復健師檢視，並由你接受後才能開始訓練。";
+function blockF01InitialReviewTraining() {
+  alert(F01_INITIAL_REVIEW_BLOCK_TEXT);
+  return goF01RecommendationResult(state.f01RecommendationId);
+}
+
+/**
+ * Patient-side card of a first recommendation that needs review: pending / reviewed (accept) /
+ * accepted (how the first week starts). Candidate vs confirmed, honest next step.
+ */
+function renderF01InitialReviewNotice(rec, arr, activeCycle) {
+  const hasTherapist = relationService.findAcceptedByPatientId(getCurrentPatientId()).length > 0;
+  const reviewed = arr.status === "reviewed";
+  const accepted = arr.status === "accepted";
+  const list = (items) => `<ol class="d5-ex-list">${items.map((it) => `<li>${d5ExerciseName(it.exerciseId)}<span class="small">｜${d5ReviewVolumeText(it.exerciseId, it.dose)}</span></li>`).join("")}</ol>`;
+  const KIND = { replaced: "更換", added: "新增", removed: "移除", dose_changed: "調整訓練量" };
+  const review = arr.review;
+  const changes = (reviewed || accepted) && review ? (review.changes || []) : [];
+  const currentRec = activeCycle && activeCycle.recommendationId !== rec.id ? recommendationService.getById(activeCycle.recommendationId) : null;
+  const busy = state.f01InitialAcceptBusy === rec.id;
+  const err = state.f01InitialAcceptError && state.f01InitialAcceptError.recommendationId === rec.id ? state.f01InitialAcceptError.message : null;
+  const reviewedAtText = accepted ? arr.confirmation.reviewedAt : review ? review.reviewedAt : null;
+  const confirmedHtml = reviewed || accepted
+    ? `<b class="fa5x-section-title">復健師確認的安排${reviewedAtText ? `（${formatDateKeyMonthDay(toLocalDateKey(reviewedAtText))}）` : ""}</b>${list(arr.confirmedItems)}
+        <div class="small">與候選安排的差異：${changes.length ? changes.map((c) => `第 ${c.position} 項${KIND[c.kind] || c.kind}（${c.from ? c.from.exerciseName : "—"} → ${c.to ? c.to.exerciseName : "—"}）`).join("；") : "沒有差異"}</div>
+        ${review ? `<div class="small">復健師理由：${escapeD5Text(review.reason)}</div>` : ""}`
+    : "";
+  let nextHtml;
+  if (reviewed) {
+    nextHtml = `<p class="small">接受後，第一週會採用上面這份復健師確認的動作與訓練量。${activeCycle ? "你目前已有進行中的 7 日追蹤；接受後這份安排不會取代它，會先保留為已接受、尚未開始。" : ""}</p>
+      <button class="btn btn-primary full" style="margin-top:8px;" onclick="acceptF01InitialPlanFromUi('${rec.id}', '${initialReviewVersionId(review)}')" ${busy ? "disabled" : ""}>${busy ? "處理中…" : "接受這份安排"}</button>`;
+  } else if (accepted) {
+    const h = arr.confirmation.handoff || {};
+    const originalDate = h.originalAssessmentDateKey ? formatDateKeyMonthDay(h.originalAssessmentDateKey) : "原本的評估日";
+    nextHtml = arr.start === "blocked_by_active_cycle"
+      ? `<p class="small">你已接受這份安排，但目前已有進行中的 7 日追蹤，這份安排尚未啟用；目前的追蹤與紀錄不會被取代。</p>`
+      : arr.start === "ready_to_start"
+        ? `<p class="small">你已接受這份安排，第一週尚未開始（上次可能沒有同步完成）。</p>
+          <button class="btn btn-primary full" style="margin-top:8px;" onclick="startF01InitialPlanFromUi('${rec.id}')" ${busy ? "disabled" : ""}>${busy ? "處理中…" : "開始第一週"}</button>`
+        : `<p class="small">已接受安排，請完成新的基準評估。這份安排依 ${originalDate} 的評估產生；第一週需要以一次新的五次坐站作為第 1 天。新的評估只用來開始第一週，復健師並沒有審閱這次新評估。</p>
+          <button class="btn btn-primary full" style="margin-top:8px;" onclick="goF01InitialPlanBaselineAssessment('${rec.id}')">開始第一週基準評估 →</button>`;
+  } else {
+    nextHtml = `<p class="small">${hasTherapist
+      ? "目前等待你的復健師在個案頁檢視這份安排；系統不會另外通知復健師，可以主動告知對方。"
+      : "目前沒有連結的復健師，這份安排暫時無法在 ReMotion 中完成檢視。可以用復健師提供的邀請碼加入個案名單，加入後對方即可在個案頁檢視；系統不會另外通知。"}</p>`;
+  }
+  const title = accepted ? "已接受，第一週尚未開始" : reviewed ? "復健師已確認，等待你接受" : "待復健師檢視";
+  return `<div class="card f01-limited-basis f01-initial-review">
+      <span class="small">首次訓練安排</span>
+      <b>${title}</b>
+      <ul class="d5-decision-basis">${arr.reasons.map((r) => `<li>${r.text}</li>`).join("")}${arr.staleReview ? "<li>復健師先前的確認是針對舊版內容；內容已變更，需要重新檢視。</li>" : ""}</ul>
+      <b class="fa5x-section-title">系統候選安排${accepted ? "" : "（尚未生效）"}</b>${list(arr.candidateItems)}
+      ${confirmedHtml}
+      ${nextHtml}
+      ${err ? `<div class="small" style="color:#a33;margin-top:6px;">${err}</div>` : ""}
+      ${currentRec ? `<b class="fa5x-section-title">目前使用的安排（本週追蹤進行中，不受影響）</b>${list(currentRec.items || [])}
+        <button class="btn btn-light full" style="margin-top:8px;" onclick="goTrackingWeekTraining('${activeCycle.id}')">查看本週訓練</button>` : ""}
+      ${renderF01ReloadControl("patient")}
+    </div>${!reviewed && !accepted && !hasTherapist ? renderInviteCodeCard() : ""}`;
+}
+
+const F01_INITIAL_ACCEPT_ERROR_TEXT = {
+  not_acceptable: "這份安排目前不能接受（可能尚未確認、確認已失效，或照護關係已結束），請重新整理後再看。",
+  recommendation_integrity_missing: "這份訓練安排缺少確認是否需要專業檢視的資料（可能建立於較早的版本），無法接受；請重新設定訓練需求。",
+  review_changed: "復健師的確認內容已更新，請重新查看後再接受。",
+  not_owner: "這份安排不屬於目前帳號。",
+  recommendation_not_found: "找不到這份訓練安排。",
+  accept_sync_failed: "接受尚未同步到雲端，這份安排仍未接受；請確認網路後重試。",
+  cycle_sync_failed: "已接受安排，但第一週尚未同步到雲端，因此還沒開始；請確認網路後按「開始第一週」重試（若其他裝置已開始，請重新登入以載入）。",
+  counting_basis_undefined: "這份安排中有動作尚未設定計量方式，無法開始；請請復健師重新檢視。",
+  missing_confirmation_date: "無法取得今天的日期，請重試。",
+};
+const f01InitialCycleErrorText = (code) => F01_INITIAL_ACCEPT_ERROR_TEXT[code] || {
+  another_active_cycle: "目前已有進行中的 7 日追蹤，這份安排先保留為已接受、尚未開始。",
+  baseline_reuse_not_allowed: "原本的評估不是今天完成的，需要先完成新的基準評估。",
+  baseline_not_completed: "這次評估未完成 5 次，第一週尚未開始。",
+  baseline_measurement_outdated: "評估的量測版本已更新，請重新進行評估。",
+  baseline_not_today: "這次基準評估不是今天完成的；第一週需要以今天完成的新評估開始。",
+  accepted_plan_changed: "已接受的安排內容與確認不一致，無法開始；請聯絡復健師。",
+}[code] || "第一週目前無法開始，請回首頁查看狀態。";
+
+async function acceptF01InitialPlanFromUi(recommendationId, reviewVersionId) {
+  if (state.f01InitialAcceptBusy) return;
+  state.f01InitialAcceptBusy = recommendationId;
+  state.f01InitialAcceptError = null;
+  render();
+  try {
+    const res = await acceptInitialPlan({ recommendationId, userId: getCurrentPatientId(), expectedReviewVersionId: reviewVersionId, confirmationDateKey: toLocalDateKey(new Date()) }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    if (res.error) state.f01InitialAcceptError = { recommendationId, message: F01_INITIAL_ACCEPT_ERROR_TEXT[res.error] || f01InitialCycleErrorText(res.error) };
+    else if (res.cycleError && res.cycleError !== "another_active_cycle") state.f01InitialAcceptError = { recommendationId, message: f01InitialCycleErrorText(res.cycleError) };
+  } finally {
+    state.f01InitialAcceptBusy = null;
+    render();
+  }
+}
+
+async function startF01InitialPlanFromUi(recommendationId) {
+  if (state.f01InitialAcceptBusy) return;
+  state.f01InitialAcceptBusy = recommendationId;
+  state.f01InitialAcceptError = null;
+  render();
+  try {
+    const res = await startInitialPlanCycle({ recommendationId, userId: getCurrentPatientId(), todayDateKey: toLocalDateKey(new Date()) }, { completionRulesVersion: F01_FORMAL_COMPLETION_RULES_VERSION });
+    if (res.error) state.f01InitialAcceptError = { recommendationId, message: f01InitialCycleErrorText(res.error) };
+  } finally {
+    state.f01InitialAcceptBusy = null;
+    render();
+  }
+}
+
+/** 開始第一週基準評估: validates the accepted plan, then the normal 5xSTS entry with an in-memory initial_plan_baseline context. */
+function goF01InitialPlanBaselineAssessment(recommendationId) {
+  const check = trackingCycleService.checkInitialPlanBaselineEligibility({ recommendationId, userId: getCurrentPatientId(), todayDateKey: toLocalDateKey(new Date()) });
+  if (!check.ok) {
+    state.fa5xInitialBaselineContext = null;
+    alert("目前不需要進行第一週基準評估，請回訓練建議頁查看狀態。");
+    return goF01RecommendationResult(recommendationId);
+  }
+  state.fa5xReassessmentContext = null;
+  state.fa5xNextBaselineContext = null;
+  state.fa5xInitialBaselineContext = { mode: INITIAL_PLAN_BASELINE_ROLE, recommendationId };
+  goFiveTimesSitToStandAssessment();
+}
+
+/** At camera start: { recommendationId } for a still-valid initial-plan baseline run, else null. */
+function resolveFa5xInitialPlanBaselineRun(patientId) {
+  const ctx = state.fa5xInitialBaselineContext;
+  if (!ctx || ctx.mode !== INITIAL_PLAN_BASELINE_ROLE) return null;
+  const check = trackingCycleService.checkInitialPlanBaselineEligibility({ recommendationId: ctx.recommendationId, userId: patientId, todayDateKey: toLocalDateKey(new Date()) });
+  if (!check.ok) {
+    state.fa5xInitialBaselineContext = null;
+    return null;
+  }
+  return { recommendationId: check.recommendation.id };
+}
+
+function renderInitialPlanBaselineBanner() {
+  const ctx = state.fa5xInitialBaselineContext;
+  if (!ctx || ctx.mode !== INITIAL_PLAN_BASELINE_ROLE) return "";
+  const check = trackingCycleService.checkInitialPlanBaselineEligibility({ recommendationId: ctx.recommendationId, userId: getCurrentPatientId(), todayDateKey: toLocalDateKey(new Date()) });
+  if (!check.ok) return "";
+  return `<div class="tc-reassess-banner"><b>F01 7 日追蹤｜第一週基準評估</b><span class="small">完成 5 次後，今天會成為第一週的第 1 天，訓練內容是你已接受、復健師確認的安排；這次評估只用來開始第一週，復健師沒有審閱這次評估。若未完成，第一週不會開始。</span></div>`;
+}
+
+window.acceptF01InitialPlanFromUi = acceptF01InitialPlanFromUi;
+window.startF01InitialPlanFromUi = startF01InitialPlanFromUi;
+window.goF01InitialPlanBaselineAssessment = goF01InitialPlanBaselineAssessment;
+
 function startF01RecommendedTraining(exerciseId) {
+  if (f01InitialReviewTrainingBlocked()) return blockF01InitialReviewTraining();
   state.exerciseContext = "self_practice";
   state.navigationOrigin = "f01Recommendation";
   state.selectedExerciseId = exerciseId;
@@ -15424,7 +16497,8 @@ function armF01TrackingTraining(exerciseId) {
   state.f01TrainingContext = null;
   const userId = getCurrentPatientId();
   // I-1 — explicit ReMotion execution for a plan outside the active cycle (source only; never counted into a cycle).
-  state.f01RecommendationExecution = userId && state.f01RecommendationId ? { recommendationId: state.f01RecommendationId, exerciseId, userId } : null;
+  // Never for a first recommendation still pending review (no uncounted fallback either).
+  state.f01RecommendationExecution = userId && state.f01RecommendationId && canTrainFromRecommendation(state.f01RecommendationId) ? { recommendationId: state.f01RecommendationId, exerciseId, userId } : null;
   const cycle = userId ? trackingCycleService.getActiveTrackingCycle(userId) : null;
   if (!cycle || !state.f01RecommendationId || cycle.recommendationId !== state.f01RecommendationId) return null;
   state.f01TrainingContext = { cycleId: cycle.id, recommendationId: cycle.recommendationId, exerciseId, userId };
@@ -15468,11 +16542,12 @@ function f01RecommendationResultPage() {
   const fromTracking = state.f01RecResultOrigin === "tracking";
   const header = `
     <div class="header">
-      <button class="btn btn-light" onclick="${sourceId && !fromTracking ? `goFiveTimesSitToStandResult('${sourceId}')` : "switchTab('home')"}">返回</button>
+      <button class="btn btn-light" onclick="${sourceId && !fromTracking ? `goFiveTimesSitToStandResult('${sourceId}')` : `switchTab('${fromTracking && state.weekTrainingFrom === "work" ? "work" : "home"}')`}">返回</button>
       <b>本次訓練建議</b>
       <span></span>
     </div>`;
 
+  if (!rec && empty && describeG01NoCandidates(empty)) return `${header}${renderG01NoCandidatesPage(empty, sourceId)}`;
   if (!rec && empty) {
     // limitation exclusions only: the batch-2 automatic-candidate exclusion (reason counting_basis_pending) is not one
     const limitationExcluded = (empty.excluded || []).filter((e) => e.reason !== "counting_basis_pending");
@@ -15499,8 +16574,12 @@ function f01RecommendationResultPage() {
   // A next-stage plan trains only once its next 7-day cycle exists (viewing never creates one).
   const planCycle = isD5 ? trackingCycleService.listTrackingCycles(patientId).find((c) => c.recommendationId === rec.id) || null : null;
   const d5Handoff = isD5 && rec.d5 && rec.d5.confirmation ? rec.d5.confirmation.handoff : null;
-  const trainingOpen = !isD5 || !!planCycle;
-  const notStartedHtml = trainingOpen ? "" : `<div class="card f01-limited-basis">
+  // docs/F01_INITIAL_REVIEW_PLAN.md stage 1 — a first recommendation pending / reviewed by a therapist
+  // is not trainable from here (counted or not) until acceptance exists (stage 2).
+  const initialArr = isD5 ? null : getInitialArrangement(rec, { todayDateKey: toLocalDateKey(new Date()) });
+  const initialHold = !!initialArr && (initialArr.status === "needs_review" || initialArr.status === "reviewed" || initialArr.status === "accepted");
+  const trainingOpen = (!isD5 || !!planCycle) && !initialHold;
+  const notStartedHtml = initialHold ? renderF01InitialReviewNotice(rec, initialArr, activeCycle) : trainingOpen ? "" : `<div class="card f01-limited-basis">
       <b>下一週還沒開始</b>
       <p class="small">${d5Handoff && d5Handoff.requiresFreshBaseline ? "你已接受這份下一階段建議。需要先完成一次新的五次坐站作為下一週第 1 天，下一週的訓練才會開始並計入追蹤。" : "這份下一階段建議還沒有對應的 7 日追蹤，目前不能從這裡開始訓練。"}</p>
       ${d5Handoff && d5Handoff.requiresFreshBaseline
@@ -15530,13 +16609,25 @@ function f01RecommendationResultPage() {
     value: evidence.valid ? `${evidence.resultText}${evidence.dateText ? `｜${evidence.dateText}` : ""}` : "無法確認",
   };
   const basisRows = [assessmentRow, ...(rec.basis || []).filter((b) => b.key !== "assessment")];
-  const basisHtml = basisRows.map((b) => `<div class="f01-basis-item">
+  const basisItem = (b) => `<div class="f01-basis-item">
       ${BASIS_ICON[b.key] ? `<img class="f01-basis-icon" src="${BASIS_ICON[b.key]}" alt="" />` : `<span class="f01-basis-dot" aria-hidden="true"></span>`}
       <div class="f01-basis-text"><span>${b.label}</span><b>${b.value}</b></div>
-    </div>`).join("");
+    </div>`;
+  // G01 evidence trail (js/data/f01GoalEvidence.js): the patient's own goal, the assessment record and
+  // the selection method are shown apart. Display only — selection, order, count and amount are unchanged.
+  const evidenceTrail = hasF01EvidenceTrail(rec);
+  const goalRows = basisRows.filter((b) => b.key === "goal");
+  const conditionRows = basisRows.filter((b) => b.key !== "goal" && b.key !== "assessment");
+  const basisHtml = evidenceTrail
+    ? `<div class="f01-basis-group"><span class="small f01-basis-group-title">你選擇的目標</span>${goalRows.map(basisItem).join("")}</div>
+      <div class="f01-basis-group"><span class="small f01-basis-group-title">本次評估紀錄</span>${basisItem(assessmentRow)}</div>
+      <div class="f01-basis-group"><span class="small f01-basis-group-title">選取方式</span><p class="small f01-selection-method">${F01_SELECTION_METHOD_NOTE}</p>${rec.conditionScreen ? `<p class="small f01-selection-method f01-g01-screen-note">${F01_G01_SCREEN_NOTE}</p>` : ""}${conditionRows.map(basisItem).join("")}<p class="small fa5x-muted">${F01_MAPPING_STATUS_NOTE}</p></div>`
+    : basisRows.map(basisItem).join("");
   const basisNote = isD5
     ? (evidence.valid && evidence.extra ? `<p class="small fa5x-muted">${evidence.extra}。下一階段建議依上一週的前後評估與訓練完成天數決定。</p>` : "")
-    : `<p class="small fa5x-muted">評估秒數用來確認這次評估有效；動作排序依你選的目標與條件，不依秒數高低調整。本次排序未參考：${F01_NOT_USED_IN_RANKING.join("、")}。</p>`;
+    : evidenceTrail
+      ? `<p class="small fa5x-muted">本次選取也未參考：${F01_NOT_USED_IN_RANKING.join("、")}。</p>`
+      : `<p class="small fa5x-muted">評估秒數用來確認這次評估有效；動作排序依你選的目標與條件，不依秒數高低調整。本次排序未參考：${F01_NOT_USED_IN_RANKING.join("、")}。</p>`;
   const limitationsApplied = (rec.limitationIds || []).length > 0;
 
   const itemsHtml = (rec.items || []).map((it) => {
@@ -15554,6 +16645,24 @@ function f01RecommendationResultPage() {
     const reasonLines = [d5Line, ...explainF01Item(it, { limitationsApplied, isD5 })].filter(Boolean);
     const volume = describePlanVolume(exerciseService.getById(it.exerciseId), it.dose);
     const conditionsHtml = (it.matchedConditions || []).map((c) => `<li>${displayConditionText(c)}</li>`).join("");
+    const itemEvidence = evidenceTrail ? describeF01ItemEvidence(it) : null;
+    const shortReason = itemEvidence ? itemEvidence.shortReason : reasonLines[0];
+    const evidenceHtml = itemEvidence
+      ? `<div class="f01-goal-evidence">
+          <b class="small">目標關聯（${itemEvidence.relationLabel}）</b>
+          <p class="small">${itemEvidence.systemRationale}</p>
+          <ul class="small f01-evidence-status">${itemEvidence.statusLines.map((l) => `<li>${l}</li>`).join("")}</ul>
+          ${itemEvidence.studies.map((s) => `<div class="small f01-evidence-study">
+            <b>研究：${s.citation}</b>
+            <div>對象：${s.population}</div>
+            <div>介入：${s.intervention}</div>
+            <div>主要結果（摘要）：${s.mainResults}</div>
+            <div>支持到哪裡：${s.supports}</div>
+            <div>不能推論：${s.cannotInfer}</div>
+            <a href="${s.url}" target="_blank" rel="noopener noreferrer">查看來源（PubMed ${s.pmid}）</a>
+          </div>`).join("")}
+        </div>`
+      : "";
     return `<div class="card f01-rec-card">
       <div class="f01-rec-top">
         <div class="f01-rec-image">${imageHtml}</div>
@@ -15561,7 +16670,7 @@ function f01RecommendationResultPage() {
           <div class="f01-rec-name"><span class="f01-rec-rank">${String(it.rank).padStart(2, "0")}</span><b>${it.exerciseName}</b></div>
           ${it.rank === 1 ? `<div class="f01-rec-start-hint">建議從這個動作開始</div>` : ""}
           ${purpose ? `<div class="f01-rec-purpose">${purpose}</div>` : ""}
-          ${reasonLines.length ? `<div class="small f01-rec-short-reason">${reasonLines[0]}</div>` : ""}
+          ${shortReason ? `<div class="small f01-rec-short-reason">${shortReason}</div>` : ""}
           <div class="small f01-rec-volume">訓練量：${formatPlanVolume(volume) || "動作資料未提供組數或次數，請依動作頁說明進行"}</div>
           <div class="f01-rec-tags">${it.aiSupported ? `<span class="training-mode-badge tier-pose"><img src="/images/ai_robot.png" alt="" />AI 動作辨識</span>` : `<span class="f01-rec-self">自行練習</span>`}</div>
         </div>
@@ -15573,19 +16682,20 @@ function f01RecommendationResultPage() {
           ${reasonLines.length ? `<ul class="f01-rec-reasons">${reasonLines.map((l) => `<li>${l}</li>`).join("")}</ul>` : ""}
           ${level.badge ? `<span class="f01-match-badge ${level.cls}">${level.badge}</span>` : ""}
           ${conditionsHtml ? `<ul class="f01-rec-conditions">${conditionsHtml}</ul>` : ""}
+          ${evidenceHtml}
         </div>
       </details>
       <div class="f01-rec-actions">
         <button class="btn btn-light" onclick="goF01RecommendationExerciseDetail('${it.exerciseId}')">查看動作</button>
         ${trainingOpen ? `<button class="btn btn-primary" onclick="startF01RecommendedTraining('${it.exerciseId}')">開始訓練</button>` : ""}
       </div>
-      <p class="small fa5x-muted f01-rec-next">${trainingOpen ? `按「開始訓練」會進入「${it.exerciseName}」的訓練準備頁${it.aiSupported ? "，準備好後開啟相機進行 AI 動作辨識" : ""}。` : "下一週開始後，才能從這裡開始訓練。"}</p>
+      <p class="small fa5x-muted f01-rec-next">${trainingOpen ? `按「開始訓練」會進入「${it.exerciseName}」的訓練準備頁${it.aiSupported ? "，準備好後開啟相機進行 AI 動作辨識" : ""}。` : initialHold ? "這是尚未生效的候選安排，經復健師檢視並由你接受後才能開始訓練。" : "下一週開始後，才能從這裡開始訓練。"}</p>
     </div>`;
   }).join("");
 
   // Other options (ordinary plans only): same goal and conditions, ordered by the same rules, cut off by the time choice.
   const others = listF01OtherOptions(rec, exerciseService.listNormalized());
-  const othersHtml = others.length
+  const othersHtml = others.length && !initialHold // no practice entry from a plan that is still pending review
     ? `<details class="card f01-other-options">
         <summary>其他可選動作（${others.length}）</summary>
         <p class="small fa5x-muted">同樣符合你的目標與條件，依相同規則排在主要推薦之後。可以自己查看練習，會以自主練習記錄，不計入本次建議或 7 日追蹤。</p>
@@ -15595,7 +16705,10 @@ function f01RecommendationResultPage() {
         </div>`).join("")}
       </details>`
     : "";
-  const excludedRow = (e) => (e.reason === "counting_basis_pending"
+  const excludedRow = (e) => (describeG01Exclusion(e)
+    // G01 condition screen — each reason with its kind (本版未納入 / 目前未支援 / 資料未確認)
+    ? `<div class="f01-excluded-row"><b>${e.exerciseName}</b>${describeG01Exclusion(e).map((r) => `<span class="small"><span class="f01-reason-kind">${r.label}</span>${r.text}</span>`).join("")}</div>`
+    : e.reason === "counting_basis_pending"
     // F01 batch 2 §3B — not a limitation: the exercise's counting (each side or total) is not yet defined
     ? `<div class="f01-excluded-row"><b>${e.exerciseName}</b><span class="small">暫不納入：計量方式（每側或合計）待確認，本版不列入自動推薦。</span></div>`
     : `<div class="f01-excluded-row"><b>${e.exerciseName}</b><span class="small">因你勾選「${e.limitationLabel}」。動作注意事項：${e.precaution}</span></div>`);
@@ -15612,7 +16725,7 @@ function f01RecommendationResultPage() {
     <div class="card f01-rec-hero">
       <div class="f01-rec-hero-text">
         <b class="f01-rec-hero-title">本次訓練建議</b>
-        <p class="f01-rec-hero-count">主要推薦 ${rec.items.length} 個動作${first ? `，建議從「${first.exerciseName}」開始` : ""}</p>
+        <p class="f01-rec-hero-count">${rec.conditionScreen && rec.items.length === 1 ? "目前提供 1 個動作" : `主要推薦 ${rec.items.length} 個動作`}${first ? `，建議從「${first.exerciseName}」開始` : ""}</p>
         <p class="small">目標：${rec.selectedGoalLabel}${isD5 ? "（依你已接受的下一階段建議）" : ""}</p>
         <p class="small f01-rec-size-note">${describeF01ListSize(rec)}</p>
       </div>
@@ -15620,6 +16733,16 @@ function f01RecommendationResultPage() {
     </div>
     ${limitedHtml}
     ${notStartedHtml}
+    ${(() => {
+      // Integrity pass — why this plan's week did not start, with the retry / re-set entry (never "started").
+      const n = describeF01CycleStartNotice({ rec, isD5, initialHold, activeCycle, cycleExists: trackingCycleService.listTrackingCycles(patientId).some((c) => c.recommendationId === rec.id), lastError: state.f01RecCycleError });
+      if (!n) return "";
+      const busy = state.f01RecCycleBusy === rec.id;
+      const action = n.action === "reset"
+        ? `<button class="btn btn-light full" style="margin-top:8px;" onclick="goF01RecommendationSetup('${rec.sourceAssessmentId}', '${rec.id}')">重新設定訓練需求</button>`
+        : `<button class="btn btn-primary full" style="margin-top:8px;" onclick="retryF01RecommendationCycleFromUi('${rec.id}')" ${busy ? "disabled" : ""}>${busy ? "處理中…" : "重新開始本週追蹤"}</button>`;
+      return `<div class="card f01-limited-basis f01-cycle-start-notice"><b>本週追蹤尚未開始</b><p class="small">${n.text}</p>${action}</div>`;
+    })()}
     ${state.f01RecCycleNotice && state.f01RecCycleNotice.baselineAssessmentId !== rec.sourceAssessmentId
       ? `<div class="card f01-cycle-notice"><p class="small">你目前已有進行中的 F01 7 日追蹤（開始於 ${formatDateKeyMonthDay(state.f01RecCycleNotice.cycleStartDateKey)}），這次的建議不會改變那個追蹤週期。</p></div>`
       : ""}
@@ -15632,6 +16755,7 @@ function f01RecommendationResultPage() {
     <p class="small fa5x-muted f01-volume-note">${PLAN_VOLUME_SOURCE_NOTE}</p>
     ${shortfallHtml}
     ${itemsHtml}
+    ${fromTracking ? renderCycleTrainingFeedback(patientId, rec) : ""}
     ${othersHtml}
     ${excludedHtml}
     <p class="small fa5x-muted f01-rec-note">建議依 ReMotion 系統推薦規則（F01 訓練目標對應）整理，並非臨床處方；練習時請依各動作的注意事項進行，如有不適請停止並諮詢專業人員。</p>
@@ -15645,6 +16769,42 @@ function f01RecommendationResultPage() {
       <button class="btn btn-light fa5x-secondary" onclick="goF01RecommendationSetup('${rec.sourceAssessmentId}', '${rec.id}')">重新設定訓練需求</button>
       <button class="btn btn-light fa5x-secondary" onclick="goFiveTimesSitToStandResult('${rec.sourceAssessmentId}'${fromTracking ? ", 'home'" : ""})">返回評估結果</button>
     </div>`}
+  `;
+}
+
+/**
+ * G01 condition screen — the full reason page of a result with no candidate. Nothing is saved, so no
+ * cycle can be created or re-linked from it and no training starts from it; an existing cycle is untouched.
+ * Exits: the existing condition-report form (only when nothing was reported as "yes"), the existing
+ * therapist contact / invite code, or another goal.
+ */
+function renderG01NoCandidatesPage(empty, sourceId) {
+  const info = describeG01NoCandidates(empty);
+  const hasTherapist = relationService.findAcceptedByPatientId(getCurrentPatientId()).length > 0;
+  const rows = info.rows.map((r) => `<div class="f01-excluded-row"><b>${r.exerciseName}</b>${r.reasons.map((x) => `<span class="small"><span class="f01-reason-kind">${x.label}</span>${x.text}</span>`).join("")}</div>`).join("");
+  const lead = info.assistanceReported
+    ? "你回報這次測驗時有用手撐或有人協助。本版的自動推薦目前沒有涵蓋這種協助方式，所以這次沒有自動列出動作。這只是本版自動推薦的範圍限制，不是對你能否運動的判斷；也不需要為了取得推薦而更改回答。"
+    : info.sourceProblem
+      ? "這次推薦所依據的評估紀錄無法確認屬於目前帳號，因此不能作為條件依據，這次沒有自動列出動作。"
+      : "這次評估的協助條件尚未確認，所以這次沒有自動列出動作。系統不會把未回報或不確定當成「沒有」。";
+  const contact = hasTherapist
+    ? `<p class="small">可以主動告訴你的復健師這次的情況，請對方協助安排；系統不會另外通知復健師。</p>`
+    : `<p class="small">如需專業人員協助安排，可以用復健師提供的邀請碼加入個案名單；系統不會另外通知。</p>${renderInviteCodeCard()}`;
+  return `
+    <div class="card fa5x-result-hero incomplete f01-g01-no-candidates">
+      <span class="fa5x-status-chip neutral">這次沒有自動列出動作</span>
+      <p class="fa5x-reason">${lead}</p>
+      <p class="small fa5x-muted">這次沒有建立訓練安排，也不會開始或改變 7 日追蹤；已經在進行的追蹤不受影響。</p>
+    </div>
+    <div class="card f01-excluded-card f01-g01-reasons"><b class="fa5x-section-title">各動作未列出的原因</b>${rows}</div>
+    ${info.canBackfill && sourceId ? `<div class="card f01-g01-backfill">
+      <b>補充測試條件</b>
+      <p class="small">可以到這次評估結果的「測試條件」補充回答。題目不會預先選好答案；新的回答會另外保存，先前的回答不會被刪除。補充後再按「查看訓練建議」重新產生。</p>
+      <button class="btn btn-primary full" style="margin-top:8px;" onclick="goFiveTimesSitToStandResult('${sourceId}')">前往補充測試條件</button>
+    </div>` : ""}
+    <div class="card f01-g01-contact"><b>請專業人員協助</b>${contact}</div>
+    <button class="btn btn-light full" style="margin-top:14px;" onclick="goF01RecommendationSetup('${sourceId || ""}')">重新設定訓練需求</button>
+    <p class="small fa5x-muted f01-rec-note">以上是 ReMotion 本版的條件篩選與工程政策，不是臨床判斷。</p>
   `;
 }
 
@@ -15768,42 +16928,175 @@ render = function () {
   else renderBeforeSelfReportedTraining();
 };
 
+// One form state per context: the home entry is a general report (never tied to a cycle because one is
+// active); the 本週訓練 page of a running cycle saves a report about that cycle (subject). Each context keeps
+// its own unsent answers, so opening the other entry never drops them.
+function dailyFeedbackUiFor(patientId, dateKey, contextKey) {
+  const all = state.dailyFeedbackUis || (state.dailyFeedbackUis = {});
+  const old = all[contextKey];
+  if (!old || old.patientId !== patientId || old.dateKey !== dateKey) {
+    const dayChanged = old?.patientId === patientId && old.editing;
+    all[contextKey] = { patientId, dateKey, contextKey, editing: false, step: null, draft: {}, message: dayChanged ? "日期已變更，請確認今天的感受後重新填寫。" : "" };
+  }
+  return all[contextKey];
+}
+const dailyFeedbackPending = (ui) => !!(ui && ui.editing && ui.step !== "done" && Object.values(ui.draft || {}).some((v) => v != null && v !== ""));
 function renderDailyTrainingFeedback(patientId) {
   const dateKey = toLocalDateKey(new Date());
   if (!patientId) return "";
-  const old = state.dailyFeedbackUi;
-  if (!old || old.patientId !== patientId || old.dateKey !== dateKey) {
-    state.dailyFeedbackUi = { patientId, dateKey, editing: false, message: old?.patientId === patientId && old.editing ? "日期已變更，請確認今天的感受後重新填寫。" : "" };
-  }
+  const ui = dailyFeedbackUiFor(patientId, dateKey, GENERAL_CONTEXT);
   const progress = currentIncompleteTrainingProgress(patientId, dateKey);
-  state.dailyFeedbackUi.progressFingerprint = progressFingerprint(progress);
-  const ownReports = selfReportedTrainingService.listForPatient(patientId);
-  return renderDailyFeedbackCard({ ...state.dailyFeedbackUi, record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), progress })
-    + (ownReports.length || selfReportedTrainingService.cloudStatus() === "failed" ? renderSelfReportedTrainingHistory(ownReports, { canVoid: true, cloudStatus: selfReportedTrainingService.cloudStatus() }) : "");
+  ui.progressFingerprint = progressFingerprint(progress);
+  return renderDailyFeedbackEntry({ record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), contextKey: GENERAL_CONTEXT, pending: dailyFeedbackPending(ui) });
 }
-function editDailyFeedbackFromUi() {
+/** The running cycle whose plan is shown, when today is one of its training days (Day 1–6); else null. */
+function cycleForTodayReport(patientId, rec) {
+  const cycle = patientId && rec ? trackingCycleService.getActiveTrackingCycle(patientId) : null;
+  const dateKey = toLocalDateKey(new Date());
+  return cycle && cycle.recommendationId === rec.id && cycle.userId === patientId && isTrainingDateInCycle(cycle, dateKey) ? cycle : null;
+}
+function cycleReportSubjectText(cycle, dateKey) {
+  return `F01 7 日追蹤（${formatDateKeyMonthDay(cycle.cycleStartDateKey)} 開始）第 ${diffDateKeys(cycle.cycleStartDateKey, dateKey) + 1} 天的訓練`;
+}
+/** 本週期今日回報 — from the cycle's own 本週訓練 page; the saved report names this cycle. */
+function renderCycleTrainingFeedback(patientId, rec) {
+  const cycle = cycleForTodayReport(patientId, rec);
+  if (!cycle) return "";
+  const dateKey = toLocalDateKey(new Date());
+  const ui = dailyFeedbackUiFor(patientId, dateKey, cycleContextKey(cycle.id));
+  ui.subject = { kind: REPORT_SUBJECT_KIND.TRACKING_CYCLE, cycleId: cycle.id, recommendationId: cycle.recommendationId };
+  const loaded = currentIncompleteTrainingProgress(patientId, dateKey);
+  const progress = loaded && loaded.cycleId === cycle.id ? loaded : null;
+  ui.progressFingerprint = progressFingerprint(progress);
+  ui.subjectText = cycleReportSubjectText(cycle, dateKey);
+  return renderDailyFeedbackEntry({ record: dailyTrainingFeedbackService.getForDay(patientId, dateKey), cloudStatus: dailyTrainingFeedbackService.cloudStatus(), contextKey: cycleContextKey(cycle.id), subjectText: ui.subjectText, pending: dailyFeedbackPending(ui) });
+}
+
+// ── Report sheet: mounted OUTSIDE #app (opening / stepping never re-renders the page, so its scroll position
+// stays), background scroll locked while open, sized to the visual viewport so the on-screen keyboard never
+// hides the note field or 送出. Only 送出 writes; closing keeps unsent answers for this context.
+let dailyFeedbackSheetKey = null, dailyFeedbackScrollTop = 0, dailyFeedbackViewportOff = null;
+const dailyFeedbackSheetUi = () => (dailyFeedbackSheetKey && state.dailyFeedbackUis ? state.dailyFeedbackUis[dailyFeedbackSheetKey] : null);
+function dailyFeedbackSheetRoot() {
+  let el = document.getElementById("dailyFeedbackSheet");
+  if (!el) { el = document.createElement("div"); el.id = "dailyFeedbackSheet"; el.className = "dfs-root"; document.body.appendChild(el); }
+  return el;
+}
+/** The progress a report's incompletion question is about, and the cycle it names (for the general entry too). */
+function dailyFeedbackContext(ui) {
+  const record = dailyTrainingFeedbackService.getForDay(ui.patientId, ui.dateKey);
+  const loaded = currentIncompleteTrainingProgress(ui.patientId, ui.dateKey);
+  const progress = ui.contextKey === GENERAL_CONTEXT ? loaded : loaded && ui.subject && loaded.cycleId === ui.subject.cycleId ? loaded : null;
+  const cycle = progress ? trackingCycleService.getTrackingCycleById(progress.cycleId) : null;
+  return { record, progress, cloudStatus: dailyTrainingFeedbackService.cloudStatus(), subjectText: ui.subjectText || "", progressSubjectText: cycle ? cycleReportSubjectText(cycle, ui.dateKey) : "本週追蹤訓練" };
+}
+function renderDailyFeedbackSheetNow() {
+  const ui = dailyFeedbackSheetUi();
+  const root = dailyFeedbackSheetRoot();
+  if (!ui) { root.innerHTML = ""; root.hidden = true; return; }
+  const ctx = dailyFeedbackContext(ui);
+  ui.progressFingerprint = progressFingerprint(ctx.progress);
+  root.hidden = false;
+  root.innerHTML = renderDailyFeedbackSheet({ ui, ...ctx });
+  fitDailyFeedbackSheet();
+}
+function fitDailyFeedbackSheet() {
+  const vv = window.visualViewport, panel = document.querySelector("#dailyFeedbackSheet .dfs-panel");
+  if (!panel) return;
+  const h = vv ? vv.height : window.innerHeight, bottom = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+  panel.style.maxHeight = `${Math.round(h - 12)}px`;
+  panel.style.bottom = `${Math.round(bottom)}px`;
+}
+/** Renders the page without losing the reader's place (used after a save changes the entry). */
+function renderKeepingScroll() {
+  const before = document.querySelector(".phone .content");
+  const top = before ? before.scrollTop : 0;
+  render();
+  const after = document.querySelector(".phone .content");
+  if (after) after.scrollTop = top;
+}
+function openDailyFeedbackSheet(contextKey = GENERAL_CONTEXT) {
+  const patientId = getCurrentPatientId();
+  const ui = patientId && state.dailyFeedbackUis ? state.dailyFeedbackUis[contextKey] : null;
+  if (!ui || ui.patientId !== patientId) return;
+  const record = dailyTrainingFeedbackService.getForDay(patientId, ui.dateKey);
+  ui.hasOverview = !!latestForContext(record, contextKey);
+  if (!ui.editing || ui.step === "done") {
+    if (ui.hasOverview) Object.assign(ui, { editing: false, step: "overview", message: ui.step === "done" ? "" : ui.message });
+    else Object.assign(ui, { editing: true, step: "effort", draft: {}, expectedRevision: record?.revision || 0, failed: false, message: ui.message || "" });
+  }
+  dailyFeedbackSheetKey = contextKey;
+  const content = document.querySelector(".phone .content");
+  dailyFeedbackScrollTop = content ? content.scrollTop : 0;
+  document.body.classList.add("dfs-open");
+  if (window.visualViewport && !dailyFeedbackViewportOff) {
+    const fit = () => fitDailyFeedbackSheet();
+    window.visualViewport.addEventListener("resize", fit); window.visualViewport.addEventListener("scroll", fit);
+    dailyFeedbackViewportOff = () => { window.visualViewport.removeEventListener("resize", fit); window.visualViewport.removeEventListener("scroll", fit); };
+  }
+  renderDailyFeedbackSheetNow();
+}
+function closeDailyFeedbackSheet() {
+  const ui = dailyFeedbackSheetUi();
+  if (ui && ui.busy) return; // a save in flight finishes first
+  dailyFeedbackSheetKey = null;
+  document.body.classList.remove("dfs-open");
+  if (dailyFeedbackViewportOff) { dailyFeedbackViewportOff(); dailyFeedbackViewportOff = null; }
+  renderDailyFeedbackSheetNow();
+  renderKeepingScroll(); // the entry shows 「有尚未送出的回答」 / 今日已回報
+  const content = document.querySelector(".phone .content");
+  if (content) content.scrollTop = dailyFeedbackScrollTop;
+}
+function pickDailyFeedback(field, value) {
+  const ui = dailyFeedbackSheetUi();
+  if (!ui || !ui.editing || ui.busy || !["effort", "discomfort", "incompleteReason"].includes(field)) return;
+  ui.draft = { ...ui.draft, [field]: value };
+  renderDailyFeedbackSheetNow();
+}
+function setDailyFeedbackNote(value) {
+  const ui = dailyFeedbackSheetUi();
+  if (ui && ui.editing && !ui.busy) ui.draft = { ...ui.draft, note: String(value).slice(0, 500) };
+}
+function dailyFeedbackStep(delta) {
+  const ui = dailyFeedbackSheetUi();
+  if (!ui || !ui.editing || ui.busy) return;
+  const steps = dailyFeedbackSteps(dailyFeedbackContext(ui).progress);
+  const i = Math.max(0, steps.indexOf(ui.step)) + delta;
+  ui.step = steps[Math.min(Math.max(i, 0), steps.length - 1)];
+  ui.message = "";
+  renderDailyFeedbackSheetNow();
+}
+function dailyFeedbackFocus(el) { setTimeout(() => { fitDailyFeedbackSheet(); el.scrollIntoView({ block: "center" }); }, 250); }
+function editDailyFeedbackFromUi(contextKey = GENERAL_CONTEXT) {
   const patientId = getCurrentPatientId();
   if (!patientId) return;
-  const dateKey = toLocalDateKey(new Date());
-  const record = dailyTrainingFeedbackService.getForDay(patientId, dateKey);
-  state.dailyFeedbackUi = { patientId, dateKey, expectedRevision: record?.revision || 0, editing: true, draft: {}, message: "" };
-  render();
+  const ui = state.dailyFeedbackUis ? state.dailyFeedbackUis[contextKey] : null;
+  if (!ui || ui.patientId !== patientId || (contextKey !== GENERAL_CONTEXT && !ui.subject)) return render();
+  const record = dailyTrainingFeedbackService.getForDay(patientId, ui.dateKey);
+  const latest = latestForContext(record, contextKey);
+  // updating starts from the answer in use (a revision); a first report starts empty
+  Object.assign(ui, { expectedRevision: record?.revision || 0, editing: true, step: "effort", failed: false, message: "", draft: latest ? { effort: latest.effort, discomfort: latest.discomfort, note: latest.note || "", incompleteReason: latest.incompletion ? latest.incompletion.reason : undefined } : {} });
+  if (dailyFeedbackSheetKey !== contextKey) return openDailyFeedbackSheet(contextKey);
+  renderDailyFeedbackSheetNow();
 }
 function cancelDailyFeedbackEdit() {
-  if (state.dailyFeedbackUi?.busy) return;
-  state.dailyFeedbackUi = null;
-  render();
+  const ui = dailyFeedbackSheetUi();
+  if (!ui || ui.busy) return;
+  Object.assign(ui, { editing: false, step: "overview", draft: {}, message: "" });
+  renderDailyFeedbackSheetNow();
 }
 async function saveDailyFeedbackFromUi(event) {
   event.preventDefault();
-  const ui = state.dailyFeedbackUi;
-  if (!ui || !ui.editing || ui.busy || ui.patientId !== getCurrentPatientId()) return;
-  const draft = { effort: document.getElementById("dailyFeedbackEffort").value, discomfort: document.getElementById("dailyFeedbackDiscomfort").value, note: document.getElementById("dailyFeedbackNote").value, incompleteReason: document.getElementById("dailyIncompleteReason")?.value || "" };
+  const ui = dailyFeedbackSheetUi();
+  if (!ui || !ui.editing || ui.busy || ui.step !== "note" || ui.patientId !== getCurrentPatientId()) return;
+  const noteEl = document.getElementById("dailyFeedbackNote");
+  if (noteEl) setDailyFeedbackNote(noteEl.value);
+  const draft = { effort: ui.draft.effort || "", discomfort: ui.draft.discomfort || "", note: ui.draft.note || "", incompleteReason: ui.draft.incompleteReason || "" };
   const shownProgressFingerprint = ui.progressFingerprint;
-  Object.assign(ui, { draft, busy: true, message: "" });
-  render();
-  const result = await dailyTrainingFeedbackService.save({ patientId: ui.patientId, dateKey: ui.dateKey, expectedRevision: ui.expectedRevision, ...draft, progressFingerprint: shownProgressFingerprint });
-  if (getCurrentPatientId() !== ui.patientId || state.dailyFeedbackUi !== ui) return;
+  Object.assign(ui, { busy: true, message: "" });
+  renderDailyFeedbackSheetNow();
+  const result = await dailyTrainingFeedbackService.save({ patientId: ui.patientId, dateKey: ui.dateKey, expectedRevision: ui.expectedRevision, ...draft, subject: ui.subject || null, progressFingerprint: shownProgressFingerprint });
+  if (getCurrentPatientId() !== ui.patientId || (state.dailyFeedbackUis || {})[ui.contextKey] !== ui) return;
   ui.busy = false;
   const errors = {
     invalid_input: "請選擇吃力程度及是否不舒服，補充說明最多 500 字。",
@@ -15814,15 +17107,23 @@ async function saveDailyFeedbackFromUi(event) {
     not_signed_in: "登入狀態已失效，請重新登入後再回報。",
     revision_limit: "今日修正次數已達上限，請聯絡復健師說明。",
     invalid_record: "無法確認原回報版本，請重新登入確認。",
-    cloud_save_failed: "尚未確認雲端儲存成功，輸入仍保留。請確認網路與登入狀態後重試。",
+    invalid_subject: "今天不是這個追蹤週期的訓練日，或無法確認這個週期，這次沒有儲存。",
+    // UX round 5/5 — one message per real cause (dailyTrainingFeedbackService.classifyFeedbackSaveError)
+    offline: "目前沒有網路連線，這次回報還沒有存到雲端，輸入仍保留。恢復連線後請按「重新送出」。",
+    cloud_rejected: "雲端沒有接受這次回報（權限檢查未通過），輸入仍保留。這通常不是網路問題；請重新登入後再試，若仍失敗請告知復健師或管理者。",
+    invalid_payload: "這次回報的資料格式無法寫入雲端，輸入仍保留。請告知管理者。",
+    cloud_save_failed: "尚未確認雲端儲存成功，輸入仍保留。請稍後按「重新送出」。",
   };
-  if (result.error) ui.message = errors[result.error] || errors.cloud_save_failed;
-  else Object.assign(ui, { editing: false, draft: {}, message: "已儲存今日回報；修改前的回報也會保留。" });
-  render();
+  // failure: the answers stay in the sheet and 重新送出 retries; success is shown only after the save returned
+  if (result.error) Object.assign(ui, { failed: true, message: errors[result.error] || errors.cloud_save_failed });
+  else Object.assign(ui, { editing: false, failed: false, draft: {}, step: "done", hasOverview: true, message: "" });
+  if (dailyFeedbackSheetKey === ui.contextKey) renderDailyFeedbackSheetNow();
+  renderKeepingScroll();
 }
 window.editDailyFeedbackFromUi = editDailyFeedbackFromUi;
 window.cancelDailyFeedbackEdit = cancelDailyFeedbackEdit;
 window.saveDailyFeedbackFromUi = saveDailyFeedbackFromUi;
+Object.assign(window, { goTherapistLink, openDailyFeedbackSheet, closeDailyFeedbackSheet, pickDailyFeedback, setDailyFeedbackNote, dailyFeedbackStep, dailyFeedbackFocus });
 
 function getHomeTrackingCycle(patientId) {
   return patientId
@@ -15837,10 +17138,11 @@ function getHomeTrackingCycle(patientId) {
  * Everything shown is derived from the stored cycle (getTrackingCycleViewState /
  * buildTrackingCardModel); nothing here changes tracking data or workflow.
  */
-function renderTrackingCycleCard(patientId) {
+/** The home tracking card's state (one place): day line, stats, the next action. null = no tracking card. */
+function trackingCardState(patientId) {
   const cycle = getHomeTrackingCycle(patientId);
   const view = getTrackingCycleViewState(cycle, getTrackingTodayKey());
-  if (!cycle || view.status === TRACKING_STATUS.NONE) return "";
+  if (!cycle || view.status === TRACKING_STATUS.NONE) return null;
   let baselineText = null;
   let reassessmentDateKey = null;
   // Baseline time comes from the stored baseline 5xSTS result only, with the result page's formatter.
@@ -15905,6 +17207,13 @@ function renderTrackingCycleCard(patientId) {
   const dotsHtml = model.calendarDots
     ? `<div class="home-hero-days" role="img" aria-label="7 日週期，目前第 ${model.calendarDots.filter(Boolean).length} 天">${model.calendarDots.map((on, i) => `<span class="${on ? "on" : ""}${i === TRACKING_CYCLE_LENGTH_DAYS - 1 ? " last" : ""}">${i + 1}</span>`).join("")}</div>`
     : "";
+  return { cycle, view, model, dayLine, statusLine, statsHtml, dotsHtml, cta, secondaryHtml, todayDone, isCompleted, isReady };
+}
+
+function renderTrackingCycleCard(patientId) {
+  const st = trackingCardState(patientId);
+  if (!st) return "";
+  const { cycle, model, dayLine, statusLine, statsHtml, dotsHtml, cta, secondaryHtml } = st;
   return `<div class="card functional-assessment-feature-card home-hero-tracking ${model.kind}">
     <div class="functional-assessment-feature-header">
       <div class="functional-assessment-feature-text">
@@ -15950,7 +17259,8 @@ function renderTrackingSecondaryActions(patientId) {
 }
 
 /** 查看本週訓練: the cycle's own saved recommendation (never regenerated). */
-function goTrackingWeekTraining(cycleId) {
+/** @param from "work" from the 訓練 tab; otherwise Home. 本週訓練 is a training page either way (訓練 highlighted). */
+function goTrackingWeekTraining(cycleId, from) {
   const cycle = trackingCycleService.getTrackingCycleById(cycleId);
   if (!cycle) return switchTab("home");
   state.f01RecEmpty = null;
@@ -15960,6 +17270,8 @@ function goTrackingWeekTraining(cycleId) {
     return goF01RecommendationSetup(cycle.baselineAssessmentId);
   }
   state.f01RecResultOrigin = "tracking";
+  state.weekTrainingFrom = from === "work" ? "work" : "home";
+  state.f01RecTab = "work";
   goF01RecommendationResult(cycle.recommendationId);
 }
 
@@ -16265,6 +17577,7 @@ const D5_ARRANGEMENT_STATUS_TEXT = {
   ready: "可以接受",
   accepted: "已接受",
   no_auto: "待復健師另行安排",
+  needs_regeneration: "需要重新產生",
   draft_pending: "推薦草稿產生中",
 };
 const d5ErrorText = (code) => D5_ERROR_TEXT[code] || "目前無法完成這個步驟，請回首頁查看追蹤狀態。";
@@ -16398,6 +17711,23 @@ function d5ProposalPresentation(d5) {
   return "completed";
 }
 
+/**
+ * 本週練習回報 on a G01 next-stage view (patient page and therapist card share this one result). Read-only:
+ * the patient's own daily records, or — for a therapist — only the records stamped with the current care
+ * relation (what the cloud lets a therapist read). Never part of the arrangement.
+ */
+function renderG01CycleDailyReports(proposal, cycle, viewer) {
+  const d5 = proposal && proposal.d5;
+  if (!d5 || d5.selectedGoalId !== "G01" || !cycle) return "";
+  const patientId = proposal.patientId;
+  const therapist = viewer === "therapist";
+  const records = therapist ? dailyTrainingFeedbackService.listForTherapist(state.user && state.user.id, patientId) : dailyTrainingFeedbackService.listForPatient(patientId);
+  return renderCycleDailyReports(buildCycleDailyReports({
+    cycle, patientId, feedbackRecords: records, feedbackLoadStatus: dailyTrainingFeedbackService.cloudStatus(), readScope: therapist ? "linked_relation" : "own",
+    statusCheck: { hasNewOrWorseningDiscomfort: d5.hasNewOrWorseningDiscomfort, discomfortNote: d5.discomfortNote, at: proposal.updatedAt || proposal.createdAt },
+  }));
+}
+
 function d5ProposalPage() {
   const header = `
     <div class="header">
@@ -16429,11 +17759,16 @@ function d5ProposalPage() {
   const newLimitLabels = d5.newLimitations.map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
 
   // A. status
-  const statusTitle = noAuto ? D5_STATUS_TITLE[D5_DECISION.NO_AUTO_DECISION] : D5_STATUS_TITLE[d5.decision];
+  const outdated = arrangement.status === "needs_regeneration"; // docs/F01_G01_PROGRAM_SELECTION.md 一-1
+  const noAutoKind = arrangement.noAuto ? arrangement.noAuto.kind : null; // 一-2
+  const g01NoAuto = noAutoKind === "g01_no_basis" || noAutoKind === "g01_missing_conditions";
+  const statusTitle = outdated ? "需要重新產生" : g01NoAuto ? "目前不提供自動安排" : noAuto ? D5_STATUS_TITLE[D5_DECISION.NO_AUTO_DECISION] : D5_STATUS_TITLE[d5.decision];
   const statusHtml = `<div class="card d5-status-card result-state result-state--${presentation} ${noAuto ? "noauto" : d5.decision}">
       <span class="small">下一階段建議狀態</span>
       <b class="d5-status-title">${statusTitle}</b>
-      ${noAuto ? `<p class="small">目前資料不足以建立下一階段自動調整。</p>` : ""}
+      ${outdated ? `<p class="small">這份建議依舊版規則產生，不再作為目前的安排。</p>`
+        : g01NoAuto ? `<p class="small">這個目標目前沒有已核實、可執行的下一週自動安排依據。${noAutoKind === "g01_missing_conditions" ? `另外缺少：${arrangement.noAuto.missing.join("、")}；補齊後仍不會自動安排下一週。` : "這不是因為資料不足，補填資料也不會產生自動安排。"}</p>`
+        : noAuto ? `<p class="small">目前資料不足以建立下一階段自動調整。</p>` : ""}
       <div class="d5-arrangement-rows">
         <div><span class="small">規則判定</span><b>${arrangement.ruleLabel}</b></div>
         <div><span class="small">實際安排</span><b>${arrangement.actualLabel}</b></div>
@@ -16446,7 +17781,8 @@ function d5ProposalPage() {
       <b class="fa5x-section-title">參考資料</b>
       <div class="f01-basis-row"><span>初次／再次五次坐站</span><b>${cmp.eligible ? `${cmp.baselineText} → ${cmp.reassessmentText}` : "無法比較"}</b></div>
       ${!cmp.eligible && cmp.measurementCompatibility && !cmp.measurementCompatibility.compatible ? `<p class="small fa5x-muted d5-version-note">${cmp.missing[0]}</p>` : ""}
-      ${cmp.eligible ? `<div class="f01-basis-row"><span>完成時間差異</span><b>${describeTimeDifference(cmp.changeMs)}</b></div>` : ""}
+      ${cmp.eligible ? `<div class="f01-basis-row"><span>完成時間差異</span><b>${describeShownTimeDifference(cmp.baselineMs, cmp.reassessmentMs)}</b></div>` : ""}
+      ${describeD5ConditionStatus(d5) ? `<div class="f01-basis-row"><span>測試條件（使用者回報）</span><b>${describeD5ConditionStatus(d5)}</b></div>` : ""}
       <div class="f01-basis-row"><span>本週完成訓練天數</span><b>${fmtF01TrainingDays(d5.completedTrainingDays)}</b></div>
       <div class="f01-basis-row"><span>訓練目標</span><b>${goal ? goal.label : d5.selectedGoalId}</b></div>
       <div class="f01-basis-row"><span>新的不適或限制</span><b>${d5.hasNewOrWorseningDiscomfort ? "有回報不適" : "沒有回報不適"}${newLimitLabels.length ? `；新增：${newLimitLabels.join("、")}` : ""}</b></div>
@@ -16454,12 +17790,12 @@ function d5ProposalPage() {
     </div>`;
   // C–E. last week -> next week, position by position, with each exercise's catalog amount.
   // Only for a proposal the user can act on; otherwise the current training is shown for reference.
-  const showProposed = (!noAuto || reviewed) && arrangement.status !== "needs_review";
+  const showProposed = (!noAuto || reviewed) && arrangement.status !== "needs_review" && !outdated;
   const volumeText = (id, item) => formatPlanVolume(describePlanVolume(exerciseService.getById(id), item && item.dose));
   const weeks = compareD5Weeks(d5, { nameOf: d5ExerciseName, volumeOf: volumeText, afterItems: reviewed ? arrangement.planItems : null });
   const CHANGE_LABEL = { kept: "保留", replaced: "更換", removed: "移除", added: "新增", dose_changed: "保留（復健師設定訓練量）" };
   const cell = (label, ex) => `<div class="d5-compare-cell"><span class="small">${label}</span><b>${ex ? ex.name : "—"}</b>${ex && ex.volume ? `<span class="small">${ex.volume}</span>` : ""}</div>`;
-  const currentHtml = showProposed ? "" : `<div class="card cmp-section"><b class="fa5x-section-title">${noAuto || review ? "目前訓練（參考）" : "目前訓練"}</b>${listHtml(d5.currentExerciseIds)}</div>`;
+  const currentHtml = showProposed ? "" : `<div class="card cmp-section"><b class="fa5x-section-title">${noAuto || review || outdated ? "目前訓練（參考）" : "目前訓練"}</b>${listHtml(d5.currentExerciseIds)}</div>`;
   const proposedHtml = showProposed
     ? `<div class="card cmp-section d5-week-compare">
         <b class="fa5x-section-title">上一週 → 下一週</b>
@@ -16469,12 +17805,12 @@ function d5ProposalPage() {
       </div>`
     : "";
   // F. reason + the inputs the rule actually used
-  const reasonHtml = `<div class="card cmp-section cmp-note"><b class="fa5x-section-title">說明</b><p>${d5.reason}</p>
+  const reasonHtml = outdated ? "" : `<div class="card cmp-section cmp-note"><b class="fa5x-section-title">說明</b><p>${d5.reason}</p>
       <b class="fa5x-section-title">判定依據</b>
-      <ul class="d5-decision-basis">${explainD5Decision(d5).map((l) => `<li>${l}</li>`).join("")}</ul>
+      <ul class="d5-decision-basis">${explainD5Decision(d5, cmp.eligible ? cmp : null).map((l) => `<li>${l}</li>`).join("")}</ul>
     </div>`;
   // G. alternatives — shown for confirmation only, never applied automatically
-  const altHtml = d5.alternatives.length
+  const altHtml = d5.alternatives.length && !outdated
     ? `<div class="card cmp-section d5-alternatives"><b class="fa5x-section-title">其他可確認候選</b>
         <p class="small fa5x-muted">以下動作僅供確認時參考，不會自動套用到下一週。</p>
         <ul class="d5-ex-list">${d5.alternatives.map((a) => `<li>${a.exerciseName}<span class="small">（取代「${d5ExerciseName(a.fromExerciseId)}」的${D5_TRANSITION_TEXT[a.transitionType] || "候選"}）</span></li>`).join("")}</ul>
@@ -16488,47 +17824,62 @@ function d5ProposalPage() {
     const byDiscomfort = (d5.reviewReasons || []).includes("unmapped_discomfort");
     const hasTherapist = relationService.findAcceptedByPatientId(getCurrentPatientId()).length > 0;
     const limitLabels = d5.currentLimitations.map((id) => (F01_LIMITATIONS.find((l) => l.id === id) || { label: id }).label);
+    // UX round 5/5 — the trigger that actually sent this to review comes first; the generic NC-A02 rule line
+    // (「規則判定需要調整，但目前沒有可執行的調整規則」) moves to the details when another trigger exists.
+    const triggers = arrangement.reasons.filter((r) => r.code !== "adjust_without_rule");
+    const shownReasons = triggers.length ? triggers : arrangement.reasons;
+    const ruleOnly = triggers.length ? arrangement.reasons.filter((r) => r.code === "adjust_without_rule") : [];
     return `${header}
-    <div class="card result-state result-state--review d5-review-hero">
-      <img class="result-state-illustration" src="/images/robot/robot_listening.png" alt="" />
-      <span class="result-state-eyebrow">下一階段建議</span>
-      <b class="result-state-title">需要進一步確認</b>
-      <p class="result-state-sub">${byDiscomfort ? "你回報了新的或加重的不適，目前不會自動安排下一週訓練。" : "下一週的安排需要復健師檢視，目前不會自動安排下一週訓練。"}</p>
-      <span class="d5-pending-chip">待復健師檢視</span>
-      <p class="small">決策來源：${describeDecisionSource(arrangement)}</p>
-    </div>
-    ${arrangement.draft ? `<div class="card d5-review-report">
-      <b class="fa5x-section-title">LLM 推薦草稿（尚未確認）</b>
-      <p class="small">判定：${LLM_DRAFT_DECISION_LABEL[arrangement.draft.plan.decision] || "—"}；${arrangement.draft.plan.changes.length ? arrangement.draft.plan.changes.map((c) => `「${d5ExerciseName(c.fromExerciseId)}」→「${d5ExerciseName(c.toExerciseId)}」`).join("、") : "動作不變"}。需由復健師確認後，才能接受並開始下一週。</p>
-    </div>` : ""}
-    <div class="card d5-review-report">
-      <b class="fa5x-section-title">待處理項目</b>
-      <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${r.text}</li>`).join("")}</ul>
-      ${arrangement.staleReview ? `<p class="small">復健師先前的確認是針對舊版內容；內容已變更，需要重新檢視。</p>` : ""}
+    ${isDemoSynthetic(proposal) || isDemoSynthetic(ctx.cycle) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">這份建議與其依據的評估、訓練為展示用合成資料。</span></div>` : ""}
+    <section class="d5-sec">
+      <div class="card result-state result-state--review d5-review-hero">
+        <img class="result-state-illustration" src="/images/robot/robot_listening.png" alt="" />
+        <span class="result-state-eyebrow">目前安排狀態</span>
+        <b class="result-state-title">需要進一步確認</b>
+        <p class="result-state-sub">${byDiscomfort ? "你回報了新的或加重的不適，目前不會自動安排下一週訓練。" : "下一週的安排需要復健師檢視，目前不會自動安排下一週訓練。"}</p>
+        <dl class="d5-facts">
+          <div><dt>規則判定</dt><dd>${arrangement.ruleLabel}</dd></div>
+          <div><dt>實際動作與訓練量</dt><dd>尚未安排下一週（本週訓練照常可看）</dd></div>
+          <div><dt>審閱與接受</dt><dd>${hasTherapist ? "待復健師檢視" : "目前沒有連結的復健師"}</dd></div>
+        </dl>
+      </div>
+    </section>
+    <div class="card d5-attention" role="note">
+      <b>待處理項目</b>
+      <ul>${shownReasons.map((r) => `<li>${r.text}</li>`).join("")}${newLimitLabels.length ? `<li>這次新增的情況：${newLimitLabels.join("、")}。</li>` : ""}${arrangement.staleReview ? "<li>復健師先前的確認是針對舊版內容；內容已變更，需要重新檢視。</li>" : ""}</ul>
       <p class="small">${hasTherapist
         ? "目前等待你的復健師在個案頁檢視這份建議；系統不會另外通知復健師，可以主動告知對方。復健師確認後會顯示在這裡，再由你決定是否接受。"
         : "目前沒有連結的復健師，這份建議無法在 ReMotion 中完成檢視。可以用復健師提供的邀請碼加入個案名單，加入後對方即可在個案頁檢視。"}</p>
     </div>
     ${hasTherapist ? "" : renderInviteCodeCard()}
-    <div class="card d5-review-report">
-      <b class="fa5x-section-title">本次回報</b>
-      <div class="d5-review-row"><span>新的或加重的不適</span><b>${d5.hasNewOrWorseningDiscomfort ? "有" : "沒有"}</b></div>
-      ${d5.discomfortNote ? `<div class="d5-review-row d5-review-note"><span>補充說明</span><b>${escapeD5Text(d5.discomfortNote)}</b></div>` : ""}
-      <div class="d5-review-row"><span>目前限制</span><b>${limitLabels.length ? limitLabels.join("、") : "沒有勾選"}</b></div>
-      ${newLimitLabels.length ? `<div class="d5-review-row"><span>這次新增</span><b>${newLimitLabels.join("、")}</b></div>` : ""}
-    </div>
-    <div class="fa5x-info-row result-state-note">
-      <img class="fa5x-info-icon" src="/images/exercise/exercise_plan.png" alt="" />
-      <div><b>系統處理方式</b><p class="small">目前不會自動調整或建立下一週訓練。</p></div>
-    </div>
-    <div class="card cmp-section cmp-note"><b class="fa5x-section-title">原因</b><p>${d5.reason}</p></div>
-    <div class="card cmp-section"><b class="fa5x-section-title">目前訓練（參考）</b>${listHtml(d5.currentExerciseIds)}</div>
-    ${altHtml}
-    <button class="btn btn-primary full cmp-home-cta" onclick="switchTab('home')">返回首頁</button>
-    <div class="d5-review-links">
-      <button class="fa5x-text-link" onclick="goD5StatusCheck('${d5.sourceCycleId}')">修改狀況確認</button>
-      <button class="fa5x-text-link" onclick="goTrackingComparison('${d5.sourceCycleId}')">查看本週紀錄</button>
-    </div>
+    <section class="d5-sec d5-actions">
+      <button class="btn btn-primary full cmp-home-cta" onclick="switchTab('home')">返回首頁</button>
+      <div class="d5-review-links">
+        <button class="fa5x-text-link" onclick="goD5StatusCheck('${d5.sourceCycleId}')">修改狀況確認</button>
+        <button class="fa5x-text-link" onclick="goTrackingComparison('${d5.sourceCycleId}')">查看本週紀錄</button>
+      </div>
+    </section>
+    <section class="d5-sec"><div class="card cmp-section"><b class="fa5x-section-title">目前訓練（參考）</b>${listHtml(d5.currentExerciseIds)}<p class="small">系統目前不會自動調整或建立下一週訓練。</p></div></section>
+    <section class="d5-sec"><details class="d5-more"><summary>理由與本次回報</summary>
+      <div class="card cmp-section cmp-note"><b class="fa5x-section-title">原因</b><p>${d5.reason}</p>${ruleOnly.map((r) => `<p class="small">${r.text}</p>`).join("")}</div>
+      <div class="card d5-review-report">
+        <b class="fa5x-section-title">本次回報</b>
+        <div class="d5-review-row"><span>新的或加重的不適</span><b>${d5.hasNewOrWorseningDiscomfort ? "有" : "沒有"}</b></div>
+        ${d5.discomfortNote ? `<div class="d5-review-row d5-review-note"><span>補充說明</span><b>${escapeD5Text(d5.discomfortNote)}</b></div>` : ""}
+        <div class="d5-review-row"><span>目前限制</span><b>${limitLabels.length ? limitLabels.join("、") : "沒有勾選"}</b></div>
+        ${newLimitLabels.length ? `<div class="d5-review-row"><span>這次新增</span><b>${newLimitLabels.join("、")}</b></div>` : ""}
+      </div>
+      ${renderG01CycleDailyReports(proposal, ctx.cycle, "patient")}
+    </details></section>
+    <section class="d5-sec"><details class="d5-more"><summary>詳細決策紀錄</summary>
+      <div class="card cmp-section"><dl class="d5-record"><div><dt>決策來源</dt><dd>${describeDecisionSource(arrangement)}</dd></div><div><dt>規則（矩陣／選擇）</dt><dd>${[d5.decisionRuleId, d5.selectionRuleId].filter(Boolean).join("／") || "—"}</dd></div></dl>
+        <ul class="d5-decision-basis">${explainD5Decision(d5, cmp.eligible ? cmp : null).map((l) => `<li>${l}</li>`).join("")}</ul></div>
+      ${arrangement.draft ? `<div class="card d5-review-report">
+        <b class="fa5x-section-title">LLM 推薦草稿（尚未確認）</b>
+        <p class="small">判定：${LLM_DRAFT_DECISION_LABEL[arrangement.draft.plan.decision] || "—"}；${arrangement.draft.plan.changes.length ? arrangement.draft.plan.changes.map((c) => `「${d5ExerciseName(c.fromExerciseId)}」→「${d5ExerciseName(c.toExerciseId)}」`).join("、") : "動作不變"}。需由復健師確認後，才能接受並開始下一週。</p>
+      </div>` : ""}
+      ${altHtml}
+    </details></section>
     <p class="small fa5x-muted f01-rec-note">這是流程上的暫停，不是診斷結果；練習時如有不適請停止並諮詢專業人員。</p>`;
   }
 
@@ -16561,6 +17912,10 @@ function d5ProposalPage() {
   } else if (accepted && handoff && handoff.requiresFreshBaseline) {
     actionsHtml = `<div class="card d5-done"><b>已接受這份建議</b><p class="small">${handoff.freshBaselineReason === "manual_no_auto_arrangement" ? "這份安排由復健師另行確認，系統原本未自動判定。請先完成一次新的有效五次坐站作為基準，才會開始下一週；原本資料不足的紀錄仍保留。" : "需要先完成一次新的五次坐站，作為下一週期的第 1 天。"}</p></div>
       <button class="btn btn-primary full cmp-home-cta" onclick="goNextCycleBaselineAssessment('${proposal.id}')">開始下一週期基準評估 →</button>${homeBtn}`;
+  } else if (outdated) {
+    actionsHtml = `<div class="card d5-review-report"><b class="fa5x-section-title">需要重新產生</b>
+      <ul class="d5-decision-basis">${arrangement.reasons.map((r) => `<li>${escapeD5Text(r.text)}</li>`).join("")}</ul></div>
+      <button class="btn btn-primary full cmp-home-cta" onclick="goD5StatusCheck('${d5.sourceCycleId}')">重新確認狀況並產生建議</button>${homeBtn}`;
   } else if (arrangement.status === "draft_pending") {
     actionsHtml = `<div class="card d5-done"><b>推薦草稿產生中</b><p class="small">完成後會顯示在這裡；若模型無法完成，會改用規則結果（規則備用）。</p></div>${homeBtn}`;
   } else if (noAuto && !readyForAcceptance) {
@@ -16581,16 +17936,79 @@ function d5ProposalPage() {
     actionsHtml = `${editBtn}${homeBtn}`;
   }
 
+  // UX round 5/5 — order: ① state ② what actually changes ③ the action for this state ④ exercises + amounts
+  // ⑤ reasons + reference data (open on demand) ⑥ the detailed decision record (rule id, LLM draft, versions).
+  // The three facts stay apart: the rule's label, the actual exercise / amount change, the review / acceptance state.
+  const actual = showProposed ? summarizeD5ActualChange(weeks, reviewed ? rv : null) : null;
+  const reviewState = accepted ? (rv ? `已接受（復健師 ${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))} 確認）` : "已接受")
+    : rv ? `復健師 ${formatDateKeyMonthDay(toLocalDateKey(rv.reviewedAt))} 已確認，尚未接受`
+      : arrangement.status === "ready" ? "不需要復健師檢視，尚未接受" : D5_ARRANGEMENT_STATUS_TEXT[arrangement.status] || "—";
+  const stateSub = outdated ? "這份建議依舊版規則產生，不再作為目前的安排。"
+    : g01NoAuto ? `這個目標目前沒有已核實、可執行的下一週自動安排依據。${noAutoKind === "g01_missing_conditions" ? `另外缺少：${arrangement.noAuto.missing.join("、")}；補齊後仍不會自動安排下一週。` : "這不是因為資料不足，補填資料也不會產生自動安排。"}`
+      : noAuto ? "目前資料不足以建立下一階段自動調整。"
+        : nextCycle ? "下一個 7 日追蹤已經開始。" : readyForAcceptance ? "可以決定是否接受這份安排。" : "";
+  const stateHtml = `<section class="d5-sec d5-state">
+      <div class="card d5-status-card result-state result-state--${presentation} ${noAuto ? "noauto" : d5.decision}">
+        <span class="small">目前安排狀態</span>
+        <b class="d5-status-title">${outdated ? "需要重新產生" : nextCycle ? "下一週已開始" : D5_ARRANGEMENT_STATUS_TEXT[arrangement.status] || statusTitle}</b>
+        ${stateSub ? `<p class="small">${stateSub}</p>` : ""}
+        <dl class="d5-facts">
+          <div><dt>規則判定</dt><dd>${outdated ? "舊版規則" : noAuto || g01NoAuto ? statusTitle : arrangement.ruleLabel}</dd></div>
+          <div><dt>實際動作與訓練量</dt><dd>${actual ? actual.title : outdated ? "—" : "尚未安排下一週"}</dd></div>
+          <div><dt>審閱與接受</dt><dd>${reviewState}</dd></div>
+        </dl>
+      </div>
+      ${rv ? `<div class="d5-reviewed-line"><b>復健師的說明</b>${isSimulatedReview(rv) ? `<span class="demo-synthetic-badge">${SIMULATED_REVIEW_TEXT}</span>` : ""}<p>${escapeD5Text(rv.reason)}</p></div>` : ""}
+    </section>`;
+  // things that change the next step are never folded away
+  const attention = [
+    ...(newLimitLabels.length ? [`這次新增的情況：${newLimitLabels.join("、")}。`] : []),
+    ...(!cmp.eligible ? ["前後兩次五次坐站無法直接比較，因此不以時間差判斷。"] : []),
+    ...(arrangement.staleReview ? ["復健師先前的確認是針對舊版內容，需要重新檢視。"] : []),
+    ...(arrangement.requiresFreshBaseline && !nextCycle ? ["接受後需要先完成一次新的有效五次坐站，才會開始下一週。"] : []),
+  ];
+  const attentionHtml = attention.length ? `<div class="card d5-attention" role="note"><b>需要注意</b><ul>${attention.map((t) => `<li>${t}</li>`).join("")}</ul></div>` : "";
+  const changeHtml = actual
+    ? `<section class="d5-sec"><h3 class="section-title">實際安排的改變</h3>
+        <div class="card d5-change ${actual.unchanged ? "is-unchanged" : "is-changed"}">
+          <b>${actual.title}</b><p class="small">${actual.sub}</p>
+          ${actual.changedRows.map((r) => `<div class="d5-change-row"><span class="d5-change-tag">${CHANGE_LABEL[r.change]}</span><span>${r.before ? `${r.before.name}${r.before.volume ? `（${r.before.volume}）` : ""}` : "—"}</span><span aria-hidden="true">→</span><span>${r.after ? `${r.after.name}${r.after.volume ? `（${r.after.volume}）` : ""}` : "—"}</span></div>`).join("")}
+        </div></section>`
+    : "";
+  const itemsHtml = showProposed
+    ? `<section class="d5-sec"><h3 class="section-title">下一週的動作與訓練量</h3>
+        <div class="card d5-items"><ol class="d5-item-list">${weeks.rows.filter((r) => r.after).map((r) => `<li class="${r.change !== "kept" ? "is-changed" : ""}"><b>${r.after.name}</b><span>${r.after.volume || "動作資料未提供訓練量"}</span>${r.change !== "kept" ? `<span class="d5-change-tag">${CHANGE_LABEL[r.change]}</span>` : ""}</li>`).join("")}</ol>
+        <p class="small fa5x-muted">${D5_DOSAGE_NOTE}</p></div>
+        <details class="d5-more"><summary>查看本週 → 下一週的完整比較</summary>${proposedHtml}</details></section>`
+    : `<section class="d5-sec">${currentHtml}</section>`;
+  const reasonsHtml = outdated ? "" : `<section class="d5-sec"><details class="d5-more"><summary>理由與參考資料</summary>
+      <div class="card cmp-section cmp-note"><b class="fa5x-section-title">說明</b><p>${d5.reason}</p></div>
+      ${refHtml}
+      ${renderG01CycleDailyReports(proposal, ctx.cycle, "patient")}
+    </details></section>`;
+  const recordHtml = `<section class="d5-sec"><details class="d5-more"><summary>詳細決策紀錄</summary>
+      <div class="card cmp-section">
+        <dl class="d5-record">
+          <div><dt>決策來源</dt><dd>${describeDecisionSource(arrangement)}</dd></div>
+          <div><dt>規則（矩陣／選擇）</dt><dd>${[d5.decisionRuleId, d5.selectionRuleId].filter(Boolean).join("／") || "—"}</dd></div>
+          ${d5.ruleVersion || d5.rulesVersion ? `<div><dt>規則版本</dt><dd>${d5.ruleVersion || d5.rulesVersion}</dd></div>` : ""}
+          <div><dt>規則判定／實際下一週</dt><dd>${arrangement.ruleLabel}／${arrangement.actualLabel}</dd></div>
+        </dl>
+        <b class="fa5x-section-title">判定依據</b>
+        <ul class="d5-decision-basis">${explainD5Decision(d5, cmp.eligible ? cmp : null).map((l) => `<li>${l}</li>`).join("")}</ul>
+      </div>
+      ${reviewedHtml}
+      ${altHtml}
+    </details></section>`;
   return `${header}
     ${isDemoSynthetic(proposal) || isDemoSynthetic(ctx.cycle) ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">這份建議與其依據的評估、訓練為展示用合成資料。</span></div>` : ""}
-    ${statusHtml}
-    ${reviewedHtml}
-    ${refHtml}
-    ${currentHtml}
-    ${proposedHtml}
-    ${reasonHtml}
-    ${altHtml}
-    ${actionsHtml}
+    ${stateHtml}
+    ${attentionHtml}
+    ${changeHtml}
+    <section class="d5-sec d5-actions">${actionsHtml}</section>
+    ${itemsHtml}
+    ${reasonsHtml}
+    ${recordHtml}
     <p class="small fa5x-muted f01-rec-note">下一階段建議依 ReMotion 系統規則整理，並非診斷或臨床處方；練習時如有不適請停止並諮詢專業人員。</p>`;
 }
 
@@ -16636,6 +18054,7 @@ function goNextCycleBaselineAssessment(proposalId) {
     return switchTab("home");
   }
   state.fa5xReassessmentContext = null;
+  state.fa5xInitialBaselineContext = null;
   state.fa5xNextBaselineContext = { mode: NEXT_CYCLE_BASELINE_ROLE, proposalId };
   goFiveTimesSitToStandAssessment();
 }
@@ -16688,59 +18107,108 @@ function goF01TrackingHistory() {
   render();
 }
 
-/** Week-labelled 5xSTS trend (12.8 ─W1─ 8.9 ─W2─ ?): chain assessments + a pending point; plain line, no reference bands. */
-function renderF01WeekTrendChart(trend) {
-  const { nodes, segments } = trend;
-  const W = 320, H = 164, PX = 38, TOP = 34, BOTTOM = 92;
-  const known = nodes.filter((n) => n.ms != null).map((n) => n.ms);
-  const max = Math.max(...known), min = Math.min(...known), span = max - min || 1;
-  const xs = nodes.map((_, i) => (nodes.length === 1 ? W / 2 : PX + (i * (W - 2 * PX)) / (nodes.length - 1)));
-  const ys = [];
-  nodes.forEach((n, i) => { ys[i] = n.ms != null ? TOP + ((max - n.ms) / span) * (BOTTOM - TOP) : (i ? ys[i - 1] : (TOP + BOTTOM) / 2); });
-  const lines = segments.map((sg) => `<line class="f01-week-line${sg.pending || sg.gap ? " is-pending" : ""}" x1="${xs[sg.from].toFixed(1)}" y1="${ys[sg.from].toFixed(1)}" x2="${xs[sg.to].toFixed(1)}" y2="${ys[sg.to].toFixed(1)}" />`).join("");
-  const weekLabels = segments.filter((sg) => sg.week).map((sg) => `<text class="f01-week-label" x="${((xs[sg.from] + xs[sg.to]) / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">W${sg.week}</text>`).join("");
-  const points = nodes.map((n, i) => n.pending
-    ? `<circle class="f01-week-node is-pending" cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="9" /><text class="f01-week-q" x="${xs[i].toFixed(1)}" y="${(ys[i] + 4).toFixed(1)}" text-anchor="middle">?</text>`
-    : `<circle class="f01-week-node" cx="${xs[i].toFixed(1)}" cy="${ys[i].toFixed(1)}" r="5" /><text class="f01-week-value" x="${xs[i].toFixed(1)}" y="${(ys[i] - 11).toFixed(1)}" text-anchor="middle">${(n.ms / 1000).toFixed(1)}</text>`).join("");
-  const dates = nodes.map((n, i) => `<text class="f01-week-date" x="${xs[i].toFixed(1)}" y="${H - 40}" text-anchor="middle">${formatDateKeyMonthDay(n.dateKey)}</text>${n.shared ? `<text class="f01-week-role" x="${xs[i].toFixed(1)}" y="${H - 26}" text-anchor="middle">再次評估／新週基準</text>` : ""}`).join("");
-  const aria = nodes.map((n) => (n.pending ? `${formatDateKeyMonthDay(n.dateKey)} 待再次評估` : `${formatDateKeyMonthDay(n.dateKey)} ${(n.ms / 1000).toFixed(1)} 秒`)).join("、");
-  return `<svg class="f01-week-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="五次坐站完成時間：${aria}">${lines}${points}${dates}${weekLabels}</svg>`;
+/**
+ * UX round 4/5 — THE 5xSTS chart (model: functionalProgressService.buildFa5xChart). Each week is a shaded group
+ * labelled 第 N 週; a solid line only inside a week whose comparison is eligible (the existing rule); no line across
+ * weeks; a reassessment not done yet is a dashed date marker (預計 MM/DD) — no value, no line. Every point carries
+ * its seconds, date and role. Wide series scroll sideways instead of squeezing labels.
+ */
+function renderFa5xChart(chart) {
+  const { points, weeks, planned } = chart;
+  if (!points.length) return "";
+  const md = formatDateKeyMonthDay;
+  // UX round 5/5 — only MEASURED results are drawn. A coming reassessment gets no x slot and no height (no seconds,
+  // no line, no extrapolation); its date is said in words below the chart: 「下次評估：MM/DD，尚未量測」.
+  const slots = points.length;
+  const PX = 46, STEP = 86, H = 212, TOP = 52, BOTTOM = 124;
+  const W = Math.max(320, PX * 2 + STEP * Math.max(0, slots - 1));
+  const xs = Array.from({ length: slots }, (_, i) => (slots === 1 ? W / 2 : PX + (i * (W - 2 * PX)) / (slots - 1)));
+  const vals = points.map((p) => p.ms), max = Math.max(...vals), min = Math.min(...vals), span = max - min;
+  const y = (ms) => (span === 0 ? (TOP + BOTTOM) / 2 : TOP + ((max - ms) / span) * (BOTTOM - TOP));
+  const bands = weeks.filter((w) => w.from != null).map((w, i) => {
+    const a = xs[w.from], b = w.to != null ? xs[w.to] : a;
+    const x1 = Math.max(2, a - 34), x2 = Math.min(W - 2, b + 34);
+    return `<rect class="fa5c-band${i % 2 ? " alt" : ""}" x="${x1.toFixed(1)}" y="6" width="${(x2 - x1).toFixed(1)}" height="${H - 12}" rx="14" /><text class="fa5c-week" x="${((x1 + x2) / 2).toFixed(1)}" y="26" text-anchor="middle">第 ${w.weekNumber} 週</text>`;
+  }).join("");
+  const lines = weeks.filter((w) => w.comparable).map((w) => `<line class="fa5c-line" x1="${xs[w.from].toFixed(1)}" y1="${y(points[w.from].ms).toFixed(1)}" x2="${xs[w.to].toFixed(1)}" y2="${y(points[w.to].ms).toFixed(1)}" />`).join("");
+  // each measured point opens its own result (the original record)
+  const dots = points.map((p, i) => {
+    const role = p.alsoBaselineOfWeek ? `再次評估／第 ${p.alsoBaselineOfWeek} 週基準` : p.role;
+    return `<g class="fa5c-point" role="link" tabindex="0" aria-label="${md(p.dateKey)} ${role} ${fmtFa5xSec(p.ms)}，開啟這次評估結果" onclick="goFiveTimesSitToStandResult('${p.assessmentId}', 'data')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();goFiveTimesSitToStandResult('${p.assessmentId}', 'data')}"><circle class="fa5c-dot" cx="${xs[i].toFixed(1)}" cy="${y(p.ms).toFixed(1)}" r="7" /><text class="fa5c-value" x="${xs[i].toFixed(1)}" y="${(y(p.ms) - 13).toFixed(1)}" text-anchor="middle">${fmtFa5xSec(p.ms)}</text><text class="fa5c-date" x="${xs[i].toFixed(1)}" y="${H - 50}" text-anchor="middle">${md(p.dateKey)}</text><text class="fa5c-role" x="${xs[i].toFixed(1)}" y="${H - 32}" text-anchor="middle">${role}</text></g>`;
+  }).join("");
+  const aria = points.map((p) => `第 ${p.weekNumber} 週${p.role} ${md(p.dateKey)} ${fmtFa5xSec(p.ms)}`).join("、");
+  const notes = weeks.map((w) => w.comparable ? `第 ${w.weekNumber} 週：${w.differenceText}` : w.note ? `第 ${w.weekNumber} 週：${w.note}` : "").filter(Boolean);
+  const nextHtml = planned
+    ? `<p class="fa5c-next" role="note"><b>下次評估：</b>${planned.ready ? `現在可以進行（第 ${planned.weekNumber} 週）` : `${md(planned.dateKey)}（第 ${planned.weekNumber} 週）`}，尚未量測</p>`
+    : "";
+  return `<div class="fa5c-scroll"><svg class="fa5c-chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="group" aria-label="五次坐站實測完成時間：${aria}">${bands}${lines}${dots}</svg></div>
+    ${nextHtml}
+    ${notes.length ? `<ul class="fa5c-notes">${notes.map((t) => `<li>${t}</li>`).join("")}</ul>` : ""}
+    <p class="fa5c-legend">只畫已量測的結果，單位為秒（越短代表完成得越快）。同一週的初次與再次評估以實線相連；不同週分開呈現，不直接比較。點選圓點可開啟該次評估。秒數差異只描述兩次測得的數值，不是醫療判斷，也不代表訓練有沒有效果。</p>`;
+}
+/** Shown difference in one short phrase (week cards): follows the values on screen. */
+function shownDiffPhrase(baselineMs, reassessmentMs) {
+  const d = shownTenths(reassessmentMs) - shownTenths(baselineMs);
+  return d === 0 ? "兩次顯示的時間相同" : `${d < 0 ? "少" : "多"} ${(Math.abs(d) / 10).toFixed(1)} 秒`;
 }
 
+/**
+ * 數據 → 功能評估 (UX round 4/5): the shared 5xSTS chart, the current week, each week's card, every 5xSTS run
+ * (date · purpose · result, opening its result page) and the secondary 訓練表現. Loading / failed is never shown as
+ * 「沒有紀錄」.
+ */
 function f01TrackingHistoryPage() {
   const patientId = getCurrentPatientId();
   const timeline = functionalProgressService.getTrackingTimeline(patientId, getTrackingTodayKey());
-  const header = `<div class="header exp-header"><button class="btn btn-light detail-back-btn" onclick="switchTab('data')">返回</button><b class="exp-header-title">F01 下肢功能｜功能追蹤</b><span></span></div>`;
+  const header = `<div class="header exp-header"><button class="btn btn-light detail-back-btn" onclick="switchTab('data')">返回</button><b class="exp-header-title">功能評估</b><span></span></div>${renderDataSegmentedNav("assessment")}`;
+  const load = storageService.getOptionalCloudLoadStatus("trackingCycles");
+  const loadHtml = load === "failed"
+    ? `<div class="card data-load-note is-failed" role="status"><b>追蹤週期資料載入失敗</b><p class="small">下面可能不完整，這不代表沒有紀錄。</p>${renderF01ReloadControl("patient")}</div>`
+    : load === "loading" ? `<div class="card data-load-note" role="status"><b>正在載入評估資料…</b></div>` : "";
+  const runs = functionalAssessmentService.getByPatientId(patientId, { assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND })
+    .sort((a, b) => String((b.result && b.result.measuredAt) || b.completedAt || "").localeCompare(String((a.result && a.result.measuredAt) || a.completedAt || "")));
+  const listHtml = runs.length
+    ? `<h3 class="section-title">全部評估紀錄</h3><div class="data-run-list">${runs.map((s) => {
+        const r = s.result || {};
+        const st = getFa5xResultStatus(r);
+        const main = st === FA5X_RESULT_STATUS.COMPLETED && Number.isFinite(r.totalDurationMs) ? fmtFa5xSec(r.totalDurationMs) : st === FA5X_RESULT_STATUS.INVALID ? "未形成有效結果" : `未完成（${r.completedReps ?? r.repCount ?? 0} / ${FA5X_TARGET_REPS}）`;
+        const purpose = functionalProgressService.describePurpose(s);
+        // UX round 5/5 — the reported test conditions on the row itself (用手撐 / 有人協助 / 未回報 are never hidden)
+        const ci = st === FA5X_RESULT_STATUS.COMPLETED ? describeFa5xConditions(s) : null;
+        const condLine = ci ? (!ci.reported ? "測試條件未回報" : ci.issues.length ? ci.issues.map((c) => FA5X_CONDITION_ISSUE_TEXT[c] || c).join("、") : `測試條件：${ci.conditionText}`) : "";
+        return `<button class="card data-run-row" onclick="goFiveTimesSitToStandResult('${s.id}', 'data')"><span class="data-run-date">${formatDateKeyMonthDay(toLocalDateKey(r.measuredAt || s.completedAt))}</span><span class="data-run-type">${purpose ? purpose.label : "五次坐站"}</span><b class="data-run-main">${main}</b><span class="data-run-more" aria-hidden="true">›</span>${condLine ? `<span class="data-run-sub${ci && ci.issues.length ? " is-warn" : ""}">${condLine}</span>` : ""}</button>`;
+      }).join("")}</div>`
+    : "";
+  if (!timeline.weeks.length && !runs.length) {
+    return `${header}${loadHtml}${load === "failed" || load === "loading" ? "" : `<div class="card data-f01-card empty"><b>還沒有五次坐站評估</b><p class="small">完成第一次評估後，這裡會顯示完成時間；建立 7 日追蹤並完成再次評估後，會出現前後比較。</p><button class="btn btn-primary full" onclick="goFunctionalDomainHome()">開始功能評估</button></div>`}`;
+  }
   if (!timeline.weeks.length) {
-    return `${header}<div class="card data-f01-card empty"><b>尚未開始功能追蹤</b><p class="small">完成一次 F01 五次坐站評估並建立訓練計畫後，這裡會記錄每一週的追蹤。</p></div>`;
+    return `${header}${loadHtml}<div class="card data-f01-card"><b>五次坐站完成時間</b><p class="small">目前只有不屬於 7 日追蹤的評估；建立訓練計畫並完成再次評估後，這裡會出現追蹤圖表。</p></div>${listHtml}`;
   }
   const sec = (ms) => (ms == null ? "—" : fmtFa5xSec(ms));
   const md = formatDateKeyMonthDay;
   const weekCycle = (w) => trackingCycleService.getTrackingCycleById(w.cycleId);
   const synthWeeks = timeline.weeks.filter((w) => describeWeekSynthetic(weekCycle(w), (id) => functionalAssessmentService.getById(id)).any).map((w) => w.weekNumber);
-  const diffText = (ms) => (ms === 0 ? "與初次相同" : `${ms < 0 ? "少" : "多"} ${(Math.abs(ms) / 1000).toFixed(1)} 秒`);
   const cur = timeline.current;
-  const currentHtml = cur
-    ? `<div class="card track-now">
-        <span class="exp-label">目前</span>
-        <b class="track-now-title">第 ${cur.weekNumber} 週｜${cur.view.status === TRACKING_STATUS.READY_FOR_REASSESSMENT ? "可以再次評估" : `第 ${cur.view.cycleDay} / ${TRACKING_CYCLE_LENGTH_DAYS} 天`}</b>
-        ${weekSyntheticNote(weekCycle(cur))}<div class="track-now-facts"><div><span class="exp-label">目前基準</span><b>${sec(cur.baselineMs)}</b></div><div><span class="exp-label">再次評估</span><b>${md(cur.plannedReassessmentDateKey)}</b></div></div>
-      </div>`
-    : `<div class="card track-now"><span class="exp-label">目前</span><b class="track-now-title">第 ${timeline.weeks.length} 週追蹤已完成</b><p class="small">確認下一階段建議後，會開始新的一週。</p></div>`;
+  // UX round 5/5 — the separate 「目前」 card (baseline + planned date) repeated the running week's own card; it is
+  // now that week's card. With no running week only the one-line next step stays.
+  const currentHtml = cur ? "" : `<div class="card track-now"><span class="exp-label">目前</span><b class="track-now-title">第 ${timeline.weeks.length} 週追蹤已完成</b><p class="small">確認下一階段建議後，會開始新的一週。</p></div>`;
   const weekHtml = timeline.weeks.map((w) => {
     if (w.status === "completed") {
       return `<div class="card track-week">
           <div class="track-week-head"><b>第 ${w.weekNumber} 週 ✓</b><span class="small">${md(w.startDateKey)} → ${md(w.endDateKey)}</span></div>
           <b class="track-week-values">${sec(w.baselineMs)} → ${sec(w.reassessmentMs)}</b>
-          <span class="small">完成時間差異：${diffText(w.changeMs)}</span>
+          <span class="small">完成時間差異：${shownDiffPhrase(w.baselineMs, w.reassessmentMs)}</span>
           <span class="small">訓練完成：${fmtF01TrainingDays(w.completedDays)}</span>
           ${weekSyntheticNote(weekCycle(w))}
           <button class="btn btn-light full track-week-cta" onclick="goTrackingComparison('${w.cycleId}', 'trackingHistory')">查看第 ${w.weekNumber} 週前後比較</button>
         </div>`;
     }
     const ready = w.status === "in_progress" && w.view.status === TRACKING_STATUS.READY_FOR_REASSESSMENT;
+    const isCur = !!cur && cur.cycleId === w.cycleId;
     return `<div class="card track-week is-current">
-        <div class="track-week-head"><b>第 ${w.weekNumber} 週｜${w.status === "in_progress" ? "進行中" : "已再次評估"}</b></div>
+        ${isCur ? `<span class="exp-label">目前</span>` : ""}
+        <div class="track-week-head"><b>第 ${w.weekNumber} 週｜${w.status !== "in_progress" ? "已再次評估" : ready ? "可以再次評估" : `第 ${w.view.cycleDay} / ${TRACKING_CYCLE_LENGTH_DAYS} 天`}</b><span class="small">${md(w.startDateKey)} 開始</span></div>
         <span class="small">基準 ${sec(w.baselineMs)}</span>
         <span class="small">完成 ${fmtF01TrainingDays(w.completedDays)}</span>
         ${weekSyntheticNote(weekCycle(w))}
@@ -16748,9 +18216,9 @@ function f01TrackingHistoryPage() {
         ${ready ? `<button class="btn btn-light full track-week-cta" onclick="goTrackingReassessment('${w.cycleId}')">進行再次評估</button>` : ""}
       </div>`;
   }).join("");
-  const trend = timeline.trend;
-  const trendHtml = trend.nodes.length >= 2
-    ? `<h3 class="section-title">功能追蹤趨勢</h3><div class="card track-trend"><span class="exp-label">五次坐站完成時間（秒）</span>${renderF01WeekTrendChart(trend)}${synthWeeks.length ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">${syntheticWeeksText(synthWeeks)}的評估為展示用合成資料，不是真實量測。</span></div>` : ""}</div>`
+  const chart = functionalProgressService.getFa5xChart(patientId, getTrackingTodayKey(), describeShownTimeDifference);
+  const trendHtml = chart.points.length
+    ? `<h3 class="section-title">五次坐站完成時間</h3><div class="card track-trend">${renderFa5xChart(chart)}${chart.points.length === 1 ? `<p class="small">目前只有一次追蹤評估；完成再次評估後，才會出現同一週的前後比較。</p>` : ""}${synthWeeks.length ? `<div class="demo-synthetic-note"><span class="demo-synthetic-badge">${DEMO_SYNTHETIC_TEXT}</span><span class="small">${syntheticWeeksText(synthWeeks)}的評估為展示用合成資料，不是真實量測。</span></div>` : ""}</div>`
     : "";
   // 訓練表現 — secondary training metric (AI 姿勢分數 of the week's own F01 plan trainings).
   const perf = cycleTrainingPerformanceService.getByCycle(patientId);
@@ -16762,7 +18230,10 @@ function f01TrackingHistoryPage() {
     const cmp = compareCycleScores(a.p.averageAiPostureScore, b.p.averageAiPostureScore);
     if (cmp) perfCompareHtml = `<p class="track-perf-compare">第 ${a.w.weekNumber} 週 ${a.p.averageAiPostureScore} → 第 ${b.w.weekNumber} 週 ${b.p.averageAiPostureScore}<span>AI 姿勢分數差異 ${cmp.signed}（${cmp.text}）</span></p>`;
   }
-  const perfHtml = `<h3 class="section-title track-perf-title">訓練表現</h3>
+  // UX round 5/5 — no score yet: one compact card instead of a titled table of dashes
+  const perfHtml = !scoredRows.length
+    ? `<div class="card track-perf is-empty"><b>訓練表現</b><span class="small">完成本週 F01 訓練後，這裡會顯示平均 AI 姿勢分數（目前 ${perfRows.reduce((n, r) => n + r.p.completedTrainingCount, 0)} 次訓練）。</span></div>`
+    : `<h3 class="section-title track-perf-title">訓練表現</h3>
     <div class="card track-perf">
       <span class="exp-label">平均 AI 姿勢分數（本週 F01 訓練）</span>
       ${perfRows.map(({ w, p }) => `<div class="track-perf-row"><span>第 ${w.weekNumber} 週${w.status === "in_progress" ? "｜目前" : ""}${synthWeeks.includes(w.weekNumber) && p.completedTrainingCount ? `<span class="demo-synthetic-badge">合成</span>` : ""}</span><b>${p.averageAiPostureScore != null ? p.averageAiPostureScore : "—"}</b><span class="small">${p.completedTrainingCount} 次訓練</span></div>`).join("")}
@@ -16771,7 +18242,7 @@ function f01TrackingHistoryPage() {
       ${scoredRows.length ? "" : `<p class="small">完成本週 F01 訓練後，這裡會顯示平均 AI 姿勢分數。</p>`}
       <p class="small track-perf-note">AI 姿勢分數是動作辨識的參考分數，功能變化以五次坐站完成時間為主。</p>
     </div>`;
-  return `${header}${currentHtml}${weekHtml}${trendHtml}${perfHtml}`;
+  return `${header}${loadHtml}${trendHtml}${currentHtml}${weekHtml}${listHtml}${perfHtml}`;
 }
 window.goF01TrackingHistory = goF01TrackingHistory;
 const renderBeforeF01TrackingHistory = render;
@@ -16815,3 +18286,15 @@ if (LOCAL_DEMO_MODE) {
     localDemoAs("patient");
   });
 }
+
+// ── Guest entry (2026-10-29) — the OUTERMOST render layer (keep it last). Without a session only the public routes
+// render (boot, login / register, the guest 首頁 / 訓練 / 數據 / 我的, a public 動作介紹 and the 首次評估準備 page);
+// any other route — however it was reached — falls back to the guest Home, so no account page or record can render.
+const GUEST_PUBLIC_ROUTES = new Set(["splash", "auth", "dashboard", "guestExercise", "firstAssessmentPrep"]);
+const renderBeforeGuestEntry = render;
+render = function () {
+  if (!state.user && !GUEST_PUBLIC_ROUTES.has(state.route)) { state.route = "dashboard"; state.tab = "home"; }
+  if (state.route === "firstAssessmentPrep") { app.innerHTML = phone(firstAssessmentPrepPage(), true); attachImageFallbacks(app); return; }
+  if (state.route === "guestExercise") { app.innerHTML = phone(guestExercisePage(), true); attachImageFallbacks(app); return; }
+  renderBeforeGuestEntry();
+};

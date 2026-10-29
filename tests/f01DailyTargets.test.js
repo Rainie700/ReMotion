@@ -25,6 +25,8 @@ const { recommendationService } = await import("../js/data/recommendationService
 const { analysisService } = await import("../js/data/analysisService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+// fixture plans stand for existing G01 plans (made before the G01 condition screen; never rewritten)
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
 const { trainingEventService } = await import("../js/data/trainingEventService.js");
 const { cycleTrainingPerformanceService } = await import("../js/data/cycleTrainingPerformance.js");
 const { createCollection } = await import("../js/data/storageService.js");
@@ -40,7 +42,7 @@ function startCycle(userId) {
   const s = functionalAssessmentService.create({ patientId: userId, bodyRegion: "lower_limb", assessmentType: FUNCTIONAL_ASSESSMENT_TYPES.FIVE_TIMES_SIT_TO_STAND }).session;
   functionalAssessmentService.completeSession(s.id, { result: { ...FA5X_M, status: "completed", completedReps: 5, repCount: 5, totalDurationMs: 8900, measuredAt: new Date(...D1, 14, 0).toISOString() } });
   const b = functionalAssessmentService.getById(s.id);
-  const r = generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
+  const r = generatePreScreenF01GoalRecommendation({ assessment: { status: "completed", sessionId: b.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", availableMinutes: 20, catalog: exerciseService.listNormalized() });
   const rec = recommendationService.createF01GoalRecommendation({ patientId: userId, result: r, createdBy: userId }).recommendation;
   const cycle = trackingCycleService.createOrGetTrackingCycle({ userId, baselineSession: b, recommendation: rec }).cycle;
   return { rec, cycle, ids: rec.items.map((i) => i.exerciseId) };

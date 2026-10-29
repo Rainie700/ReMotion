@@ -22,6 +22,7 @@ const { functionalAssessmentService, FUNCTIONAL_ASSESSMENT_TYPES } = await impor
 const { recommendationService } = await import("../js/data/recommendationService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
 
 const { TRACKING_STATUS: S } = T;
 
@@ -33,9 +34,13 @@ function baseline(userId, { status = "completed", at = [2026, 8, 28, 14, 0], tot
   functionalAssessmentService.completeSession(s.id, { result });
   return functionalAssessmentService.getById(s.id);
 }
-/** A saved Phase C recommendation for that baseline (engine + service, unchanged). */
+/**
+ * A saved Phase C recommendation for that baseline (engine + service, unchanged). G01 fixtures stand for
+ * existing G01 plans made before the G01 condition screen (a new G01 plan needs a condition report).
+ */
 function recommend(userId, session, goalId = "G01") {
-  const result = generateF01GoalRecommendation({
+  const generate = goalId === "G01" ? generatePreScreenF01GoalRecommendation : generateF01GoalRecommendation;
+  const result = generate({
     assessment: { status: session.result.status || "completed", sessionId: session.id, assessmentType: "five_times_sit_to_stand" },
     selectedGoalId: goalId,
     availableMinutes: 20,
@@ -193,11 +198,14 @@ function recommend(userId, session, goalId = "G01") {
 
   const gen = appJs.slice(appJs.indexOf("function generateF01RecommendationFromSetup("), appJs.indexOf("function goF01RecommendationResult("));
   const saveAt = gen.indexOf("recommendationService.createF01GoalRecommendation(");
-  const cycleAt = gen.indexOf("trackingCycleService.createOrGetTrackingCycle(");
+  // integrity pass: the cycle starts through startRecommendationCycle (plan synced first, then
+  // createOrGetTrackingCycle — js/data/f01InitialReviewService.js), still only after the save
+  const cycleAt = gen.indexOf("startRecommendationCycle(");
   assert.ok(saveAt > 0 && cycleAt > saveAt, "cycle is created only after the recommendation is saved");
   assert.ok(gen.indexOf('if (result.status === "blocked")') < cycleAt, "blocked (incomplete / invalid) returns before any cycle work");
 
-  const card = appJs.slice(appJs.indexOf("function renderTrackingCycleCard("), appJs.indexOf("function goTrackingWeekTraining("));
+  // UX round 5/5: the card's data rules live in trackingCardState (shared with 數據 總覽), right before the renderer
+  const card = appJs.slice(appJs.indexOf("function trackingCardState("), appJs.indexOf("function goTrackingWeekTraining("));
   assert.ok(card.includes("functionalAssessmentService.getById(cycle.baselineAssessmentId)") && card.includes("fmtFa5xSec(result.totalDurationMs)"), "baseline time from the stored result, result-page formatter");
   assert.ok(card.includes("getTrackingTodayKey()"));
   const week = appJs.slice(appJs.indexOf("function goTrackingWeekTraining("), appJs.indexOf("function goTrackingReassessment("));

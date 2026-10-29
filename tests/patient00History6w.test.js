@@ -18,6 +18,9 @@ const { recommendationService } = await import("../js/data/recommendationService
 const { trackingCycleService, REASSESSMENT_ROLE } = await import("../js/data/trackingCycleService.js");
 const { exerciseService } = await import("../js/data/exerciseService.js");
 const { generateF01GoalRecommendation } = await import("../js/data/f01GoalRecommendation.js");
+// The week-5 G01 plan of this history was made before the G01 condition screen (docs/F01_G01_IMPLEMENTABLE_CONDITIONS.md):
+// it is rebuilt with the test-only pre-screen engine. New recommendations still go through the real generator.
+const { generatePreScreenF01GoalRecommendation } = await import("./fixtures/f01PreScreenEngine.mjs");
 const { functionalProgressService } = await import("../js/data/functionalProgressService.js");
 const { getD5Review } = await import("../js/data/d5TherapistReviewService.js");
 const { buildVerifiedWeeklyContext } = await import("../js/services/llmContextBuilder.js");
@@ -47,7 +50,7 @@ const measure = (ms, iso, extra = {}) => {
   return functionalAssessmentService.getById(s.id);
 };
 const b5 = measure(8867, at("2026-09-28", 2, 39));
-const g01 = recommendationService.createF01GoalRecommendation({ patientId: U, createdBy: U, result: generateF01GoalRecommendation({ assessment: { status: "completed", sessionId: b5.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", limitationIds: [], availableMinutes: 15, catalog }) }).recommendation;
+const g01 = recommendationService.createF01GoalRecommendation({ patientId: U, createdBy: U, result: generatePreScreenF01GoalRecommendation({ assessment: { status: "completed", sessionId: b5.id, assessmentType: "five_times_sit_to_stand" }, selectedGoalId: "G01", limitationIds: [], availableMinutes: 15, catalog }) }).recommendation;
 const w5 = trackingCycleService.createOrGetTrackingCycle({ userId: U, baselineSession: b5, recommendation: g01 }).cycle;
 const r5 = measure(8826, at("2026-10-04", 17, 54), { assessmentRole: REASSESSMENT_ROLE, trackingCycleId: w5.id, baselineAssessmentId: b5.id });
 assert.equal(trackingCycleService.completeTrackingCycleWithReassessment({ cycleId: w5.id, userId: U, reassessment: r5, todayDateKey: "2026-10-04" }).error, undefined);

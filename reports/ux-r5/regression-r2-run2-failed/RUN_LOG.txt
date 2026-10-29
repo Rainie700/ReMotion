@@ -1,0 +1,5 @@
+NOTE | status sequence seen: 正在開啟相機 → 模型載入中 → 尚未完整入鏡 (model load took ~9 s)
+PASS | M1 the real MediaPipe model loads (status leaves 模型載入中, not failed); with the fake camera (no person) it says so | 尚未完整入鏡 | 還看不到人，請站到鏡頭前方，讓全身入鏡
+    at C:\Users\User\AppData\Local\Temp\claude\c--Users-User-Downloads-ReMotion-main--6--ReMotion-main\3cac92ee-b5a1-4713-b628-03a8a5252c3c\scratchpad\rules-emu\le05CameraPageBrowserCheck.mjs:109:117 {
+  name: 'TimeoutError'
+[1m[31mError:[39m[22m Script "[1mnode le05CameraPageBrowserCheck.mjs[22m" exited with code 1

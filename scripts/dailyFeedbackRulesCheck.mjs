@@ -86,6 +86,31 @@ await check("missing numeric amount can remain null", true, () => setDoc(reasonR
 const reasonData = (await getDoc(reasonRef)).data();
 await check("reason correction preserves earlier context", true, () => updateDoc(reasonRef, { revision: 2, reports: [...reasonData.reports, { ...report, incompletion: { reason: "no_time", progress } }], updatedAt: serverTimestamp() }));
 await check("old context cannot be overwritten", false, () => updateDoc(reasonRef, { revision: 3, reports: [{ ...report }, ...reasonData.reports, { ...report }], updatedAt: serverTimestamp() }));
+// Cycle reports: a report saved from a cycle's own entry names that cycle (subject).
+const subjectId = `${P}_2026-10-25`;
+const subjectRef = doc(p, C, subjectId);
+const subject = { kind: "tracking_cycle", cycleId: "reason-owned", recommendationId: "reason-rec" };
+const subjectFresh = reports => ({ ...fresh(), id: subjectId, dateKey: "2026-10-25", therapistId: "", relationId: "", reports, revision: reports.length });
+await check("subject: own cycle and plan accepted", true, () => setDoc(subjectRef, subjectFresh([{ ...report, subject }])));
+await seed(s => deleteDoc(doc(s, C, subjectId)));
+await check("subject: another patient's cycle rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, cycleId: "reason-other" } }])));
+await check("subject: another plan rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, recommendationId: "other" } }])));
+await check("subject: missing cycle rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, cycleId: "no-such-cycle" } }])));
+await check("subject: unknown kind rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, kind: "fixed_practice" } }])));
+await check("subject: extra field rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, verified: true } }])));
+await check("subject: missing field rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { kind: "tracking_cycle", cycleId: "reason-owned" } }])));
+const subjectProgress = { ...progress, dateKey: "2026-10-25" };
+await seed(s => setDoc(doc(s, "trackingCycles", "reason-owned-2"), { patientId: P, userId: P, recommendationId: "reason-rec" }));
+await check("subject: incompletion about the same cycle accepted", true, async () => {
+  await setDoc(subjectRef, subjectFresh([{ ...report, subject, incompletion: { reason: "no_time", progress: subjectProgress } }]));
+  await seed(s => deleteDoc(doc(s, C, subjectId)));
+});
+await check("subject: incompletion about another cycle rejected", false, () => setDoc(subjectRef, subjectFresh([{ ...report, subject: { ...subject, cycleId: "reason-owned-2" }, incompletion: { reason: "no_time", progress: subjectProgress } }])));
+await check("subject: general report first, then a cycle report appended", true, async () => {
+  await setDoc(subjectRef, subjectFresh([report]));
+  await updateDoc(subjectRef, { revision: 2, reports: [report, { ...report, effort: "easy", subject }], updatedAt: serverTimestamp() });
+});
+await check("subject: an earlier general report cannot be re-labelled", false, () => updateDoc(subjectRef, { revision: 3, reports: [{ ...report, subject }, { ...report, effort: "easy", subject }, { ...report, subject }], updatedAt: serverTimestamp() }));
 for (const result of results.filter(x => x.includes("concurrent devices"))) console.log(result);
 await env.cleanup();
 const failed = results.filter(x => x.startsWith("FAIL"));

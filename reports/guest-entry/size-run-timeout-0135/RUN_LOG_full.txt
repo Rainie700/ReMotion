@@ -1,0 +1,48 @@
+[33m[1m!  emulators:[22m[39m You are not currently authenticated so some features may not work correctly. Please run [1mfirebase login[22m to authenticate the CLI.
+[36m[1mi  emulators:[22m[39m Starting emulators: auth, firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-remotion", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9150.
+[36m[1mi [22m[39m Running script: [1mnode domainExploreSizeCheck.mjs[22m
+PASS | E viewport 260 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":1,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":260,"vw":260}
+PASS | D viewport 260 功能構面: 6 cards, 2 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[159],"clipped":0,"inGrid":true,"sw":260,"vw":260}
+PASS | D viewport 260 closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O viewport 260 數據總覽: no page overflow, the last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"culprits":[],"last":132,"navTop":485}
+PASS | E viewport 320 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":1,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":320,"vw":320}
+PASS | D viewport 320 功能構面: 6 cards, 2 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":320,"vw":320}
+PASS | D viewport 320 closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O viewport 320 數據總覽: no page overflow, the last button above the bottom nav | {"vw":320,"sw":320,"wide":0,"culprits":[],"last":314,"navTop":622}
+PASS | E viewport 390 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":390,"vw":390}
+PASS | D viewport 390 功能構面: 6 cards, 3 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":3,"rowsAligned":true,"equalHeights":true,"heights":[159],"clipped":0,"inGrid":true,"sw":390,"vw":390}
+PASS | D viewport 390 closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O viewport 390 數據總覽: no page overflow, the last button above the bottom nav | {"vw":390,"sw":390,"wide":0,"culprits":[],"last":474,"navTop":766}
+PASS | E viewport 430 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":430,"vw":430}
+PASS | D viewport 430 功能構面: 6 cards, 3 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":3,"rowsAligned":true,"equalHeights":true,"heights":[159],"clipped":0,"inGrid":true,"sw":430,"vw":430}
+PASS | D viewport 430 closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O viewport 430 數據總覽: no page overflow, the last button above the bottom nav | {"vw":430,"sw":430,"wide":0,"culprits":[],"last":562,"navTop":854}
+PASS | E viewport 1280 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":1280,"vw":1280}
+PASS | D viewport 1280 功能構面: 6 cards, 4 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":4,"rowsAligned":true,"equalHeights":true,"heights":[159],"clipped":0,"inGrid":true,"sw":1280,"vw":1280}
+PASS | D viewport 1280 closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O viewport 1280 數據總覽: no page overflow, the last button above the bottom nav | {"vw":1280,"sw":1280,"wide":0,"culprits":[],"last":514,"navTop":806}
+PASS | E browser zoom 150%（390 視窗 = CSS 260×563 @3） 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":1,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":260,"vw":260}
+PASS | D browser zoom 150%（390 視窗 = CSS 260×563 @3） 功能構面: 6 cards, 2 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":2,"rowsAligned":true,"equalHeights":true,"heights":[159],"clipped":0,"inGrid":true,"sw":260,"vw":260}
+PASS | D browser zoom 150%（390 視窗 = CSS 260×563 @3） closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O browser zoom 150%（390 視窗 = CSS 260×563 @3） 數據總覽: no page overflow, the last button above the bottom nav | {"vw":260,"sw":260,"wide":0,"culprits":[],"last":132,"navTop":485}
+PASS | E browser zoom 200%（390 視窗 = CSS 195×422 @4） 探索與練習: 2 cards, equal height in each row, inside the grid, nothing clipped, no page overflow | {"cards":2,"columns":1,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":195,"vw":195}
+PASS | D browser zoom 200%（390 視窗 = CSS 195×422 @4） 功能構面: 6 cards, 1 columns, equal heights, nothing clipped, no page overflow | {"cards":6,"columns":1,"rowsAligned":true,"equalHeights":true,"heights":[140],"clipped":0,"inGrid":true,"sw":195,"vw":195}
+PASS | D browser zoom 200%（390 視窗 = CSS 195×422 @4） closed domains: not focusable / not clickable, labelled 尚未開放 in words, readable (contrast ≥ 4.5:1, no fading) | {"tag":"DIV","focusable":false,"onclick":false,"opacity":"1","label":"尚未開放","nameContrast":5.14,"labelContrast":6.27}
+PASS | O browser zoom 200%（390 視窗 = CSS 195×422 @4） 數據總覽: no page overflow, the last button above the bottom nav | {"vw":195,"sw":195,"wide":0,"culprits":["BUTTON.patient-data-seg "],"last":-78,"navTop":344}
+ABORT | locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByText('建立我的復健需求').or(locator('.top-profile-container')).first() to be visible[22m
+
+28/28 steps passed
+[33m[1m! [22m[39m Script exited unsuccessfully (code 1)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  auth:[22m[39m Stopping Authentication Emulator
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
+
+[1m[31mError:[39m[22m Script "[1mnode domainExploreSizeCheck.mjs[22m" exited with code 1
